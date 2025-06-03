@@ -5,23 +5,33 @@ Dashboard window with 2x2 grid layout for AWE test rig
 
 import tkinter as tk
 from tkinter import ttk
+from .controls import ControlPanel
 
 
 class Dashboard:
-    """Main dashboard window with 2x2 grid layout"""
+    """Main dashboard window with controls and 2x2 grid layout"""
     
     def __init__(self, root):
         self.root = root
         self.root.title("AWE Electrolyzer Test Rig - Dashboard")
-        self.root.geometry("1000x700")
+        self.root.geometry("1200x800")
         
-        # Create main frame
-        self.main_frame = ttk.Frame(root, padding="10")
-        self.main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create main container
+        main_container = ttk.Frame(root, padding="5")
+        main_container.pack(fill='both', expand=True)
+        
+        # Configure main container
+        main_container.columnconfigure(0, weight=1)
+        main_container.rowconfigure(1, weight=1)  # Give weight to the grid, not controls
+        
+        # Add control panel at the top
+        self.control_panel = ControlPanel(main_container)
+        
+        # Create main frame for 2x2 grid
+        self.main_frame = ttk.Frame(main_container, padding="5")
+        self.main_frame.pack(fill='both', expand=True, pady=(5, 0))
         
         # Configure grid weights for responsive resizing
-        root.columnconfigure(0, weight=1)
-        root.rowconfigure(0, weight=1)
         self.main_frame.columnconfigure(0, weight=1)
         self.main_frame.columnconfigure(1, weight=1)
         self.main_frame.rowconfigure(0, weight=1)
@@ -150,17 +160,18 @@ def main():
     dashboard = Dashboard(root)
     
     print("=" * 50)
-    print("TASK 5 TEST: Dashboard Window")
+    print("TASK 6 TEST: Dashboard with Controls")
     print("=" * 50)
     print("✅ Dashboard window created")
-    print("✅ 2x2 grid layout established")
-    print("✅ Plot placeholders: Pressure, Voltage, Temperature")
-    print("✅ Valve/pump state indicators created")
-    print("\n🎯 TEST: Check that window shows 2x2 grid with:")
-    print("   - Top-left: Pressure plot (blue)")
-    print("   - Top-right: Voltage plot (green)")  
-    print("   - Bottom-left: Temperature plot (yellow)")
-    print("   - Bottom-right: Valve states (4 valves + pump)")
+    print("✅ Control panel added at top")
+    print("✅ 2x2 grid layout below controls")
+    print("✅ Buttons: Connect, Start Test, Pause/Resume, Emergency Stop")
+    print("\n🎯 TEST: Click buttons and check both:")
+    print("   - Console output (button actions)")
+    print("   - UI behavior (button state changes)")
+    print("\nExpected layout:")
+    print("   - Top: Control buttons")
+    print("   - Below: 2x2 grid (Pressure, Voltage, Temperature, Valves)")
     print("\nClose window when done testing...")
     print("=" * 50)
     
