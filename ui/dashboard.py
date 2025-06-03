@@ -6,15 +6,16 @@ Dashboard window with 2x2 grid layout for AWE test rig
 import tkinter as tk
 from tkinter import ttk
 from .controls import ControlPanel
+from .status_indicators import StatusIndicators
 
 
 class Dashboard:
-    """Main dashboard window with controls and 2x2 grid layout"""
+    """Main dashboard window with controls, status indicators, and 2x2 grid layout"""
     
     def __init__(self, root):
         self.root = root
         self.root.title("AWE Electrolyzer Test Rig - Dashboard")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x900")
         
         # Create main container
         main_container = ttk.Frame(root, padding="5")
@@ -22,10 +23,13 @@ class Dashboard:
         
         # Configure main container
         main_container.columnconfigure(0, weight=1)
-        main_container.rowconfigure(1, weight=1)  # Give weight to the grid, not controls
+        main_container.rowconfigure(2, weight=1)  # Give weight to the grid section
         
         # Add control panel at the top
         self.control_panel = ControlPanel(main_container)
+        
+        # Add status indicators in the middle
+        self.status_indicators = StatusIndicators(main_container)
         
         # Create main frame for 2x2 grid
         self.main_frame = ttk.Frame(main_container, padding="5")
@@ -159,21 +163,22 @@ def main():
     root = tk.Tk()
     dashboard = Dashboard(root)
     
-    print("=" * 50)
-    print("TASK 6 TEST: Dashboard with Controls")
-    print("=" * 50)
+    print("=" * 60)
+    print("TASK 7 TEST: Dashboard with Status Indicators")
+    print("=" * 60)
     print("✅ Dashboard window created")
-    print("✅ Control panel added at top")
-    print("✅ 2x2 grid layout below controls")
-    print("✅ Buttons: Connect, Start Test, Pause/Resume, Emergency Stop")
-    print("\n🎯 TEST: Click buttons and check both:")
-    print("   - Console output (button actions)")
-    print("   - UI behavior (button state changes)")
-    print("\nExpected layout:")
-    print("   - Top: Control buttons")
-    print("   - Below: 2x2 grid (Pressure, Voltage, Temperature, Valves)")
+    print("✅ Control panel at top")
+    print("✅ Connection status indicators in middle")
+    print("✅ 2x2 grid layout at bottom")
+    print("✅ Four device indicators: NI DAQ, Pico, BGA, CVM")
+    print("\n🎯 TEST: Verify layout structure:")
+    print("   - Top: Control buttons (Connect, Start, Pause, E-Stop)")
+    print("   - Middle: 4 device status indicators (all red/disconnected)")
+    print("   - Bottom: 2x2 grid (Pressure, Voltage, Temperature, Valves)")
+    print("\n⚠️  Note: Status indicators are not yet connected to controls")
+    print("   (This will be done in Task 8: Connect UI to global state)")
     print("\nClose window when done testing...")
-    print("=" * 50)
+    print("=" * 60)
     
     root.mainloop()
 
