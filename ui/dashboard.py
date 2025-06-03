@@ -35,11 +35,17 @@ class Dashboard:
         self.main_frame = ttk.Frame(main_container, padding="5")
         self.main_frame.pack(fill='both', expand=True, pady=(5, 0))
         
-        # Configure grid weights for responsive resizing
-        self.main_frame.columnconfigure(0, weight=1)
-        self.main_frame.columnconfigure(1, weight=1)
-        self.main_frame.rowconfigure(0, weight=1)
-        self.main_frame.rowconfigure(1, weight=1)
+        # Configure grid weights for responsive resizing with uniform sizing
+        self.main_frame.columnconfigure(0, weight=1, uniform="cols")
+        self.main_frame.columnconfigure(1, weight=1, uniform="cols")
+        self.main_frame.rowconfigure(0, weight=1, uniform="rows")
+        self.main_frame.rowconfigure(1, weight=1, uniform="rows")
+        
+        # Set minimum size for uniform grid
+        self.main_frame.grid_columnconfigure(0, minsize=200)
+        self.main_frame.grid_columnconfigure(1, minsize=200)
+        self.main_frame.grid_rowconfigure(0, minsize=150)
+        self.main_frame.grid_rowconfigure(1, minsize=150)
         
         self._create_widgets()
     
