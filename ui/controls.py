@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk
 from core.state import get_global_state
 from core.timer import get_timer
+from services.controller_manager import get_controller_manager
 
 
 class ControlPanel:
@@ -16,6 +17,7 @@ class ControlPanel:
         self.parent_frame = parent_frame
         self.state = get_global_state()
         self.timer = get_timer()
+        self.controller = get_controller_manager()
         
         # UI update timer
         self.update_job = None
@@ -95,34 +97,26 @@ class ControlPanel:
     
     def _on_connect_click(self):
         """Handle Connect button click"""
-        all_connected = all(self.state.connections.values())
-        
-        if not all_connected:
+        if not self.controller.is_all_connected():
             print("🔌 Connect button clicked")
-            print("   → Connecting to all devices...")
             
-            # Update GlobalState connections (mocked as all successful)
-            self.state.update_connection_status('ni_daq', True)
-            self.state.update_connection_status('pico_tc08', True)
-            self.state.update_connection_status('bga244', True)
-            self.state.update_connection_status('cvm24p', True)
+            # Use ControllerManager to start all services
+            success = self.controller.start_all_services()
             
-            print("   ✅ All devices connected (mocked)")
+            if success:
+                print("   ✅ All devices connected via ControllerManager")
+            else:
+                print("   ❌ Some devices failed to connect")
         else:
             print("🔌 Disconnect button clicked")
-            print("   → Disconnecting from all devices...")
             
             # Stop any running test first
             if self.state.test_running:
                 self._stop_test()
             
-            # Update GlobalState connections
-            self.state.update_connection_status('ni_daq', False)
-            self.state.update_connection_status('pico_tc08', False)
-            self.state.update_connection_status('bga244', False)
-            self.state.update_connection_status('cvm24p', False)
-            
-            print("   ✅ All devices disconnected")
+            # Use ControllerManager to stop all services
+            self.controller.stop_all_services()
+            print("   ✅ All devices disconnected via ControllerManager")
     
     def _on_start_click(self):
         """Handle Start Test button click"""
@@ -221,8 +215,8 @@ class ControlPanel:
     
     def _update_ui(self):
         """Update UI elements based on current state"""
-        # Update button states based on GlobalState
-        all_connected = all(self.state.connections.values())
+        # Update button states based on ControllerManager and GlobalState
+        all_connected = self.controller.is_all_connected()
         
         # Connect button
         if all_connected:
@@ -230,7 +224,7 @@ class ControlPanel:
         else:
             self.connect_button.configure(text="Connect")
         
-        # Start Test button - removed emergency_stop blocking
+        # Start Test button - only enabled when connected
         if all_connected:
             self.start_button.configure(state='normal')
             if self.state.test_running:
@@ -283,21 +277,23 @@ class ControlPanel:
 def main():
     """Test the control panel by running it directly"""
     root = tk.Tk()
-    root.title("Test - Control Panel with GlobalState")
+    root.title("Test - Control Panel with ControllerManager")
     root.geometry("800x200")
     
     print("=" * 60)
-    print("TASK 8 TEST: Controls Connected to GlobalState")
+    print("TASK 9 TEST: Controls with ControllerManager")
     print("=" * 60)
-    print("✅ Control panel connected to GlobalState and Timer")
+    print("✅ Control panel connected to ControllerManager")
+    print("✅ Connect button uses real service coordination")
     print("✅ Timer display shows real elapsed time")
     print("✅ Buttons actually control state and timer")
     print("\n🎯 TEST: Click buttons and verify:")
-    print("   1. Connect - updates GlobalState connections")
-    print("   2. Start Test - actually starts Timer")
-    print("   3. Pause - actually pauses Timer")
-    print("   4. Timer display updates in real-time")
-    print("   5. Emergency Stop - resets everything")
+    print("   1. Connect - actually starts all services via ControllerManager")
+    print("   2. Status indicators should update automatically")
+    print("   3. Start Test - actually starts Timer")
+    print("   4. Pause - actually pauses Timer")
+    print("   5. Timer display updates in real-time")
+    print("   6. Emergency Stop - resets everything")
     print("\nTimer display format: HH:MM:SS")
     print("Close window when done testing...")
     print("=" * 60)
