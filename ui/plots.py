@@ -18,15 +18,14 @@ from core.state import get_global_state
 class PressurePlot:
     """Live pressure vs time plot"""
     
-    def __init__(self, parent_frame, max_points: int = 300):
+    def __init__(self, parent_frame):
         self.parent_frame = parent_frame
         self.state = get_global_state()
-        self.max_points = max_points
         
-        # Data storage for plotting
-        self.time_data = deque(maxlen=max_points)
-        self.pressure1_data = deque(maxlen=max_points)
-        self.pressure2_data = deque(maxlen=max_points)
+        # Data storage for plotting - NO maxlen to retain all test data
+        self.time_data = deque()
+        self.pressure1_data = deque()
+        self.pressure2_data = deque()
         
         # Track start time for relative time display
         self.start_time = None
@@ -39,7 +38,7 @@ class PressurePlot:
         # Configure plot appearance
         self.ax.set_title("Pressure vs Time", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Pressure (PSI)", fontsize=10)
+        self.ax.set_ylabel("Pressure (psig)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         
         # Create line objects for both pressure sensors
@@ -49,9 +48,9 @@ class PressurePlot:
         # Add legend
         self.ax.legend(loc='upper right', fontsize=9)
         
-        # Set initial axis limits
-        self.ax.set_xlim(0, 60)  # 60 seconds visible
-        self.ax.set_ylim(0, 40)  # 0-40 PSI range
+        # Set initial axis limits - 0-1 psig range, 0-120s time
+        self.ax.set_xlim(0, 120)  # 0 to 120 seconds
+        self.ax.set_ylim(0, 1.0)  # 0 to 1 psig
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -96,27 +95,12 @@ class PressurePlot:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
-            # Auto-scale x-axis to show last 60 seconds
-            if relative_time > 60:
-                self.ax.set_xlim(relative_time - 60, relative_time + 5)
-            else:
-                self.ax.set_xlim(0, max(60, relative_time + 5))
+            # Set x-axis to show 0 to max(current_time + 120, 120)
+            x_max = max(relative_time + 120, 120)
+            self.ax.set_xlim(0, x_max)
             
-            # Auto-scale y-axis based on data
-            if len(self.pressure1_data) > 5:  # Only auto-scale after some data
-                all_pressures = list(self.pressure1_data) + list(self.pressure2_data)
-                min_pressure = min(all_pressures)
-                max_pressure = max(all_pressures)
-                
-                # Add some margin
-                margin = (max_pressure - min_pressure) * 0.1
-                if margin < 2:  # Minimum margin of 2 PSI
-                    margin = 2
-                
-                y_min = max(0, min_pressure - margin)
-                y_max = max_pressure + margin
-                
-                self.ax.set_ylim(y_min, y_max)
+            # Keep y-axis at 0-1 psig with small margin for visibility
+            self.ax.set_ylim(-0.05, 1.05)
         
         return self.line1, self.line2
     
@@ -129,8 +113,8 @@ class PressurePlot:
         self.last_update_time = 0
         
         # Reset axis limits
-        self.ax.set_xlim(0, 60)
-        self.ax.set_ylim(0, 40)
+        self.ax.set_xlim(0, 120)
+        self.ax.set_ylim(0, 1.0)
         
         # Clear line data
         self.line1.set_data([], [])
