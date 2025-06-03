@@ -4,7 +4,7 @@ Dashboard window with 2x2 grid layout for AWE test rig
 """
 
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from .controls import ControlPanel
 from .status_indicators import StatusIndicators
 from core.state import get_global_state
@@ -21,6 +21,9 @@ class Dashboard:
         # Get global state
         self.state = get_global_state()
         self.update_job = None
+        
+        # Set up window close protocol
+        self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         
         # Create main container
         main_container = ttk.Frame(root, padding="5")
@@ -54,6 +57,40 @@ class Dashboard:
         
         self._create_widgets()
         self._start_status_updates()
+    
+    def _on_closing(self):
+        """Handle window close event with test running check"""
+        if self.state.test_running:
+            # Show confirmation dialog
+            result = messagebox.askyesno(
+                "Test Running",
+                "A test is currently running!\n\n"
+                "Closing the dashboard will stop the test and generate a final CSV file.\n\n"
+                "Are you sure you want to stop the test and close the application?",
+                icon="warning"
+            )
+            
+            if result:
+                print("🔔 User confirmed closing during active test")
+                # Stop the test gracefully
+                if hasattr(self.control_panel, '_stop_test'):
+                    self.control_panel._stop_test()
+                print("   → Test stopped due to application closure")
+                print("   → Final CSV generated")
+                self._close_application()
+            else:
+                print("🔔 User cancelled closing - test continues")
+                # Don't close the window
+                return
+        else:
+            # No test running, close normally
+            self._close_application()
+    
+    def _close_application(self):
+        """Clean up and close the application"""
+        print("🔔 Closing AWE Test Rig Dashboard...")
+        self.cleanup()
+        self.root.destroy()
     
     def _create_widgets(self):
         """Create the 2x2 grid layout with placeholders"""
@@ -258,21 +295,18 @@ def main():
     print("✅ Control buttons update GlobalState and Timer")
     print("✅ Actuator states reflect GlobalState values")
     print("✅ Sensor values update from GlobalState")
+    print("✅ Close confirmation popup when test running")
     print("\n🎯 TEST: Verify complete integration:")
     print("   1. Click Connect - status indicators turn green")
     print("   2. Start Test - timer starts counting")
-    print("   3. Pause/Resume - timer pauses/resumes")
-    print("   4. Emergency Stop - everything resets")
-    print("   5. All displays update in real-time")
+    print("   3. Try to close window - popup appears asking for confirmation")
+    print("   4. Pause/Resume - timer pauses/resumes")
+    print("   5. Emergency Stop - everything resets")
+    print("   6. All displays update in real-time")
     print("\nLayout: Controls → Status → 2x2 Grid")
     print("Close window when done testing...")
     print("=" * 60)
     
-    def on_closing():
-        dashboard.cleanup()
-        root.destroy()
-    
-    root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
 
