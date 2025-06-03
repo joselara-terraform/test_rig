@@ -64,11 +64,16 @@ class ControlPanel:
         self.pause_button.grid(row=0, column=2, padx=5, pady=5)
         
         # Emergency Stop button
-        self.estop_button = ttk.Button(
+        self.estop_button = tk.Button(
             button_frame,
             text="EMERGENCY STOP",
             command=self._on_estop_click,
-            width=20
+            width=20,
+            background="red",
+            foreground="white",
+            font=("Arial", 10, "bold"),
+            relief=tk.RAISED,
+            borderwidth=2
         )
         self.estop_button.grid(row=0, column=3, padx=5, pady=5)
         
@@ -80,11 +85,6 @@ class ControlPanel:
             foreground="blue"
         )
         self.timer_label.grid(row=0, column=4, padx=20, pady=5)
-        
-        # Style the emergency stop button
-        style = ttk.Style()
-        style.configure('Emergency.TButton', foreground='red')
-        self.estop_button.configure(style='Emergency.TButton')
         
         # Bottom row: status
         status_frame = ttk.Frame(control_frame)
