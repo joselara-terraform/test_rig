@@ -130,14 +130,17 @@ class ControlPanel:
             print("▶️  Start Test button clicked")
             print("   → Starting test sequence...")
             
+            # Reset timer and start fresh
+            self.timer.reset()
+            
             # Update GlobalState and start timer
             with self.state._lock:
                 self.state.test_running = True
                 self.state.test_paused = False
-                self.state.emergency_stop = False
+                self.state.emergency_stop = False  # Clear any previous e-stop
             
             self.timer.start()
-            print("   → Timer started")
+            print("   → Timer started from 0")
             print("   → Data logging started (mocked)")
             print("   ✅ Test started")
         else:
@@ -145,18 +148,19 @@ class ControlPanel:
             self._stop_test()
     
     def _stop_test(self):
-        """Stop the current test"""
+        """Stop the current test (normal stop - timer resets, no valve/pump changes)"""
         print("   → Stopping test sequence...")
         
-        # Update GlobalState and stop timer
+        # Update GlobalState and reset timer
         with self.state._lock:
             self.state.test_running = False
             self.state.test_paused = False
         
-        self.timer.stop()
-        print("   → Timer stopped")
+        self.timer.reset()  # Reset timer to 0 for next test
+        print("   → Timer stopped and reset to 0")
         print("   → Data logging stopped (mocked)")
-        print("   ✅ Test stopped")
+        print("   → CSV file generated (mocked)")
+        print("   ✅ Test stopped - ready for new test")
     
     def _on_pause_click(self):
         """Handle Pause/Resume button click"""
@@ -190,24 +194,26 @@ class ControlPanel:
         print("🚨 EMERGENCY STOP ACTIVATED! 🚨")
         print("   → All operations halted immediately")
         
-        # Update GlobalState
+        # Update GlobalState - emergency stop does more than regular stop
         with self.state._lock:
-            self.state.emergency_stop = True
             self.state.test_running = False
             self.state.test_paused = False
-            # Reset all actuators to safe state
+            # Close all actuators to safe state (key difference from regular stop)
             self.state.pump_state = False
             for i in range(len(self.state.valve_states)):
                 self.state.valve_states[i] = False
         
-        # Stop timer
-        self.timer.stop()
+        # Reset timer
+        self.timer.reset()
         
-        print("   → Valves closed")
-        print("   → Pump stopped")
-        print("   → Timer stopped")
+        print("   → Timer stopped and reset to 0")
+        print("   → All valves closed (SAFE STATE)")
+        print("   → Pump stopped (SAFE STATE)")
         print("   → Data logging stopped")
-        print("   ✅ Emergency stop complete")
+        print("   → CSV file generated (mocked)")
+        print("   → Power systems ready for disconnect (future)")
+        print("   ✅ Emergency stop complete - system in safe state")
+        print("   ℹ️  Press Start Test to begin new test")
     
     def _start_ui_updates(self):
         """Start periodic UI updates"""
@@ -224,8 +230,8 @@ class ControlPanel:
         else:
             self.connect_button.configure(text="Connect")
         
-        # Start Test button
-        if all_connected and not self.state.emergency_stop:
+        # Start Test button - removed emergency_stop blocking
+        if all_connected:
             self.start_button.configure(state='normal')
             if self.state.test_running:
                 self.start_button.configure(text="Stop Test")
@@ -234,8 +240,8 @@ class ControlPanel:
         else:
             self.start_button.configure(state='disabled', text="Start Test")
         
-        # Pause button
-        if self.state.test_running and not self.state.emergency_stop:
+        # Pause button - only available during running test
+        if self.state.test_running:
             self.pause_button.configure(state='normal')
             if self.state.test_paused:
                 self.pause_button.configure(text="Resume")
@@ -245,13 +251,7 @@ class ControlPanel:
             self.pause_button.configure(state='disabled', text="Pause")
         
         # Status label
-        if self.state.emergency_stop:
-            status_text = "Status: EMERGENCY STOP"
-            if all_connected:
-                status_text += " - Connected"
-            else:
-                status_text += " - Disconnected"
-        elif not all_connected:
+        if not all_connected:
             status_text = "Status: Disconnected"
         elif self.state.test_running:
             if self.state.test_paused:
@@ -259,7 +259,7 @@ class ControlPanel:
             else:
                 status_text = "Status: Test Running"
         else:
-            status_text = "Status: Connected"
+            status_text = "Status: Connected - Ready"
         
         self.status_label.configure(text=status_text)
         
