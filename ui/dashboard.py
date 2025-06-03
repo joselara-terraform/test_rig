@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from .controls import ControlPanel
 from .status_indicators import StatusIndicators
+from .plots import PressurePlot, VoltagePlot, TemperaturePlot
 from core.state import get_global_state
 
 
@@ -22,6 +23,11 @@ class Dashboard:
         self.state = get_global_state()
         self.update_job = None
         
+        # Plot objects
+        self.pressure_plot = None
+        self.voltage_plot = None
+        self.temperature_plot = None
+        
         # Set up window close protocol
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
         
@@ -34,7 +40,7 @@ class Dashboard:
         main_container.rowconfigure(2, weight=1)  # Give weight to the grid section
         
         # Add control panel at the top
-        self.control_panel = ControlPanel(main_container)
+        self.control_panel = ControlPanel(main_container, plot_reset_callback=self.reset_plots)
         
         # Add status indicators in the middle
         self.status_indicators = StatusIndicators(main_container)
@@ -93,27 +99,22 @@ class Dashboard:
         self.root.destroy()
     
     def _create_widgets(self):
-        """Create the 2x2 grid layout with placeholders"""
+        """Create the 2x2 grid layout with actual plots"""
         
-        # Top-left: Pressure vs Time plot placeholder
+        # Top-left: Live Pressure vs Time plot
         self.pressure_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Pressure vs Time", 
-            padding="5"
+            padding="2"
         )
         self.pressure_frame.grid(row=0, column=0, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.pressure_frame.columnconfigure(0, weight=1)
         self.pressure_frame.rowconfigure(0, weight=1)
         
-        self.pressure_placeholder = ttk.Label(
-            self.pressure_frame, 
-            text="[Pressure Plot Placeholder]\n\nPressure Sensor 1: 0.0 PSI\nPressure Sensor 2: 0.0 PSI",
-            justify=tk.CENTER,
-            background="lightblue"
-        )
-        self.pressure_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create actual pressure plot
+        self.pressure_plot = PressurePlot(self.pressure_frame)
         
-        # Top-right: Voltage vs Time plot placeholder
+        # Top-right: Voltage vs Time plot (placeholder for Task 15)
         self.voltage_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Voltage vs Time", 
@@ -123,15 +124,10 @@ class Dashboard:
         self.voltage_frame.columnconfigure(0, weight=1)
         self.voltage_frame.rowconfigure(0, weight=1)
         
-        self.voltage_placeholder = ttk.Label(
-            self.voltage_frame, 
-            text="[Voltage Plot Placeholder]\n\nCell Voltage Average: 0.0 V\nTotal Stack Voltage: 0.0 V",
-            justify=tk.CENTER,
-            background="lightgreen"
-        )
-        self.voltage_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create voltage plot placeholder
+        self.voltage_plot = VoltagePlot(self.voltage_frame)
         
-        # Bottom-left: Temperature vs Time plot placeholder
+        # Bottom-left: Temperature vs Time plot (placeholder for Task 16)
         self.temperature_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Temperature vs Time", 
@@ -141,13 +137,8 @@ class Dashboard:
         self.temperature_frame.columnconfigure(0, weight=1)
         self.temperature_frame.rowconfigure(0, weight=1)
         
-        self.temperature_placeholder = ttk.Label(
-            self.temperature_frame, 
-            text="[Temperature Plot Placeholder]\n\nTC1: 0.0°C  TC2: 0.0°C  TC3: 0.0°C  TC4: 0.0°C\nTC5: 0.0°C  TC6: 0.0°C  TC7: 0.0°C  TC8: 0.0°C",
-            justify=tk.CENTER,
-            background="lightyellow"
-        )
-        self.temperature_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create temperature plot placeholder
+        self.temperature_plot = TemperaturePlot(self.temperature_frame)
         
         # Bottom-right: Valve/Pump state indicators
         self.valve_frame = ttk.LabelFrame(
@@ -220,6 +211,15 @@ class Dashboard:
         self.current_label = ttk.Label(current_frame, text="0.0 A", font=("Arial", 12))
         self.current_label.pack()
     
+    def reset_plots(self):
+        """Reset all plots when starting a new test"""
+        if self.pressure_plot:
+            self.pressure_plot.reset()
+        if self.voltage_plot:
+            self.voltage_plot.reset()
+        if self.temperature_plot:
+            self.temperature_plot.reset()
+    
     def _start_status_updates(self):
         """Start periodic status updates"""
         self._update_status_indicators()
@@ -230,7 +230,7 @@ class Dashboard:
         connection_info = {
             'ni_daq': "250 Hz" if self.state.connections['ni_daq'] else "",
             'pico_tc08': "1 Hz" if self.state.connections['pico_tc08'] else "",
-            'bga244': "0.5 Hz" if self.state.connections['bga244'] else "",
+            'bga244': "0.2 Hz" if self.state.connections['bga244'] else "",
             'cvm24p': "10 Hz" if self.state.connections['cvm24p'] else ""
         }
         
@@ -252,24 +252,6 @@ class Dashboard:
         # Update current sensor
         self.current_label.configure(text=f"{self.state.current_value:.1f} A")
         
-        # Update sensor values in plot placeholders
-        self.pressure_placeholder.configure(
-            text=f"[Pressure Plot Placeholder]\n\nPressure Sensor 1: {self.state.pressure_values[0]:.1f} PSI\nPressure Sensor 2: {self.state.pressure_values[1]:.1f} PSI"
-        )
-        
-        avg_voltage = sum(self.state.cell_voltages) / len(self.state.cell_voltages) if self.state.cell_voltages else 0
-        total_voltage = sum(self.state.cell_voltages)
-        self.voltage_placeholder.configure(
-            text=f"[Voltage Plot Placeholder]\n\nCell Voltage Average: {avg_voltage:.2f} V\nTotal Stack Voltage: {total_voltage:.1f} V"
-        )
-        
-        temp_text = "[Temperature Plot Placeholder]\n\n"
-        for i in range(min(8, len(self.state.temperature_values))):
-            if i == 4:
-                temp_text += "\n"
-            temp_text += f"TC{i+1}: {self.state.temperature_values[i]:.1f}°C  "
-        self.temperature_placeholder.configure(text=temp_text.strip())
-        
         # Schedule next update
         self.update_job = self.root.after(100, self._update_status_indicators)
     
@@ -277,6 +259,15 @@ class Dashboard:
         """Clean up resources"""
         if self.update_job:
             self.root.after_cancel(self.update_job)
+        
+        # Clean up plots
+        if self.pressure_plot:
+            self.pressure_plot.destroy()
+        if self.voltage_plot:
+            self.voltage_plot.destroy()
+        if self.temperature_plot:
+            self.temperature_plot.destroy()
+        
         if hasattr(self.control_panel, 'cleanup'):
             self.control_panel.cleanup()
 
@@ -287,23 +278,21 @@ def main():
     dashboard = Dashboard(root)
     
     print("=" * 60)
-    print("TASK 8 TEST: Dashboard Connected to GlobalState")
+    print("TASK 14 TEST: Live Pressure vs Time Plot")
     print("=" * 60)
-    print("✅ Dashboard fully connected to GlobalState")
-    print("✅ Status indicators reflect real connection states")
-    print("✅ Timer display shows actual elapsed time")
-    print("✅ Control buttons update GlobalState and Timer")
-    print("✅ Actuator states reflect GlobalState values")
-    print("✅ Sensor values update from GlobalState")
-    print("✅ Close confirmation popup when test running")
-    print("\n🎯 TEST: Verify complete integration:")
-    print("   1. Click Connect - status indicators turn green")
-    print("   2. Start Test - timer starts counting")
-    print("   3. Try to close window - popup appears asking for confirmation")
-    print("   4. Pause/Resume - timer pauses/resumes")
-    print("   5. Emergency Stop - everything resets")
-    print("   6. All displays update in real-time")
-    print("\nLayout: Controls → Status → 2x2 Grid")
+    print("✅ Dashboard with live pressure plotting")
+    print("✅ Pressure plot updates from GlobalState")
+    print("✅ Auto-scaling axes for optimal viewing")
+    print("✅ Dual pressure sensor display (blue & red lines)")
+    print("✅ 60-second sliding window")
+    print("✅ Plot placeholders for voltage & temperature")
+    print("\n🎯 TEST: Verify live pressure plotting:")
+    print("   1. Click Connect - services start providing data")
+    print("   2. Start Test - plots begin updating")
+    print("   3. Watch pressure lines move in real-time")
+    print("   4. Axes auto-scale to data range")
+    print("   5. Time window slides as data accumulates")
+    print("\nPressure plot shows realistic electrolyzer data!")
     print("Close window when done testing...")
     print("=" * 60)
     

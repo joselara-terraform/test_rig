@@ -13,11 +13,14 @@ from services.controller_manager import get_controller_manager
 class ControlPanel:
     """Control buttons for test operations"""
     
-    def __init__(self, parent_frame):
+    def __init__(self, parent_frame, plot_reset_callback=None):
         self.parent_frame = parent_frame
         self.state = get_global_state()
         self.timer = get_timer()
         self.controller = get_controller_manager()
+        
+        # Callback to reset plots when starting a new test
+        self.plot_reset_callback = plot_reset_callback
         
         # UI update timer
         self.update_job = None
@@ -126,6 +129,11 @@ class ControlPanel:
             
             # Reset timer and start fresh
             self.timer.reset()
+            
+            # Reset plots for new test
+            if self.plot_reset_callback:
+                self.plot_reset_callback()
+                print("   → Plots reset for new test")
             
             # Update GlobalState and start timer
             with self.state._lock:
