@@ -52,7 +52,9 @@ class Dashboard:
             text="Pressure vs Time", 
             padding="5"
         )
-        self.pressure_frame.grid(row=0, column=0, padx=5, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.pressure_frame.grid(row=0, column=0, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.pressure_frame.columnconfigure(0, weight=1)
+        self.pressure_frame.rowconfigure(0, weight=1)
         
         pressure_placeholder = ttk.Label(
             self.pressure_frame, 
@@ -60,7 +62,7 @@ class Dashboard:
             justify=tk.CENTER,
             background="lightblue"
         )
-        pressure_placeholder.pack(expand=True, fill='both')
+        pressure_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Top-right: Voltage vs Time plot placeholder
         self.voltage_frame = ttk.LabelFrame(
@@ -68,7 +70,9 @@ class Dashboard:
             text="Voltage vs Time", 
             padding="5"
         )
-        self.voltage_frame.grid(row=0, column=1, padx=5, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.voltage_frame.grid(row=0, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.voltage_frame.columnconfigure(0, weight=1)
+        self.voltage_frame.rowconfigure(0, weight=1)
         
         voltage_placeholder = ttk.Label(
             self.voltage_frame, 
@@ -76,7 +80,7 @@ class Dashboard:
             justify=tk.CENTER,
             background="lightgreen"
         )
-        voltage_placeholder.pack(expand=True, fill='both')
+        voltage_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Bottom-left: Temperature vs Time plot placeholder
         self.temperature_frame = ttk.LabelFrame(
@@ -84,7 +88,9 @@ class Dashboard:
             text="Temperature vs Time", 
             padding="5"
         )
-        self.temperature_frame.grid(row=1, column=0, padx=5, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.temperature_frame.grid(row=1, column=0, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.temperature_frame.columnconfigure(0, weight=1)
+        self.temperature_frame.rowconfigure(0, weight=1)
         
         temperature_placeholder = ttk.Label(
             self.temperature_frame, 
@@ -92,7 +98,7 @@ class Dashboard:
             justify=tk.CENTER,
             background="lightyellow"
         )
-        temperature_placeholder.pack(expand=True, fill='both')
+        temperature_placeholder.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Bottom-right: Valve/Pump state indicators
         self.valve_frame = ttk.LabelFrame(
@@ -100,7 +106,9 @@ class Dashboard:
             text="Actuator States", 
             padding="5"
         )
-        self.valve_frame.grid(row=1, column=1, padx=5, pady=5, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.valve_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.valve_frame.columnconfigure(0, weight=1)
+        self.valve_frame.rowconfigure(0, weight=1)
         
         # Create valve state indicators
         self._create_valve_indicators()
@@ -108,12 +116,16 @@ class Dashboard:
     def _create_valve_indicators(self):
         """Create valve and pump state indicators"""
         
+        # Container frame to center content and control sizing
+        container_frame = ttk.Frame(self.valve_frame)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
         # Title
-        title_label = ttk.Label(self.valve_frame, text="[Valve/Pump State Panel]", font=("Arial", 12, "bold"))
-        title_label.pack(pady=5)
+        title_label = ttk.Label(container_frame, text="[Valve/Pump State Panel]", font=("Arial", 12, "bold"))
+        title_label.pack(pady=(10, 5))
         
         # Valve states (4 valves)
-        valve_frame = ttk.Frame(self.valve_frame)
+        valve_frame = ttk.Frame(container_frame)
         valve_frame.pack(pady=5)
         
         ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=4, pady=5)
@@ -134,7 +146,7 @@ class Dashboard:
             state_label.grid(row=2, column=i, padx=5, pady=2)
         
         # Pump state
-        pump_frame = ttk.Frame(self.valve_frame)
+        pump_frame = ttk.Frame(container_frame)
         pump_frame.pack(pady=10)
         
         ttk.Label(pump_frame, text="Pump:", font=("Arial", 10, "bold")).pack()
@@ -150,7 +162,7 @@ class Dashboard:
         pump_state_label.pack(pady=5)
         
         # Current sensor display
-        current_frame = ttk.Frame(self.valve_frame)
+        current_frame = ttk.Frame(container_frame)
         current_frame.pack(pady=10)
         
         ttk.Label(current_frame, text="Current Sensor:", font=("Arial", 10, "bold")).pack()

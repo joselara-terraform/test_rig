@@ -32,7 +32,7 @@ class ControlPanel:
         # Connect button
         self.connect_button = ttk.Button(
             button_frame,
-            text="Connect to Hardware",
+            text="Connect",
             command=self._on_connect_click,
             width=20
         )
@@ -79,7 +79,7 @@ class ControlPanel:
     def _on_connect_click(self):
         """Handle Connect button click"""
         if not self.is_connected:
-            print("🔌 Connect to Hardware button clicked")
+            print("🔌 Connect button clicked")
             print("   → Attempting to connect to all devices...")
             self.is_connected = True
             self.connect_button.configure(text="Disconnect")
@@ -92,7 +92,7 @@ class ControlPanel:
             self.is_connected = False
             self.test_running = False
             self.test_paused = False
-            self.connect_button.configure(text="Connect to Hardware")
+            self.connect_button.configure(text="Connect")
             self.start_button.configure(state='disabled', text="Start Test")
             self.pause_button.configure(state='disabled', text="Pause")
             self.status_label.configure(text="Status: Disconnected")
@@ -181,7 +181,7 @@ def main():
     print("✅ Control panel created")
     print("✅ Buttons: Connect, Start Test, Pause/Resume, Emergency Stop")
     print("\n🎯 TEST: Click each button and check console output:")
-    print("   1. Connect to Hardware (enables Start)")
+    print("   1. Connect (enables Start)")
     print("   2. Start Test (enables Pause, changes to Stop)")
     print("   3. Pause (changes to Resume)")
     print("   4. Resume (changes back to Pause)")
