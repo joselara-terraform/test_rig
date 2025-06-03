@@ -31,6 +31,13 @@ class GlobalState:
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
     cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 24)  # 24 cell voltages
     
+    # Gas analysis data from BGA244 units
+    gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [
+        {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},  # BGA Unit 1
+        {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},  # BGA Unit 2  
+        {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}   # BGA Unit 3
+    ])
+    
     # Actuator states
     valve_states: List[bool] = field(default_factory=lambda: [False] * 4)  # 4 solenoid valves
     pump_state: bool = False
