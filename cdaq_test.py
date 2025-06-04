@@ -92,6 +92,11 @@ def main():
             
             # Configure finite sampling instead of continuous
             # This avoids timeout issues when sensors are disconnected
+            task.timing.cfg_samp_clk_timing(
+                rate=1000,  # 1kHz sample rate
+                sample_mode=AcquisitionType.FINITE,  # Finite acquisition
+                samps_per_chan=SAMPLES_PER_READ  # Number of samples to read
+            )
             
             # Don't start the task - we'll read on demand
             print("📊 Started continuous pressure monitoring...\n")
@@ -105,11 +110,12 @@ def main():
             # Main reading loop
             while running:
                 try:
-                    # Read single sample (on-demand)
-                    current_sample = task.read()
+                    # Read finite samples
+                    current_samples = task.read(number_of_samples_per_channel=SAMPLES_PER_READ)
                     
-                    # Convert to mA
-                    current_ma = current_sample * 1000
+                    # Calculate average current
+                    avg_current = sum(current_samples) / len(current_samples)
+                    current_ma = avg_current * 1000  # Convert to mA
                     
                     # Check if sensor is connected (should be between 4-20mA)
                     if current_ma < 3.5:
