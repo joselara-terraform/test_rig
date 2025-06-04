@@ -24,7 +24,9 @@ class Dashboard:
     def __init__(self, root):
         self.root = root
         self.root.title("AWE Electrolyzer Test Rig - Dashboard")
-        self.root.geometry("1400x900")
+        
+        # Maximize the window - cross-platform approach
+        self._maximize_window()
         
         # Get global state
         self.state = get_global_state()
@@ -70,6 +72,39 @@ class Dashboard:
         
         self._create_widgets()
         self._start_status_updates()
+    
+    def _maximize_window(self):
+        """Maximize the window - cross-platform approach"""
+        try:
+            # Try platform-specific maximization methods
+            import platform
+            system = platform.system()
+            
+            if system == "Windows":
+                # Windows-specific maximization
+                self.root.state('zoomed')
+            elif system == "Linux":
+                # Linux-specific maximization  
+                self.root.attributes('-zoomed', True)
+            else:
+                # macOS and other platforms - use screen dimensions
+                # Get screen dimensions
+                screen_width = self.root.winfo_screenwidth()
+                screen_height = self.root.winfo_screenheight()
+                
+                # Set window to full screen size
+                self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+                
+                # Try to remove window decorations for true full screen (optional)
+                # self.root.overrideredirect(True)  # Uncomment for borderless
+                
+            print(f"✅ Dashboard window maximized ({platform.system()})")
+            
+        except Exception as e:
+            # Fallback to large window if maximization fails
+            print(f"⚠️  Could not maximize window: {e}")
+            print("   → Using fallback large window size")
+            self.root.geometry("1400x900")
     
     def _on_closing(self):
         """Handle window close event with test running check"""
@@ -335,17 +370,20 @@ class Dashboard:
 def main():
     """Test the dashboard by running it directly"""
     root = tk.Tk()
-    dashboard = Dashboard(root)
     
     print("=" * 70)
     print("DASHBOARD TEST: All Live Plots + Interactive Valve/Pump Controls")
     print("=" * 70)
+    print("✅ Dashboard window opens MAXIMIZED")
     print("✅ Dashboard with live pressure & gas concentration plotting")
     print("✅ Dashboard with live cell voltage plotting (120 cells)")
     print("✅ Dashboard with live temperature plotting (8 thermocouples)")
     print("✅ All plots update from GlobalState")
     print("✅ Static Y-axis, dynamic X-axis for all plots")
     print("✅ Interactive valve/pump controls with relay outputs")
+    
+    dashboard = Dashboard(root)
+    
     print("\nPressure & Gas Plot (Y: 0-1):")
     print("   • Blue: Pressure 1 | Red: Pressure 2")
     print("   • Green dashed: H₂ (H-side) | Magenta dashed: O₂ (O-side)")  
@@ -369,7 +407,7 @@ def main():
     print("   3. Start Test - all plots begin updating")
     print("   4. Watch plots update and actuator control in real-time")
     print("   5. Emergency Stop turns off all actuators")
-    print("\nFull AWE test rig control dashboard!")
+    print("\n🖥️  WINDOW: Dashboard opens as MAXIMIZED window!")
     print("Close window when done testing...")
     print("=" * 70)
     
