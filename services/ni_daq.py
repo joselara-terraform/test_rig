@@ -171,11 +171,11 @@ class NIDAQService:
         for channel_name in self.analog_channels.keys():
             # Generate realistic mock data
             if channel_name == 'pressure_1':
-                # Pressure sensor 1: 0-50 PSI, typically around 15 PSI
-                mock_value = random.uniform(14.5, 15.5)
+                # Pressure sensor 1: 0-50 PSI, but show low pressure around 0.3 PSI
+                mock_value = random.uniform(0.25, 0.35)
             elif channel_name == 'pressure_2':
-                # Pressure sensor 2: 0-100 PSI, typically around 30 PSI  
-                mock_value = random.uniform(29.0, 31.0)
+                # Pressure sensor 2: 0-100 PSI, but show low pressure around 0.7 PSI  
+                mock_value = random.uniform(0.65, 0.75)
             elif channel_name == 'current':
                 # Current sensor: 0-10 A, typically around 5 A
                 mock_value = random.uniform(4.8, 5.2)

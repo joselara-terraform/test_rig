@@ -89,12 +89,15 @@ class PressurePlot:
         
         # If no test has been started, always show live data (for dashboard/standalone viewing)
         
-        # Initialize start time on first update
-        if self.start_time is None:
-            self.start_time = current_time
-        
-        # Calculate relative time
-        relative_time = current_time - self.start_time
+        # Determine what time to use for x-axis
+        if test_has_been_started:
+            # Use test timer when test is active (properly handles pause/resume)
+            plot_time = self.state.timer_value
+        else:
+            # Use relative time for live monitoring when no test is running
+            if self.start_time is None:
+                self.start_time = current_time
+            plot_time = current_time - self.start_time
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
@@ -107,7 +110,7 @@ class PressurePlot:
         pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
         
         # Add new data points
-        self.time_data.append(relative_time)
+        self.time_data.append(plot_time)
         self.pressure1_data.append(pressure1)
         self.pressure2_data.append(pressure2)
         
@@ -117,7 +120,7 @@ class PressurePlot:
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
             # Set x-axis to always show from 0 to max(current_time + 120s, 120s)
-            max_time = max(relative_time + 120, 120)
+            max_time = max(plot_time + 120, 120)
             self.ax.set_xlim(0, max_time)
             
             # Keep y-axis fixed at 0-1 psig range
