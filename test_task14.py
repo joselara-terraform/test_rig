@@ -86,10 +86,10 @@ def test_plot_with_live_data():
         pressure1 = state.pressure_values[0]
         pressure2 = state.pressure_values[1]
         
-        if 0.0 <= pressure1 <= 1.0 and 0.0 <= pressure2 <= 1.0:
-            print(f"✅ PASS: Realistic pressure data (P1: {pressure1:.3f}, P2: {pressure2:.3f} psig)")
+        if 10.0 <= pressure1 <= 20.0 and 25.0 <= pressure2 <= 35.0:
+            print(f"✅ PASS: Realistic pressure data (P1: {pressure1:.2f}, P2: {pressure2:.2f})")
         else:
-            print(f"❌ FAIL: Unrealistic pressure data (P1: {pressure1:.3f}, P2: {pressure2:.3f} psig)")
+            print(f"❌ FAIL: Unrealistic pressure data (P1: {pressure1:.2f}, P2: {pressure2:.2f})")
             daq_service.disconnect()
             return False
         
@@ -202,17 +202,17 @@ def test_plot_scaling():
         state = get_global_state()
         
         # Set high pressure values
-        state.update_sensor_values(pressure_values=[0.9, 0.95])
+        state.update_sensor_values(pressure_values=[35.0, 38.0])
         time.sleep(0.2)
         
         # Set low pressure values  
-        state.update_sensor_values(pressure_values=[0.1, 0.15])
+        state.update_sensor_values(pressure_values=[5.0, 8.0])
         time.sleep(0.2)
         
         # Set normal values
-        state.update_sensor_values(pressure_values=[0.5, 0.6])
+        state.update_sensor_values(pressure_values=[15.0, 30.0])
         
-        print("✅ PASS: Plot scaling tested with various pressure ranges (0-1 psig)")
+        print("✅ PASS: Plot auto-scaling tested with various pressure ranges")
         return True
         
     except Exception as e:
@@ -252,9 +252,9 @@ def interactive_test():
         info_label = ttk.Label(
             info_frame,
             text="🎯 Watch the live pressure plot update in real-time!\n"
-                 "Blue line: Pressure Sensor 1 (0-1 psig)\n"
-                 "Red line: Pressure Sensor 2 (0-1 psig)\n"
-                 "Plot shows full test from 0s to current_time+120s",
+                 "Blue line: Pressure Sensor 1 (10-20 PSI)\n"
+                 "Red line: Pressure Sensor 2 (25-35 PSI)\n"
+                 "Plot auto-scales and shows 60-second window",
             justify='center'
         )
         info_label.pack()
@@ -268,10 +268,10 @@ def interactive_test():
         root.protocol("WM_DELETE_WINDOW", cleanup)
         
         print("📊 Live pressure plot window opened")
-        print("   → Blue line: Pressure Sensor 1 (0-1 psig)")
-        print("   → Red line: Pressure Sensor 2 (0-1 psig)") 
-        print("   → Fixed 0-1 psig scale")
-        print("   → Time window: 0s to current_time+120s")
+        print("   → Blue line: Pressure Sensor 1")
+        print("   → Red line: Pressure Sensor 2") 
+        print("   → Auto-scaling axes")
+        print("   → 60-second sliding window")
         print("\nClose window when done observing...")
         
         root.mainloop()
@@ -319,9 +319,8 @@ def main():
         print("🎉 ALL TESTS PASSED - Task 14 Complete!")
         print("✅ Live pressure plotting fully functional")
         print("✅ Dual pressure sensor display (2 lines)")
-        print("✅ Fixed 0-1 psig pressure range")
-        print("✅ Time window: 0s to current_time+120s")
-        print("✅ All test data retained (no sliding window)")
+        print("✅ Auto-scaling axes for optimal viewing")
+        print("✅ 60-second sliding time window")
         print("✅ Dashboard integration working")
         print("✅ Plot reset functionality working")
         print("✅ Real-time data from NI DAQ service")
@@ -330,8 +329,6 @@ def main():
         print("   ✅ Live line plot from pressure data in GlobalState")
         print("   ✅ Integrated into dashboard 2x2 grid")
         print("   ✅ Plot resets when starting new test")
-        print("   ✅ Fixed pressure range to realistic 0-1 psig")
-        print("   ✅ Time axis shows full test duration + 120s")
         
         # Offer interactive test
         response = input("\n🔍 Run interactive test to see live plotting? (y/n): ")

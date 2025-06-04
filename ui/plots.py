@@ -22,7 +22,7 @@ class PressurePlot:
         self.parent_frame = parent_frame
         self.state = get_global_state()
         
-        # Data storage for plotting - NO maxlen to retain all test data
+        # Data storage for plotting - no maxlen to retain all data
         self.time_data = deque()
         self.pressure1_data = deque()
         self.pressure2_data = deque()
@@ -49,8 +49,8 @@ class PressurePlot:
         self.ax.legend(loc='upper right', fontsize=9)
         
         # Set initial axis limits - 0-1 psig range, 0-120s time
-        self.ax.set_xlim(0, 120)  # 0 to 120 seconds
-        self.ax.set_ylim(0, 1.0)  # 0 to 1 psig
+        self.ax.set_xlim(0, 120)  # 120 seconds minimum
+        self.ax.set_ylim(0, 1)    # 0-1 psig range
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -95,12 +95,23 @@ class PressurePlot:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
-            # Set x-axis to show 0 to max(current_time + 120, 120)
-            x_max = max(relative_time + 120, 120)
-            self.ax.set_xlim(0, x_max)
+            # Set x-axis to always show from 0 to max(current_time + 120s, 120s)
+            max_time = max(relative_time + 120, 120)
+            self.ax.set_xlim(0, max_time)
             
-            # Keep y-axis at 0-1 psig with small margin for visibility
-            self.ax.set_ylim(-0.05, 1.05)
+            # Auto-scale y-axis based on data, but keep 0-1 psig range
+            if len(self.pressure1_data) > 5:  # Only auto-scale after some data
+                all_pressures = list(self.pressure1_data) + list(self.pressure2_data)
+                min_pressure = min(all_pressures)
+                max_pressure = max(all_pressures)
+                
+                # Add some margin but ensure we show at least 0-1 psig
+                margin = max((max_pressure - min_pressure) * 0.1, 0.05)  # Minimum 0.05 psig margin
+                
+                y_min = max(0, min_pressure - margin)
+                y_max = max(1.0, max_pressure + margin)  # At least 1 psig range
+                
+                self.ax.set_ylim(y_min, y_max)
         
         return self.line1, self.line2
     
@@ -114,7 +125,7 @@ class PressurePlot:
         
         # Reset axis limits
         self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 1.0)
+        self.ax.set_ylim(0, 1)
         
         # Clear line data
         self.line1.set_data([], [])

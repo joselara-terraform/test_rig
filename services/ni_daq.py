@@ -8,7 +8,6 @@ import time
 import threading
 import random
 from core.state import get_global_state
-from typing import List
 
 
 class NIDAQService:
@@ -45,28 +44,6 @@ class NIDAQService:
         
         # Sampling rate
         self.sample_rate = 250  # Hz
-        
-        # Analog input configuration for electrolyzer monitoring
-        self.analog_config = {
-            0: {
-                "name": "pressure_1", 
-                "type": "4-20mA", 
-                "range": [0.0, 1.0],      # 0-1 psig pressure sensor
-                "units": "psig"
-            },
-            1: {
-                "name": "pressure_2", 
-                "type": "4-20mA", 
-                "range": [0.0, 1.0],      # 0-1 psig pressure sensor  
-                "units": "psig"
-            },
-            2: {
-                "name": "current", 
-                "type": "4-20mA", 
-                "range": [0.0, 10.0],     # 0-10A current sensor
-                "units": "A"
-            }
-        }
     
     def connect(self):
         """Connect to NI cDAQ device"""
@@ -187,47 +164,31 @@ class NIDAQService:
     
     def _read_analog_inputs(self):
         """Read and scale analog input channels"""
+        raw_data = {}
         scaled_data = {}
         
-        # Generate realistic sensor data using new analog_config
+        # Mock reading 4-20mA signals
         for channel_name in self.analog_channels.keys():
+            # Generate realistic mock data
             if channel_name == 'pressure_1':
-                # Use analog_config for pressure sensor 1 (0-1 psig)
-                config = self.analog_config[0]
-                min_val, max_val = config["range"]
-                base_pressure = (min_val + max_val) / 2  # 0.5 psig baseline
-                variation = random.uniform(-0.1, 0.1)    # ±0.1 psig variation
-                drift = random.uniform(-0.05, 0.05)      # ±0.05 psig drift
-                
-                pressure = base_pressure + variation + drift
-                pressure = max(min_val, min(max_val, pressure))  # Clamp to range
-                scaled_data[channel_name] = round(pressure, 3)  # 3 decimal places
-                
+                # Pressure sensor 1: 0-50 PSI, typically around 15 PSI
+                mock_value = random.uniform(14.5, 15.5)
             elif channel_name == 'pressure_2':
-                # Use analog_config for pressure sensor 2 (0-1 psig)
-                config = self.analog_config[1]
-                min_val, max_val = config["range"]
-                base_pressure = (min_val + max_val) / 2  # 0.5 psig baseline
-                variation = random.uniform(-0.1, 0.1)    # ±0.1 psig variation
-                drift = random.uniform(-0.05, 0.05)      # ±0.05 psig drift
-                
-                pressure = base_pressure + variation + drift
-                pressure = max(min_val, min(max_val, pressure))  # Clamp to range
-                scaled_data[channel_name] = round(pressure, 3)  # 3 decimal places
-                
+                # Pressure sensor 2: 0-100 PSI, typically around 30 PSI  
+                mock_value = random.uniform(29.0, 31.0)
             elif channel_name == 'current':
-                # Use analog_config for current sensor (0-10A)
-                config = self.analog_config[2]
-                min_val, max_val = config["range"]
-                base_current = 5.0  # 5A baseline
-                variation = random.uniform(-0.5, 0.5)  # ±0.5A variation
-                
-                current = base_current + variation
-                current = max(min_val, min(max_val, current))  # Clamp to range
-                scaled_data[channel_name] = round(current, 2)  # 2 decimal places
-                
+                # Current sensor: 0-10 A, typically around 5 A
+                mock_value = random.uniform(4.8, 5.2)
             else:
-                scaled_data[channel_name] = 0.0
+                mock_value = 0.0
+            
+            # Convert to 4-20mA signal (for realism)
+            scaling = self.scaling[channel_name]
+            mock_ma = self._eng_to_ma(mock_value, scaling)
+            raw_data[channel_name] = mock_ma
+            
+            # Convert back to engineering units (simulating real scaling)
+            scaled_data[channel_name] = self._ma_to_eng(mock_ma, scaling)
         
         return scaled_data
     
@@ -336,8 +297,8 @@ def main():
     # Show some data
     state = get_global_state()
     print(f"\n5. Sample data:")
-    print(f"   Pressure 1: {state.pressure_values[0]:.3f} psig")
-    print(f"   Pressure 2: {state.pressure_values[1]:.3f} psig")
+    print(f"   Pressure 1: {state.pressure_values[0]:.2f} PSI")
+    print(f"   Pressure 2: {state.pressure_values[1]:.2f} PSI")
     print(f"   Current: {state.current_value:.2f} A")
     
     # Test output control
