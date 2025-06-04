@@ -1,87 +1,307 @@
 """
 CVM-24P cell voltage monitor service for AWE test rig
-Simulates 24-channel cell voltage measurements for electrolyzer monitoring
+Real hardware integration using XC2 protocol for electrolyzer cell voltage monitoring
 """
 
+import asyncio
 import time
 import threading
-import random
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from core.state import get_global_state
+from config.device_config import get_device_config
+
+# XC2 protocol imports for CVM24P communication
+try:
+    from xc2.bus import SerialBus
+    from xc2.bus_utils import get_broadcast_echo, get_serial_broadcast
+    from xc2.consts import ProtocolEnum
+    from xc2.utils import discover_serial_ports, get_serial_from_port
+    from xc2.xc2_dev_cvm24p import XC2Cvm24p
+    XC2_AVAILABLE = True
+except ImportError:
+    XC2_AVAILABLE = False
+    print("⚠️  XC2 libraries not available - CVM24P will use mock mode")
+
+
+class CVM24PConfig:
+    """Configuration constants for CVM24P Cell Voltage Monitor"""
+    
+    # Serial communication settings
+    BAUD_RATE = 1000000  # 1MHz - found to work best in CVM_test.py
+    DISCOVERY_ATTEMPTS = 5
+    DISCOVERY_DELAY = 1.0  # seconds between discovery attempts
+    
+    # Device specifications
+    CHANNELS_PER_MODULE = 24  # 24 channels per CVM24P module
+    VOLTAGE_RESOLUTION = 0.001  # 1mV resolution
+    MIN_CELL_VOLTAGE = 2.0  # Minimum safe cell voltage
+    MAX_CELL_VOLTAGE = 3.5  # Maximum cell voltage under load
+    NOMINAL_CELL_VOLTAGE = 2.75  # Nominal cell voltage
+    
+    # Health monitoring thresholds
+    VOLTAGE_DEVIATION_WARNING = 0.1  # 100mV deviation warning
+    VOLTAGE_IMBALANCE_THRESHOLD = 0.05  # 50mV imbalance threshold
+
+
+class CVM24PModule:
+    """Individual CVM24P module interface"""
+    
+    def __init__(self, bus, address: int, serial: str, module_id: int):
+        self.bus = bus
+        self.address = address
+        self.serial = serial
+        self.module_id = module_id
+        self.device = XC2Cvm24p(bus, address) if XC2_AVAILABLE else None
+        self.is_initialized = False
+        self.channel_voltages = [0.0] * CVM24PConfig.CHANNELS_PER_MODULE
+        
+    async def initialize(self) -> bool:
+        """Initialize the CVM24P module"""
+        if not self.device:
+            return False
+        
+        try:
+            await self.device.initial_structure_reading()
+            self.is_initialized = True
+            print(f"   ✅ Module {self.serial} (0x{self.address:X}) initialized")
+            return True
+        except Exception as e:
+            print(f"   ❌ Failed to initialize module {self.serial}: {e}")
+            return False
+    
+    async def read_voltages(self) -> List[float]:
+        """Read all channel voltages from this module"""
+        if not self.device or not self.is_initialized:
+            return self.channel_voltages
+        
+        try:
+            # Read all channel voltages using the method from CVM_test.py
+            cell_voltages = await self.device.read_and_get_reg_by_name("ch_V")
+            self.channel_voltages = cell_voltages[:CVM24PConfig.CHANNELS_PER_MODULE]
+            return self.channel_voltages
+        except Exception as e:
+            print(f"⚠️  Error reading voltages from module {self.serial}: {e}")
+            return self.channel_voltages
 
 
 class CVM24PService:
-    """Service for CVM-24P cell voltage monitor"""
+    """Service for CVM-24P cell voltage monitor with real hardware integration"""
     
     def __init__(self):
         self.connected = False
         self.polling = False
         self.poll_thread = None
         self.state = get_global_state()
+        self.device_config = get_device_config()
         
-        # CVM-24P configuration - 120 channels total
+        # Hardware communication
+        self.bus = None
+        self.modules = {}  # Dict of serial -> CVM24PModule
+        self.use_mock = not XC2_AVAILABLE
+        
+        # CVM24P configuration from device config
         self.device_name = "CVM-24P"
-        self.sample_rate = 10.0  # 10 Hz for voltage monitoring (faster than gas, slower than DAQ)
-        self.num_channels = 120   # 120 cell voltage channels
+        self.sample_rate = self.device_config.get_sample_rate('cvm24p')
+        self.expected_modules = 5  # Expect 5 modules for 120 channels (5 * 24 = 120)
+        self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
         
-        # Cell configuration for electrolyzer stack
-        self.channel_config = {}
-        for i in range(120):
-            self.channel_config[i] = {
-                "name": f"cell_{i+1:03d}",
-                "description": f"Electrolyzer Cell {i+1}",
-                "nominal_voltage": 2.75,  # Nominal 2.75V per cell
-                "min_voltage": 2.0,       # Minimum safe voltage
-                "max_voltage": 3.5        # Maximum voltage under load
-            }
+        # Mock data for when hardware unavailable
+        self.mock_voltages = [CVM24PConfig.NOMINAL_CELL_VOLTAGE] * self.total_channels
         
-        # Base voltages for realistic variation (simulate slight cell differences)
-        self.base_voltages = []
-        for i in range(120):
-            # Slight variation in cell characteristics
-            base_v = 2.75 + random.uniform(-0.1, 0.1)  # ±100mV cell variation
-            self.base_voltages.append(base_v)
-        
-        # Operating state simulation
-        self.operating_current = 0.0  # Will affect voltage drop
+        # Event loop management for asyncio integration
+        self.loop = None
+        self.async_task = None
         
     def connect(self) -> bool:
-        """Connect to CVM-24P device"""
+        """Connect to CVM24P modules"""
         print("🔋 Connecting to CVM-24P cell voltage monitor...")
+        
+        if not XC2_AVAILABLE:
+            return self._connect_mock()
+        
         try:
-            # Simulate connection process
-            time.sleep(0.8)
+            # Try to connect to real hardware
+            print("   → Attempting hardware connection...")
             
-            print(f"   → Detecting device: {self.device_name}")
-            print(f"   → Configuring {self.num_channels} voltage channels:")
-            print(f"     • Channels 1-120: Electrolyzer cell voltages")
-            print(f"     • Voltage range: 2.0V - 3.5V per cell")
-            print(f"     • Resolution: 1mV")
+            # Run async connection in thread-safe way
+            if self._connect_hardware():
+                self.connected = True
+                self.state.update_connection_status('cvm24p', True)
+                print(f"✅ CVM-24P connected - {len(self.modules)} modules with {self.total_channels} channels")
+                return True
+            else:
+                print("   → Hardware connection failed, falling back to mock mode")
+                return self._connect_mock()
+                
+        except Exception as e:
+            print(f"❌ Failed to connect to CVM-24P: {e}")
+            print("   → Falling back to mock mode")
+            return self._connect_mock()
+    
+    def _connect_hardware(self) -> bool:
+        """Connect to real CVM24P hardware"""
+        try:
+            # Discover serial ports
+            available_ports = discover_serial_ports()
+            if not available_ports:
+                print("   → No serial ports found")
+                return False
             
-            print(f"   → Setting sample rate: {self.sample_rate} Hz")
-            print(f"   → Calibrating voltage references...")
-            time.sleep(0.3)
+            # Use first available port
+            selected_port = available_ports[0]
+            bus_sn = get_serial_from_port(selected_port)
             
-            self.connected = True
-            self.state.update_connection_status('cvm24p', True)
+            print(f"   → Connecting to port {selected_port} at {CVM24PConfig.BAUD_RATE} baud...")
             
-            print("✅ CVM-24P connected successfully")
+            # Create bus connection
+            self.bus = SerialBus(
+                bus_sn, 
+                port=selected_port, 
+                baud_rate=CVM24PConfig.BAUD_RATE,
+                protocol_type=ProtocolEnum.XC2
+            )
+            
+            # Connect to bus (run in event loop)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            connected = loop.run_until_complete(self.bus.connect())
+            if not connected:
+                print("   → Failed to connect to serial bus")
+                return False
+            
+            print("   → Bus connected, discovering modules...")
+            
+            # Discover modules
+            discovered_modules = loop.run_until_complete(self._discover_modules())
+            
+            if not discovered_modules:
+                print("   → No CVM24P modules found")
+                return False
+            
+            # Initialize modules
+            initialized_count = loop.run_until_complete(self._initialize_modules(discovered_modules))
+            
+            if initialized_count == 0:
+                print("   → No modules successfully initialized")
+                return False
+            
+            print(f"   → {initialized_count}/{len(discovered_modules)} modules initialized")
+            
+            # Store event loop for polling
+            self.loop = loop
+            self.use_mock = False
+            
             return True
             
         except Exception as e:
-            print(f"❌ Failed to connect to CVM-24P: {e}")
-            self.connected = False
-            self.state.update_connection_status('cvm24p', False)
+            print(f"   → Hardware connection error: {e}")
             return False
     
+    async def _discover_modules(self) -> Dict[str, Dict]:
+        """Discover all CVM24P modules on the bus"""
+        found_modules = {}
+        
+        for attempt in range(CVM24PConfig.DISCOVERY_ATTEMPTS):
+            await asyncio.sleep(CVM24PConfig.DISCOVERY_DELAY)
+            
+            try:
+                # Get devices via broadcast echo
+                devices = await get_broadcast_echo(bus=self.bus)
+                print(f"      → Discovery attempt {attempt+1}: Found {len(devices)} devices")
+                
+                # Try to get device info
+                try:
+                    device_info = await get_serial_broadcast(bus=self.bus)
+                    
+                    # Add modules by serial number
+                    for addr, info in device_info.items():
+                        serial = info['dev_serial']
+                        device_type = info['dev_type']
+                        
+                        # Check if it's a CVM24P
+                        if 'CVM' in device_type or 'cvm' in device_type.lower():
+                            if serial not in found_modules:
+                                found_modules[serial] = {
+                                    'address': addr,
+                                    'type': device_type,
+                                    'serial': serial
+                                }
+                except Exception:
+                    pass
+                
+                # Try direct identification for devices that responded to echo
+                for addr in devices:
+                    found = any(module['address'] == addr for module in found_modules.values())
+                    
+                    if not found:
+                        try:
+                            device = XC2Cvm24p(self.bus, addr)
+                            device_type, device_serial = await device.read_serial_number()
+                            
+                            if device_serial not in found_modules:
+                                found_modules[device_serial] = {
+                                    'address': addr,
+                                    'type': device_type,
+                                    'serial': device_serial
+                                }
+                        except Exception:
+                            pass
+                            
+            except Exception as e:
+                print(f"      → Discovery attempt {attempt+1} failed: {e}")
+        
+        return found_modules
+    
+    async def _initialize_modules(self, discovered_modules: Dict) -> int:
+        """Initialize all discovered modules"""
+        initialized_count = 0
+        
+        print(f"   → Initializing {len(discovered_modules)} modules...")
+        
+        for i, (serial, info) in enumerate(discovered_modules.items()):
+            module = CVM24PModule(self.bus, info['address'], serial, i)
+            
+            if await module.initialize():
+                self.modules[serial] = module
+                initialized_count += 1
+        
+        return initialized_count
+    
+    def _connect_mock(self) -> bool:
+        """Connect in mock mode"""
+        print("   → Using mock mode (no hardware)")
+        print(f"   → Mock device: {self.device_name}")
+        print(f"   → Mock configuration:")
+        print(f"     • {self.expected_modules} modules x {CVM24PConfig.CHANNELS_PER_MODULE} channels = {self.total_channels} total")
+        print(f"     • Voltage range: {CVM24PConfig.MIN_CELL_VOLTAGE}V - {CVM24PConfig.MAX_CELL_VOLTAGE}V")
+        print(f"     • Resolution: {CVM24PConfig.VOLTAGE_RESOLUTION*1000}mV")
+        
+        self.use_mock = True
+        self.connected = True
+        self.state.update_connection_status('cvm24p', True)
+        
+        print("✅ CVM-24P connected successfully (MOCK MODE)")
+        return True
+    
     def disconnect(self):
-        """Disconnect from CVM-24P"""
+        """Disconnect from CVM24P"""
         print("🔋 Disconnecting from CVM-24P...")
         
         # Stop polling first
         if self.polling:
-            print("⚠️  CVM-24P polling already stopped" if not self.polling else "")
             self.stop_polling()
+        
+        # Close hardware connections
+        if self.bus and not self.use_mock:
+            try:
+                if self.loop:
+                    self.loop.run_until_complete(self.bus.disconnect())
+            except Exception as e:
+                print(f"⚠️  Error disconnecting bus: {e}")
+        
+        # Clear modules
+        self.modules.clear()
         
         self.connected = False
         self.state.update_connection_status('cvm24p', False)
@@ -98,7 +318,8 @@ class CVM24PService:
             print("⚠️  CVM-24P polling already running")
             return True
         
-        print(f"🔋 Starting CVM-24P polling at {self.sample_rate} Hz...")
+        mode_str = "MOCK" if self.use_mock else "HARDWARE"
+        print(f"🔋 Starting CVM-24P polling at {self.sample_rate} Hz ({mode_str})...")
         
         self.polling = True
         self.poll_thread = threading.Thread(target=self._poll_data, daemon=True)
@@ -116,7 +337,7 @@ class CVM24PService:
         self.polling = False
         
         if self.poll_thread and self.poll_thread.is_alive():
-            self.poll_thread.join(timeout=2.0)
+            self.poll_thread.join(timeout=3.0)
         
         print("✅ CVM-24P polling stopped")
     
@@ -124,11 +345,10 @@ class CVM24PService:
         """Polling thread function"""
         while self.polling and self.connected:
             try:
-                # Update operating current from global state (affects voltage)
-                self.operating_current = self.state.current_value
-                
-                # Generate realistic voltage readings
-                voltage_readings = self._generate_voltage_data()
+                if self.use_mock:
+                    voltage_readings = self._generate_mock_data()
+                else:
+                    voltage_readings = self._read_hardware_data()
                 
                 # Update global state
                 self.state.update_sensor_values(cell_voltages=voltage_readings)
@@ -140,63 +360,105 @@ class CVM24PService:
                 print(f"❌ CVM-24P polling error: {e}")
                 break
     
-    def _generate_voltage_data(self) -> List[float]:
-        """Generate realistic cell voltage readings"""
-        voltages = []
+    def _read_hardware_data(self) -> List[float]:
+        """Read voltage data from real hardware"""
+        all_voltages = []
         
-        # Current affects voltage drop (simplified model)
-        current_factor = min(self.operating_current / 5.0, 1.0)  # Normalize to 5A max
+        try:
+            # Read from all modules in the event loop
+            if self.loop:
+                future = asyncio.run_coroutine_threadsafe(
+                    self._async_read_all_modules(), self.loop
+                )
+                all_voltages = future.result(timeout=2.0)
+            
+        except Exception as e:
+            print(f"⚠️  Hardware reading error: {e}")
+            # Return previous values on error
+            all_voltages = self.state.cell_voltages if self.state.cell_voltages else [0.0] * self.total_channels
+        
+        return all_voltages
+    
+    async def _async_read_all_modules(self) -> List[float]:
+        """Async function to read from all modules"""
+        all_voltages = []
+        
+        # Read from each module
+        for serial, module in self.modules.items():
+            try:
+                module_voltages = await module.read_voltages()
+                all_voltages.extend(module_voltages)
+            except Exception as e:
+                print(f"⚠️  Error reading module {serial}: {e}")
+                # Add zeros for failed module
+                all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
+        
+        # Pad to expected channel count
+        while len(all_voltages) < self.total_channels:
+            all_voltages.append(0.0)
+        
+        return all_voltages[:self.total_channels]
+    
+    def _generate_mock_data(self) -> List[float]:
+        """Generate realistic mock voltage data"""
+        import random
+        
+        # Get current from state to simulate load effects
+        current = self.state.current_value
+        current_factor = min(current / 5.0, 1.0)  # Normalize to 5A max
         voltage_drop = current_factor * 0.2  # Up to 200mV drop under load
         
-        for i in range(self.num_channels):
-            config = self.channel_config[i]
-            base_voltage = self.base_voltages[i]
+        voltages = []
+        for i in range(self.total_channels):
+            # Base voltage with slight cell variation
+            base_voltage = CVM24PConfig.NOMINAL_CELL_VOLTAGE + random.uniform(-0.05, 0.05)
             
-            # Apply load-dependent voltage drop
+            # Apply load effects
             operating_voltage = base_voltage - voltage_drop
             
-            # Add realistic noise and variation
+            # Add noise
             noise = random.uniform(-0.015, 0.015)  # ±15mV noise
-            drift = random.uniform(-0.008, 0.008)  # ±8mV slow drift
             
-            # Calculate final voltage
-            voltage = operating_voltage + noise + drift
+            voltage = operating_voltage + noise
             
-            # Clamp to realistic cell voltage range
-            voltage = max(config["min_voltage"], min(config["max_voltage"], voltage))
+            # Clamp to realistic range
+            voltage = max(CVM24PConfig.MIN_CELL_VOLTAGE, 
+                         min(CVM24PConfig.MAX_CELL_VOLTAGE, voltage))
             
-            # Round to 1mV resolution (CVM-24P spec)
+            # Round to resolution
             voltages.append(round(voltage, 3))
         
         return voltages
     
     def get_status(self) -> Dict[str, Any]:
         """Get current service status"""
+        mode = 'MOCK' if self.use_mock else 'HARDWARE'
+        
         return {
             'connected': self.connected,
             'polling': self.polling,
             'device': self.device_name,
             'sample_rate': f"{self.sample_rate} Hz",
-            'channels': self.num_channels,
-            'resolution': "1mV",
-            'voltage_range': "2.0V - 3.5V per cell"
+            'mode': mode,
+            'modules': len(self.modules),
+            'channels': self.total_channels,
+            'resolution': f"{CVM24PConfig.VOLTAGE_RESOLUTION*1000}mV",
+            'voltage_range': f"{CVM24PConfig.MIN_CELL_VOLTAGE}V - {CVM24PConfig.MAX_CELL_VOLTAGE}V"
         }
     
-    def get_current_readings(self) -> Dict[str, float]:
-        """Get current voltage readings with channel names"""
-        readings = {}
-        voltages = self.state.cell_voltages
+    def get_module_info(self) -> Dict[str, Dict]:
+        """Get information about connected modules"""
+        module_info = {}
         
-        for i, voltage in enumerate(voltages):
-            if i < len(self.channel_config):
-                channel_name = self.channel_config[i]['name']
-                readings[channel_name] = voltage
+        for serial, module in self.modules.items():
+            module_info[serial] = {
+                'address': f"0x{module.address:X}",
+                'module_id': module.module_id,
+                'channels': CVM24PConfig.CHANNELS_PER_MODULE,
+                'initialized': module.is_initialized
+            }
         
-        return readings
-    
-    def get_stack_voltage(self) -> float:
-        """Get total stack voltage (sum of all cells)"""
-        return sum(self.state.cell_voltages)
+        return module_info
     
     def get_voltage_statistics(self) -> Dict[str, float]:
         """Get voltage statistics for the cell stack"""
@@ -222,34 +484,8 @@ class CVM24PService:
             'std_dev': round(std_dev, 3)
         }
     
-    def check_cell_health(self) -> Dict[str, str]:
-        """Check health status of each cell"""
-        health_report = {}
-        voltages = self.state.cell_voltages
-        stats = self.get_voltage_statistics()
-        avg_voltage = stats['avg']
-        
-        for i, voltage in enumerate(voltages):
-            if i < len(self.channel_config):
-                config = self.channel_config[i]
-                cell_name = config['name']
-                
-                # Check voltage against thresholds
-                if voltage < config['min_voltage']:
-                    health_report[cell_name] = "Critical Low"
-                elif voltage > config['max_voltage']:
-                    health_report[cell_name] = "Critical High"
-                elif abs(voltage - avg_voltage) > 0.1:  # >100mV deviation from average
-                    health_report[cell_name] = "Warning"
-                elif abs(voltage - config['nominal_voltage']) <= 0.05:  # Within 50mV of nominal
-                    health_report[cell_name] = "Excellent"
-                else:
-                    health_report[cell_name] = "Good"
-        
-        return health_report
-    
-    def get_unbalanced_cells(self, threshold: float = 0.05) -> List[str]:
-        """Get list of cells with voltage significantly different from average"""
+    def get_unbalanced_cells(self, threshold: float = CVM24PConfig.VOLTAGE_IMBALANCE_THRESHOLD) -> List[int]:
+        """Get list of cell indices with voltage significantly different from average"""
         stats = self.get_voltage_statistics()
         avg_voltage = stats['avg']
         voltages = self.state.cell_voltages
@@ -258,7 +494,6 @@ class CVM24PService:
         
         for i, voltage in enumerate(voltages):
             if abs(voltage - avg_voltage) > threshold:
-                cell_name = self.channel_config[i]['name']
-                unbalanced.append(cell_name)
+                unbalanced.append(i + 1)  # 1-indexed cell numbers
         
         return unbalanced 
