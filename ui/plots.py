@@ -28,11 +28,10 @@ class PressurePlot:
         self.pressure1_data = deque()
         self.pressure2_data = deque()
         
-        # Data storage for gas concentrations (converted to 0-1 range)
+        # Data storage for gas concentrations (converted to 0-1 range) - only 3 BGA series
         self.h2_hydrogen_side_data = deque()  # H2 from Unit 1 (hydrogen side)
         self.o2_oxygen_side_data = deque()    # O2 from Unit 2 (oxygen side)
         self.h2_mixed_data = deque()          # H2 from Unit 3 (mixed stream)
-        self.o2_mixed_data = deque()          # O2 from Unit 3 (mixed stream)
         
         self.last_update_time = 0
         
@@ -50,18 +49,17 @@ class PressurePlot:
         self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='Pressure 1')
         self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='Pressure 2')
         
-        # Create line objects for gas concentrations (using different colors and styles)
+        # Create line objects for gas concentrations - only 3 BGA series
         self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H₂ (H-side)', alpha=0.8)
         self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O₂ (O-side)', alpha=0.8)
         self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H₂ (mixed)', alpha=0.7)
-        self.line_o2_mixed, = self.ax.plot([], [], 'm:', linewidth=1.5, label='O₂ (mixed)', alpha=0.7)
         
-        # Add legend with smaller font to fit more entries
+        # Add legend with smaller font to fit entries
         self.ax.legend(loc='upper right', fontsize=8, ncol=2)
         
-        # Set initial axis limits
-        self.ax.set_xlim(0, 120)  # 120 seconds visible
-        self.ax.set_ylim(0, 1)    # 0-1 range for both pressure (PSI) and gas fractions
+        # Set initial axis limits - static Y, dynamic X
+        self.ax.set_xlim(0, 120)  # Initial X limit
+        self.ax.set_ylim(0, 1)    # Static Y limit (0-1 range)
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -82,16 +80,16 @@ class PressurePlot:
         # Check test states
         if self.state.emergency_stop or not self.state.test_running:
             return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed, self.line_o2_mixed)
+                   self.line_o2_o_side, self.line_h2_mixed)
         
         if self.state.test_paused:
             return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed, self.line_o2_mixed)
+                   self.line_o2_o_side, self.line_h2_mixed)
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
             return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed, self.line_o2_mixed)
+                   self.line_o2_o_side, self.line_h2_mixed)
         
         self.last_update_time = current_time
         
@@ -103,6 +101,7 @@ class PressurePlot:
         pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
         
         # Get gas concentration values and convert percentages to fractions (0-1 range)
+        # Only 3 BGA series: H2 from hydrogen side, O2 from oxygen side, H2 from mixed
         gas_concentrations = self.state.gas_concentrations
         
         # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
@@ -111,57 +110,36 @@ class PressurePlot:
         # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
         o2_oxygen_side = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
         
-        # Unit 3: mixed_gas (Mixed stream) - get both H2 and O2 concentrations
+        # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
         h2_mixed = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
-        o2_mixed = (gas_concentrations[2]['O2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
         
         # Add new data points
         self.time_data.append(relative_time)
         self.pressure1_data.append(pressure1)
         self.pressure2_data.append(pressure2)
         
-        # Add gas concentration data points
+        # Add gas concentration data points - only 3 BGA series
         self.h2_hydrogen_side_data.append(h2_hydrogen_side)
         self.o2_oxygen_side_data.append(o2_oxygen_side)
         self.h2_mixed_data.append(h2_mixed)
-        self.o2_mixed_data.append(o2_mixed)
         
-        # Update line data for pressure
+        # Update line data
         if len(self.time_data) > 0:
+            # Update pressure lines
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
-            # Update line data for gas concentrations
+            # Update gas concentration lines - only 3 BGA series
             self.line_h2_h_side.set_data(list(self.time_data), list(self.h2_hydrogen_side_data))
             self.line_o2_o_side.set_data(list(self.time_data), list(self.o2_oxygen_side_data))
             self.line_h2_mixed.set_data(list(self.time_data), list(self.h2_mixed_data))
-            self.line_o2_mixed.set_data(list(self.time_data), list(self.o2_mixed_data))
             
-            # Always show 120 seconds window
-            self.ax.set_xlim(0, max(relative_time + 120, 120))
-            
-            # Auto-scale y-axis based on data (considering both pressure and gas data)
-            if len(self.time_data) > 5:  # Only auto-scale after some data
-                all_values = (list(self.pressure1_data) + list(self.pressure2_data) + 
-                             list(self.h2_hydrogen_side_data) + list(self.o2_oxygen_side_data) +
-                             list(self.h2_mixed_data) + list(self.o2_mixed_data))
-                
-                if all_values:  # Make sure we have data
-                    min_value = min(all_values)
-                    max_value = max(all_values)
-                    
-                    # Add some margin
-                    margin = (max_value - min_value) * 0.1
-                    if margin < 0.05:  # Minimum margin 
-                        margin = 0.05
-                    
-                    y_min = max(0, min_value - margin)
-                    y_max = min(1.0, max_value + margin)  # Cap at 1.0 since that's 100%
-                    
-                    self.ax.set_ylim(y_min, y_max)
+            # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
+            # Static Y-axis: [0, 1] (no auto-scaling)
+            self.ax.set_xlim(0, max(relative_time*1.2, 120))
         
         return (self.line1, self.line2, self.line_h2_h_side, 
-               self.line_o2_o_side, self.line_h2_mixed, self.line_o2_mixed)
+               self.line_o2_o_side, self.line_h2_mixed)
 
     def reset(self):
         """Reset plot data"""
@@ -169,27 +147,25 @@ class PressurePlot:
         self.pressure1_data.clear()
         self.pressure2_data.clear()
         
-        # Clear gas concentration data
+        # Clear gas concentration data - only 3 BGA series
         self.h2_hydrogen_side_data.clear()
         self.o2_oxygen_side_data.clear()
         self.h2_mixed_data.clear()
-        self.o2_mixed_data.clear()
 
         self.last_update_time = 0
         
-        # Reset axis limits
+        # Reset axis limits - static Y, initial X
         self.ax.set_xlim(0, 120)
         self.ax.set_ylim(0, 1)
         
-        # Clear line data for pressure
+        # Clear line data
         self.line1.set_data([], [])
         self.line2.set_data([], [])
         
-        # Clear line data for gas concentrations
+        # Clear gas concentration lines - only 3 BGA series
         self.line_h2_h_side.set_data([], [])
         self.line_o2_o_side.set_data([], [])
         self.line_h2_mixed.set_data([], [])
-        self.line_o2_mixed.set_data([], [])
         
         self.canvas.draw()
     
@@ -209,7 +185,8 @@ class VoltagePlot:
         # Placeholder label
         self.placeholder = ttk.Label(
             parent_frame,
-            text="[Voltage Plot - Task 15]\n\nVoltage plotting will be\nimplemented in Task 15",
+            text="[Voltage Plot - Task 15]\n\nVoltage plotting will be\nimplemented in Task 15\n\n"
+                 "Axis limits: Static Y, Dynamic X\nX = [0, max(time*1.2, 120)]",
             justify=tk.CENTER,
             background="lightgreen"
         )
@@ -231,7 +208,8 @@ class TemperaturePlot:
         # Placeholder label
         self.placeholder = ttk.Label(
             parent_frame,
-            text="[Temperature Plot - Task 16]\n\nTemperature plotting will be\nimplemented in Task 16",
+            text="[Temperature Plot - Task 16]\n\nTemperature plotting will be\nimplemented in Task 16\n\n"
+                 "Axis limits: Static Y, Dynamic X\nX = [0, max(time*1.2, 120)]",
             justify=tk.CENTER,
             background="lightyellow"
         )
@@ -279,10 +257,12 @@ def test_pressure_plot():
     print("=" * 50)
     print("✅ Live pressure & gas concentration plot created")
     print("✅ Data updating from GlobalState")
-    print("✅ Auto-scaling axes")
+    print("✅ Static Y-axis (0-1), dynamic X-axis")
     print("✅ Pressure sensors: Blue (P1) & Red (P2)")
-    print("✅ Gas concentrations: Green (H₂) & Magenta (O₂)")
-    print("✅ Multiple gas streams: H-side, O-side, Mixed")
+    print("✅ Gas concentrations (3 BGA series):")
+    print("   • Green dashed: H₂ from hydrogen side")
+    print("   • Magenta dashed: O₂ from oxygen side")
+    print("   • Green dotted: H₂ from mixed stream")
     print("\nClose window when done testing...")
     
     root.mainloop()
