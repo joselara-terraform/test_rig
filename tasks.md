@@ -130,51 +130,51 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ## 🔌 Phase 6: Hardware Integration
 
-### 20. NI cDAQ test script
-**Start:** Write standalone script to read NI-9253 inputs and toggle NI-9485 outputs  
-**End:** Verified live pressure/current values and physical relay clicks
+### 20. NI cDAQ test script review + cleanup
+**Start:** Review your existing NI DAQ test script  
+**End:** Write cleaned standalone script for reading NI-9253 and toggling NI-9485 relays
 
 ---
 
-### 21. Integrate NI cDAQ service
-**Start:** Replace mock `ni_daq.py` with live reads/writes using NI-DAQmx  
-**End:** Real values shown in plots and relay control affects real hardware
+### 21. Integrate NI cDAQ into service
+**Start:** Replace mock logic in `ni_daq.py` with real analog + digital I/O  
+**End:** Real data populates `state`, relays actuated from UI
 
 ---
 
-### 22. Pico TC-08 test script
-**Start:** Write script to read real thermocouple values via Pico SDK  
-**End:** Script prints valid temps for 8 channels
+### 22. Pico TC-08 test script review + cleanup
+**Start:** Review your existing TC-08 test script  
+**End:** Write cleaned standalone script for reading all 8 channels
 
 ---
 
-### 23. Integrate Pico TC-08 service
-**Start:** Replace `pico_tc08.py` with live readings using Pico SDK  
-**End:** Real temperatures update in state and plot
+### 23. Integrate Pico TC-08 into service
+**Start:** Replace mock logic in `pico_tc08.py` with real reads  
+**End:** Temperature plots reflect real thermocouple values
 
 ---
 
-### 24. BGA244 test script
-**Start:** Write script to send RS-422 queries (`RATO?`, etc.) to 3 BGA devices  
-**End:** Receive and parse valid ratio and pressure values
+### 24. BGA244 test script review + cleanup
+**Start:** Review your existing BGA244 test script  
+**End:** Write cleaned standalone script for sending `RATO?`, `PRES?`, etc. to all 3 devices
 
 ---
 
-### 25. Integrate BGA244 service
-**Start:** Replace `bga244.py` with actual serial communication  
-**End:** Live gas ratio values update in state and plot
+### 25. Integrate BGA244 into service
+**Start:** Replace `bga244.py` with real serial logic and gas ratio parsing  
+**End:** Plot reflects real-time gas ratios from all devices
 
 ---
 
-### 26. CVM-24P test script
-**Start:** Write script to read voltages from Kolibrik device over USB  
-**End:** Valid cell voltage array printed
+### 26. CVM-24P test script review + cleanup
+**Start:** Review your existing CVM-24P test script  
+**End:** Write cleaned standalone script to retrieve all cell voltages
 
 ---
 
-### 27. Integrate CVM-24P service
-**Start:** Replace `cvm24p.py` with real read logic (Modbus/ASCII/etc.)  
-**End:** Real CVM data updates plot and state
+### 27. Integrate CVM-24P into service
+**Start:** Replace `cvm24p.py` with real USB communication and parsing  
+**End:** Real voltage values update plots and state
 
 ---
 
