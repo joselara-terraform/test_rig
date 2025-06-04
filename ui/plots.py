@@ -14,7 +14,6 @@ import time
 from typing import List, Tuple
 from core.state import get_global_state
 
-
 class PressurePlot:
     """Live pressure vs time plot"""
     
@@ -50,7 +49,7 @@ class PressurePlot:
         
         # Set initial axis limits - 0-1 psig range, 0-120s time
         self.ax.set_xlim(0, 120)  # 120 seconds minimum
-        self.ax.set_ylim(0, 1)    # 0-1 psig range
+        self.ax.set_ylim(0, 50)    # 0-1 psig range
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
