@@ -52,23 +52,23 @@ class BGA244Config:
         'bga_1': {
             'name': 'Hydrogen Side Analyzer',
             'description': 'Gas analyzer on hydrogen product stream',
-            'primary_gas': 'H2',
-            'secondary_gas': 'O2',
-            'expected_gases': ['H2', 'O2', 'N2']
+            'primary_gas': 'O2',    # O2 in N2 mixture
+            'secondary_gas': 'N2',  # O2 in N2 mixture
+            'expected_gases': ['O2', 'N2', 'H2']
         },
         'bga_2': {
             'name': 'Oxygen Side Analyzer', 
             'description': 'Gas analyzer on oxygen product stream',
-            'primary_gas': 'O2',
-            'secondary_gas': 'H2',
-            'expected_gases': ['O2', 'H2', 'N2']
+            'primary_gas': 'O2',    # O2 in N2 mixture
+            'secondary_gas': 'N2',  # O2 in N2 mixture
+            'expected_gases': ['O2', 'N2', 'H2']
         },
         'bga_3': {
             'name': 'Mixed Stream Analyzer',
             'description': 'Gas analyzer on mixed product stream',
-            'primary_gas': 'N2',
-            'secondary_gas': 'O2',
-            'expected_gases': ['H2', 'O2', 'N2']
+            'primary_gas': 'O2',    # O2 in N2 mixture
+            'secondary_gas': 'N2',  # O2 in N2 mixture
+            'expected_gases': ['O2', 'N2', 'H2']
         }
     }
 
@@ -211,14 +211,14 @@ class BGA244Device:
                 except ValueError:
                     measurements['secondary_gas_concentration'] = None
             
-            # Calculate remaining gas concentration (typically N2)
+            # Calculate remaining gas concentration (typically H2 for O2 in N2 mixture)
             if (measurements.get('primary_gas_concentration') is not None and 
                 measurements.get('secondary_gas_concentration') is not None):
                 primary_conc = measurements['primary_gas_concentration']
                 secondary_conc = measurements['secondary_gas_concentration']
                 remaining_conc = 100.0 - primary_conc - secondary_conc
                 measurements['remaining_gas_concentration'] = max(0.0, remaining_conc)
-                measurements['remaining_gas'] = 'N2'  # Assume nitrogen
+                measurements['remaining_gas'] = 'H2'  # Hydrogen for O2 in N2 mixture
             
             return measurements
             
@@ -389,7 +389,7 @@ def main():
                         print(f"     {secondary_gas}: {meas['secondary_gas_concentration']:.2f}%")
                     
                     if meas.get('remaining_gas_concentration') is not None:
-                        remaining_gas = meas.get('remaining_gas', 'N2')
+                        remaining_gas = meas.get('remaining_gas', 'H2')
                         print(f"     {remaining_gas}: {meas['remaining_gas_concentration']:.2f}%")
                 
                 print()
