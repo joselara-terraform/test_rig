@@ -330,8 +330,14 @@ def test_continuous_monitoring():
                 if num_channels == 1:
                     all_channel_data = [[data[j] for j in range(len(data))]]
                 else:
-                    # Multiple channels - transpose to get per-channel data
-                    all_channel_data = [[row[i] for row in data] for i in range(num_channels)]
+                    # For continuous acquisition with multiple channels, data comes as:
+                    # [ch1_s1, ch2_s1, ch3_s1, ch1_s2, ch2_s2, ch3_s2, ...]
+                    # We need to separate by channel
+                    all_channel_data = [[] for _ in range(num_channels)]
+                    for i in range(0, len(data), num_channels):
+                        for ch in range(num_channels):
+                            if i + ch < len(data):
+                                all_channel_data[ch].append(data[i + ch])
                 
                 # Calculate averages and display
                 readings = []
