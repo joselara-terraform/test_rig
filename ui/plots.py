@@ -68,7 +68,22 @@ class PressurePlot:
         """Update plot with new data from GlobalState"""
         current_time = time.time()
         
-        # Initialize start time on first update
+        # Check test state - only collect data when actively running
+        test_running = self.state.test_running
+        test_paused = self.state.test_paused
+        emergency_stop = self.state.emergency_stop
+        
+        # Reset plot if test stopped or emergency stop activated
+        if not test_running or emergency_stop:
+            if len(self.time_data) > 0:  # Only reset if we have data to clear
+                self.reset()
+            return self.line1, self.line2
+        
+        # Don't collect new data if test is paused
+        if test_paused:
+            return self.line1, self.line2
+        
+        # Initialize start time on first update when test starts
         if self.start_time is None:
             self.start_time = current_time
         
@@ -99,19 +114,8 @@ class PressurePlot:
             max_time = max(relative_time + 120, 120)
             self.ax.set_xlim(0, max_time)
             
-            # Auto-scale y-axis based on data, but keep 0-1 psig range
-            if len(self.pressure1_data) > 5:  # Only auto-scale after some data
-                all_pressures = list(self.pressure1_data) + list(self.pressure2_data)
-                min_pressure = min(all_pressures)
-                max_pressure = max(all_pressures)
-                
-                # Add some margin but ensure we show at least 0-1 psig
-                margin = max((max_pressure - min_pressure) * 0.1, 0.05)  # Minimum 0.05 psig margin
-                
-                y_min = max(0, min_pressure - margin)
-                y_max = max(1.0, max_pressure + margin)  # At least 1 psig range
-                
-                self.ax.set_ylim(y_min, y_max)
+            # Keep y-axis fixed at 0-1 psig range
+            self.ax.set_ylim(0, 1.0)
         
         return self.line1, self.line2
     
@@ -125,7 +129,7 @@ class PressurePlot:
         
         # Reset axis limits
         self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 1)
+        self.ax.set_ylim(0, 1.0)  # Fixed y-axis range
         
         # Clear line data
         self.line1.set_data([], [])
