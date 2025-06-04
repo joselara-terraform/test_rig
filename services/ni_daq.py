@@ -37,9 +37,9 @@ class NIDAQService:
         
         # Scaling factors for 4-20mA sensors
         self.scaling = {
-            'pressure_1': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 50.0, 'units': 'PSI'},
-            'pressure_2': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 100.0, 'units': 'PSI'},
-            'current': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 10.0, 'units': 'A'}
+            'pressure_1': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 15.0, 'units': 'PSI'},
+            'pressure_2': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 15.0, 'units': 'PSI'},
+            'current': {'min_ma': 4.0, 'max_ma': 20.0, 'min_eng': 0.0, 'max_eng': 150.0, 'units': 'A'}
         }
         
         # Sampling rate

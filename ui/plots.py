@@ -48,7 +48,7 @@ class PressurePlot:
         self.ax.legend(loc='upper right', fontsize=9)
         
         # Set initial axis limits
-        self.ax.set_xlim(0, 60)  # 60 seconds visible
+        self.ax.set_xlim(0, 120)  # 120 seconds visible
         self.ax.set_ylim(0, 40)  # 0-40 PSI range
         
         # Create canvas and add to parent frame
@@ -97,11 +97,8 @@ class PressurePlot:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
-            # Auto-scale x-axis to show last 60 seconds
-            if relative_time > 60:
-                self.ax.set_xlim(relative_time - 60, relative_time + 5)
-            else:
-                self.ax.set_xlim(0, max(60, relative_time + 5))
+            # Always show 120 seconds window
+            self.ax.set_xlim(0, max(relative_time + 120, 120))
             
             # Auto-scale y-axis based on data
             if len(self.pressure1_data) > 5:  # Only auto-scale after some data
@@ -130,7 +127,7 @@ class PressurePlot:
         self.last_update_time = 0
         
         # Reset axis limits
-        self.ax.set_xlim(0, 60)
+        self.ax.set_xlim(0, 120)
         self.ax.set_ylim(0, 40)
         
         # Clear line data
