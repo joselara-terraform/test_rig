@@ -56,7 +56,7 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ---
 
-## 🔌 Phase 3: Service Stubs + Connections
+## 🧪 Phase 3: Service Stubs + Mock Mode
 
 ### 9. Create `controller_manager.py` service manager
 **Start:** Create start/stop methods for each service  
@@ -128,121 +128,82 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ---
 
-## 💾 Phase 6: Logging
+## 🔌 Phase 6: Hardware Integration
 
-### 20. Implement session folder logic
+### 20. NI cDAQ test script
+**Start:** Write standalone script to read NI-9253 inputs and toggle NI-9485 outputs  
+**End:** Verified live pressure/current values and physical relay clicks
+
+---
+
+### 21. Integrate NI cDAQ service
+**Start:** Replace mock `ni_daq.py` with live reads/writes using NI-DAQmx  
+**End:** Real values shown in plots and relay control affects real hardware
+
+---
+
+### 22. Pico TC-08 test script
+**Start:** Write script to read real thermocouple values via Pico SDK  
+**End:** Script prints valid temps for 8 channels
+
+---
+
+### 23. Integrate Pico TC-08 service
+**Start:** Replace `pico_tc08.py` with live readings using Pico SDK  
+**End:** Real temperatures update in state and plot
+
+---
+
+### 24. BGA244 test script
+**Start:** Write script to send RS-422 queries (`RATO?`, etc.) to 3 BGA devices  
+**End:** Receive and parse valid ratio and pressure values
+
+---
+
+### 25. Integrate BGA244 service
+**Start:** Replace `bga244.py` with actual serial communication  
+**End:** Live gas ratio values update in state and plot
+
+---
+
+### 26. CVM-24P test script
+**Start:** Write script to read voltages from Kolibrik device over USB  
+**End:** Valid cell voltage array printed
+
+---
+
+### 27. Integrate CVM-24P service
+**Start:** Replace `cvm24p.py` with real read logic (Modbus/ASCII/etc.)  
+**End:** Real CVM data updates plot and state
+
+---
+
+## 💾 Phase 7: Data Logging
+
+### 28. Implement session folder logic
 **Start:** Create `data/session_manager.py`  
 **End:** On start test: create timestamped folder + filename base
 
 ---
 
-### 21. Implement CSV logger
+### 29. Implement CSV logger
 **Start:** Create `data/logger.py`  
 **End:** Start test begins periodic writes of `state` values to a CSV
 
 ---
 
-## 🚦 Phase 7: Final Touches
+## ⚙️ Phase 8: Config Handling
 
-### 22. Implement emergency stop
-**Start:** Add kill button in UI  
-**End:** All services stop, relays set to OFF, test paused
-
----
-
-### 23. Hook up Pause/Resume logic
-**Start:** Wire Pause/Resume to timer and data logger  
-**End:** Freezes plots, data logging, timer; resumes on click
-
----
-
-### 24. Graceful disconnect logic
-**Start:** Add shutdown and cleanup paths  
-**End:** All services clean up on exit; hardware safe state
-
----
-
-### 25. Add real device.yaml parser
+### 30. Add real device.yaml parser
 **Start:** Create `config/devices.yaml`  
 **End:** NI channel numbers, serial ports, COM settings read from config file
 
 ---
 
-### 26. Enable launching without hardware
-**Start:** Add mock/fake mode if hardware not connected  
+## 🔁 Phase 9: Mock Mode Support
+
+### 31. Enable launching without hardware
+**Start:** Add command-line flag or UI toggle  
 **End:** Dashboard runs standalone, shows “Disconnected” but is functional
 
 ---
-
-
-## 🧩 Phase 8: NI DAQ (NI-9253, NI-9485)
-
-### 27. Install NI-DAQmx and Python bindings
-**Start:** Set up required Python packages and verify NI MAX sees the cDAQ  
-**End:** A test script can list devices and read a dummy analog input channel
-
----
-
-### 28. Read pressure and current via NI-9253
-**Start:** Connect 4–20mA pressure sensors and current sensor  
-**End:** `ni_daq.py` reads live analog values and scales to engineering units
-
----
-
-### 29. Control relays via NI-9485
-**Start:** Wire 4 solenoids and 1 pump to relay channels  
-**End:** Button presses toggle physical relays and actuators function
-
----
-
-### 30. Sync relay reads with `GlobalState`
-**Start:** Add relay readback logic or state tracking  
-**End:** UI indicators reflect real hardware state after physical actuation
-
----
-
-## 🌡 Phase 9: Pico TC-08 Thermocouple Logger
-
-### 31. Install Pico SDK and Python bindings
-**Start:** Download Pico SDK and required Python wrapper  
-**End:** TC-08 recognized by a test script that reads 1 thermocouple channel
-
----
-
-### 32. Read 8 thermocouple channels
-**Start:** Populate `pico_tc08.py` with polling logic  
-**End:** State is updated with all channel temperatures every 1–2s
-
----
-
-## 🌬 Phase 10: SRS BGA244 (RS-422 Serial)
-
-### 33. Set up RS-422 to USB hardware
-**Start:** Connect all 3 BGA244 units to known COM ports  
-**End:** Device responds to `*IDN?` or `RATO?` queries
-
----
-
-### 34. Poll gas ratio from each BGA
-**Start:** Implement real serial communication in `bga244.py`  
-**End:** Live RATO/PRES data is updated in state per device
-
----
-
-### 35. Parse and scale BGA outputs
-**Start:** Implement conversion logic (e.g., %H₂ from RATO)  
-**End:** Outputs plotted as clean % values or ratios
-
----
-
-## ⚡ Phase 11: Kolibrik CVM-24P Cell Voltage Monitor
-
-### 36. Connect CVM via USB and install driver
-**Start:** Verify CVM is detected and accessible via COM port  
-**End:** Can send and receive basic Modbus/ASCII commands
-
----
-
-### 37. Read cell voltages
-**Start:** Implement `cvm24p.py` to read and parse cell array  
-**End:** Average and/or individual cell voltages shown on plot
