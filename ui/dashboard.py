@@ -101,17 +101,17 @@ class Dashboard:
     def _create_widgets(self):
         """Create the 2x2 grid layout with actual plots"""
         
-        # Top-left: Live Pressure vs Time plot
+        # Top-left: Live Pressure and Gas Concentration vs Time plot
         self.pressure_frame = ttk.LabelFrame(
             self.main_frame, 
-            text="Pressure vs Time", 
+            text="Pressure & Gas Concentrations", 
             padding="2"
         )
         self.pressure_frame.grid(row=0, column=0, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.pressure_frame.columnconfigure(0, weight=1)
         self.pressure_frame.rowconfigure(0, weight=1)
         
-        # Create actual pressure plot
+        # Create actual pressure plot (now includes gas concentrations)
         self.pressure_plot = PressurePlot(self.pressure_frame)
         
         # Top-right: Voltage vs Time plot (placeholder for Task 15)
@@ -278,21 +278,23 @@ def main():
     dashboard = Dashboard(root)
     
     print("=" * 60)
-    print("TASK 14 TEST: Live Pressure vs Time Plot")
+    print("DASHBOARD TEST: Live Pressure & Gas Concentration Plot")
     print("=" * 60)
-    print("✅ Dashboard with live pressure plotting")
+    print("✅ Dashboard with live pressure & gas concentration plotting")
     print("✅ Pressure plot updates from GlobalState")
+    print("✅ Gas concentration plot updates from GlobalState")
     print("✅ Auto-scaling axes for optimal viewing")
-    print("✅ Dual pressure sensor display (blue & red lines)")
-    print("✅ 60-second sliding window")
+    print("✅ Pressure sensors: Blue (P1) & Red (P2) lines")
+    print("✅ Gas concentrations: Green (H₂) & Magenta (O₂) lines")
+    print("✅ Multiple gas streams: H-side, O-side, Mixed")
     print("✅ Plot placeholders for voltage & temperature")
-    print("\n🎯 TEST: Verify live pressure plotting:")
-    print("   1. Click Connect - services start providing data")
+    print("\n🎯 TEST: Verify live plotting:")
+    print("   1. Click Connect - all services start providing data")
     print("   2. Start Test - plots begin updating")
-    print("   3. Watch pressure lines move in real-time")
+    print("   3. Watch pressure & gas lines move in real-time")
     print("   4. Axes auto-scale to data range")
     print("   5. Time window slides as data accumulates")
-    print("\nPressure plot shows realistic electrolyzer data!")
+    print("\nPressure & gas concentration plot shows realistic electrolyzer data!")
     print("Close window when done testing...")
     print("=" * 60)
     
