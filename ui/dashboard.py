@@ -114,30 +114,30 @@ class Dashboard:
         # Create actual pressure plot (now includes gas concentrations)
         self.pressure_plot = PressurePlot(self.pressure_frame)
         
-        # Top-right: Voltage vs Time plot (placeholder for Task 15)
+        # Top-right: Live Cell Voltage vs Time plot
         self.voltage_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Voltage vs Time", 
-            padding="5"
+            padding="2"
         )
         self.voltage_frame.grid(row=0, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.voltage_frame.columnconfigure(0, weight=1)
         self.voltage_frame.rowconfigure(0, weight=1)
         
-        # Create voltage plot placeholder
+        # Create voltage plot
         self.voltage_plot = VoltagePlot(self.voltage_frame)
         
         # Bottom-left: Temperature vs Time plot (placeholder for Task 16)
         self.temperature_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Temperature vs Time", 
-            padding="5"
+            padding="2"
         )
         self.temperature_frame.grid(row=1, column=0, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.temperature_frame.columnconfigure(0, weight=1)
         self.temperature_frame.rowconfigure(0, weight=1)
         
-        # Create temperature plot placeholder
+        # Create temperature plot
         self.temperature_plot = TemperaturePlot(self.temperature_frame)
         
         # Bottom-right: Valve/Pump state indicators
@@ -277,38 +277,36 @@ def main():
     root = tk.Tk()
     dashboard = Dashboard(root)
     
-    print("=" * 60)
-    print("DASHBOARD TEST: Live Pressure, Gas & Voltage Plots")
-    print("=" * 60)
+    print("=" * 70)
+    print("DASHBOARD TEST: All Live Plots - Pressure, Gas, Voltage & Temperature")
+    print("=" * 70)
     print("✅ Dashboard with live pressure & gas concentration plotting")
     print("✅ Dashboard with live cell voltage plotting (120 cells)")
-    print("✅ Pressure plot updates from GlobalState")
-    print("✅ Gas concentration plot updates from GlobalState")
-    print("✅ Voltage plot updates from GlobalState")
+    print("✅ Dashboard with live temperature plotting (8 thermocouples)")
+    print("✅ All plots update from GlobalState")
     print("✅ Static Y-axis, dynamic X-axis for all plots")
-    print("✅ Pressure sensors: Blue (P1) & Red (P2) lines")
-    print("✅ Gas concentrations (3 BGA series):")
-    print("   • Green dashed: H₂ from hydrogen side")
-    print("   • Magenta dashed: O₂ from oxygen side")  
-    print("   • Green dotted: H₂ from mixed stream")
-    print("✅ Cell voltages (6 group averages, 0-5V):")
-    print("   • Blue solid: Group 1 (cells 1-20 avg)")
-    print("   • Green solid: Group 2 (cells 21-40 avg)")
-    print("   • Red solid: Group 3 (cells 41-60 avg)")
-    print("   • Magenta solid: Group 4 (cells 61-80 avg)")
-    print("   • Cyan solid: Group 5 (cells 81-100 avg)")
-    print("   • Yellow solid: Group 6 (cells 101-120 avg)")
-    print("✅ Plot placeholder for temperature")
-    print("\n🎯 TEST: Verify live plotting:")
+    print("\nPressure & Gas Plot (Y: 0-1):")
+    print("   • Blue: Pressure 1 | Red: Pressure 2")
+    print("   • Green dashed: H₂ (H-side) | Magenta dashed: O₂ (O-side)")  
+    print("   • Green dotted: H₂ (mixed stream)")
+    print("\nVoltage Plot (Y: 0-5V):")
+    print("   • Blue: Group 1 (1-20) | Green: Group 2 (21-40)")
+    print("   • Red: Group 3 (41-60) | Magenta: Group 4 (61-80)")
+    print("   • Cyan: Group 5 (81-100) | Yellow: Group 6 (101-120)")
+    print("\nTemperature Plot (Y: 0-100°C):")
+    print("   • Blue: Inlet | Red: Outlet | Green: Stack 1 | Magenta: Stack 2")
+    print("   • Cyan dashed: Ambient | Yellow dashed: Cooling")
+    print("   • Orange: Gas | Brown: Case")
+    print("\n🎯 TEST: Verify all live plotting:")
     print("   1. Click Connect - all services start providing data")
-    print("   2. Start Test - plots begin updating")
-    print("   3. Watch pressure, gas & voltage lines move in real-time")
+    print("   2. Start Test - all plots begin updating")
+    print("   3. Watch all plots update in real-time")
     print("   4. X-axis expands dynamically with time")
     print("   5. Y-axis remains static for consistent scale")
-    print("   6. Voltage plot shows actual voltages (2-3.5V range)")
-    print("\nPressure, gas & voltage plots show realistic electrolyzer data!")
+    print("   6. Temperature shows 15-80°C, voltage 2-3.5V, pressure 0.3-0.8")
+    print("\nAll three plots show realistic electrolyzer data!")
     print("Close window when done testing...")
-    print("=" * 60)
+    print("=" * 70)
     
     root.mainloop()
 

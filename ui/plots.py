@@ -330,53 +330,256 @@ class VoltagePlot:
 
 
 class TemperaturePlot:
-    """Live temperature vs time plot - placeholder for Task 16"""
+    """Live temperature vs time plot"""
     
-    def __init__(self, parent_frame):
+    def __init__(self, parent_frame, max_points: int = 300):
         self.parent_frame = parent_frame
+        self.state = get_global_state()
+        self.max_points = max_points
         
-        # Placeholder label
-        self.placeholder = ttk.Label(
-            parent_frame,
-            text="[Temperature Plot - Task 16]\n\nTemperature plotting will be\nimplemented in Task 16\n\n"
-                 "Axis limits: Static Y, Dynamic X\nX = [0, max(time*1.2, 120)]",
-            justify=tk.CENTER,
-            background="lightyellow"
+        # Data storage for plotting - temperature data (8 thermocouple channels)
+        self.time_data = deque()
+        self.inlet_temp_data = deque()     # CH0: Inlet water temp
+        self.outlet_temp_data = deque()    # CH1: Outlet water temp
+        self.stack_temp1_data = deque()    # CH2: Stack temperature 1
+        self.stack_temp2_data = deque()    # CH3: Stack temperature 2
+        self.ambient_temp_data = deque()   # CH4: Ambient temperature
+        self.cooling_temp_data = deque()   # CH5: Cooling system temp
+        self.gas_temp_data = deque()       # CH6: Gas output temp
+        self.case_temp_data = deque()      # CH7: Electronics case temp
+        
+        self.last_update_time = 0
+        
+        # Create the matplotlib figure
+        self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
+        self.ax = self.fig.add_subplot(111)
+        
+        # Configure plot appearance
+        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+        
+        # Create line objects for temperature channels
+        self.line_inlet, = self.ax.plot([], [], 'b-', linewidth=2, label='Inlet', alpha=0.9)
+        self.line_outlet, = self.ax.plot([], [], 'r-', linewidth=2, label='Outlet', alpha=0.9)
+        self.line_stack1, = self.ax.plot([], [], 'g-', linewidth=2, label='Stack 1', alpha=0.9)
+        self.line_stack2, = self.ax.plot([], [], 'm-', linewidth=2, label='Stack 2', alpha=0.9)
+        self.line_ambient, = self.ax.plot([], [], 'c--', linewidth=1.5, label='Ambient', alpha=0.8)
+        self.line_cooling, = self.ax.plot([], [], 'y--', linewidth=1.5, label='Cooling', alpha=0.8)
+        self.line_gas, = self.ax.plot([], [], 'orange', linewidth=1.5, label='Gas', alpha=0.8)
+        self.line_case, = self.ax.plot([], [], 'brown', linewidth=1.5, label='Case', alpha=0.8)
+        
+        # Add legend with smaller font to fit entries
+        self.ax.legend(loc='upper right', fontsize=6, ncol=4)
+        
+        # Set initial axis limits - static Y (0-100°C), dynamic X
+        self.ax.set_xlim(0, 120)   # Initial X limit
+        self.ax.set_ylim(0, 100)   # Static Y limit (0-100°C range)
+        
+        # Create canvas and add to parent frame
+        self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+        
+        # Start animation
+        self.animation = animation.FuncAnimation(
+            self.fig, self._update_plot, interval=100, blit=False, cache_frame_data=False
         )
-        self.placeholder.pack(fill='both', expand=True)
+        
+        # Pack the canvas
+        self.canvas.draw()
     
+    def _update_plot(self, frame):
+        """Update plot with new data from GlobalState"""
+        current_time = time.time()
+        
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running:
+            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
+                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+        
+        if self.state.test_paused:
+            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
+                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+        
+        # Update only if enough time has passed (throttle updates)
+        if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
+            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
+                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+        
+        self.last_update_time = current_time
+        
+        # Use global timer
+        relative_time = self.state.timer_value
+        
+        # Get current temperature values from the 8 thermocouple channels
+        temp_values = self.state.temperature_values
+        
+        if len(temp_values) >= 8:
+            # Extract temperature values for each channel
+            inlet_temp = temp_values[0]     # CH0: Inlet water temp
+            outlet_temp = temp_values[1]    # CH1: Outlet water temp
+            stack_temp1 = temp_values[2]    # CH2: Stack temperature 1
+            stack_temp2 = temp_values[3]    # CH3: Stack temperature 2
+            ambient_temp = temp_values[4]   # CH4: Ambient temperature
+            cooling_temp = temp_values[5]   # CH5: Cooling system temp
+            gas_temp = temp_values[6]       # CH6: Gas output temp
+            case_temp = temp_values[7]      # CH7: Electronics case temp
+        else:
+            # No data available or insufficient data
+            inlet_temp = outlet_temp = stack_temp1 = stack_temp2 = 0.0
+            ambient_temp = cooling_temp = gas_temp = case_temp = 0.0
+        
+        # Add new data points
+        self.time_data.append(relative_time)
+        self.inlet_temp_data.append(inlet_temp)
+        self.outlet_temp_data.append(outlet_temp)
+        self.stack_temp1_data.append(stack_temp1)
+        self.stack_temp2_data.append(stack_temp2)
+        self.ambient_temp_data.append(ambient_temp)
+        self.cooling_temp_data.append(cooling_temp)
+        self.gas_temp_data.append(gas_temp)
+        self.case_temp_data.append(case_temp)
+        
+        # Update line data
+        if len(self.time_data) > 0:
+            self.line_inlet.set_data(list(self.time_data), list(self.inlet_temp_data))
+            self.line_outlet.set_data(list(self.time_data), list(self.outlet_temp_data))
+            self.line_stack1.set_data(list(self.time_data), list(self.stack_temp1_data))
+            self.line_stack2.set_data(list(self.time_data), list(self.stack_temp2_data))
+            self.line_ambient.set_data(list(self.time_data), list(self.ambient_temp_data))
+            self.line_cooling.set_data(list(self.time_data), list(self.cooling_temp_data))
+            self.line_gas.set_data(list(self.time_data), list(self.gas_temp_data))
+            self.line_case.set_data(list(self.time_data), list(self.case_temp_data))
+            
+            # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
+            # Static Y-axis: [0, 100] (no auto-scaling)
+            self.ax.set_xlim(0, max(relative_time*1.2, 120))
+        
+        return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
+               self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+
     def reset(self):
-        pass
+        """Reset plot data"""
+        self.time_data.clear()
+        self.inlet_temp_data.clear()
+        self.outlet_temp_data.clear()
+        self.stack_temp1_data.clear()
+        self.stack_temp2_data.clear()
+        self.ambient_temp_data.clear()
+        self.cooling_temp_data.clear()
+        self.gas_temp_data.clear()
+        self.case_temp_data.clear()
+
+        self.last_update_time = 0
+        
+        # Reset axis limits - static Y, initial X
+        self.ax.set_xlim(0, 120)
+        self.ax.set_ylim(0, 100)
+        
+        # Clear line data
+        self.line_inlet.set_data([], [])
+        self.line_outlet.set_data([], [])
+        self.line_stack1.set_data([], [])
+        self.line_stack2.set_data([], [])
+        self.line_ambient.set_data([], [])
+        self.line_cooling.set_data([], [])
+        self.line_gas.set_data([], [])
+        self.line_case.set_data([], [])
+        
+        self.canvas.draw()
     
     def destroy(self):
-        self.placeholder.destroy()
+        """Clean up resources"""
+        if hasattr(self, 'animation'):
+            self.animation.event_source.stop()
+        self.canvas.get_tk_widget().destroy()
 
 
 def test_pressure_plot():
-    """Test the pressure, gas concentration, and voltage plots independently"""
+    """Test the pressure, gas concentration, voltage, and temperature plots independently"""
     import threading
     from services.controller_manager import get_controller_manager
     
     # Create test window
     root = tk.Tk()
-    root.title("Test Pressure & Gas & Voltage Plots")
-    root.geometry("1200x800")
+    root.title("Test All Plots - Pressure, Gas, Voltage & Temperature")
+    root.geometry("1600x900")
     
-    # Create frames for both plots side by side
+    # Create frames for all plots in a 2x2 grid
     main_frame = ttk.Frame(root)
     main_frame.pack(fill='both', expand=True, padx=10, pady=10)
     
-    # Left side: Pressure & Gas plot
+    # Configure grid weights
+    main_frame.columnconfigure(0, weight=1)
+    main_frame.columnconfigure(1, weight=1)
+    main_frame.rowconfigure(0, weight=1)
+    main_frame.rowconfigure(1, weight=1)
+    
+    # Top-left: Pressure & Gas plot
     pressure_frame = ttk.LabelFrame(main_frame, text="Pressure & Gas Concentrations", padding="5")
-    pressure_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
+    pressure_frame.grid(row=0, column=0, padx=(0, 5), pady=(0, 5), sticky='nsew')
     
-    # Right side: Voltage plot
+    # Top-right: Voltage plot
     voltage_frame = ttk.LabelFrame(main_frame, text="Cell Voltages", padding="5")
-    voltage_frame.pack(side='right', fill='both', expand=True, padx=(5, 0))
+    voltage_frame.grid(row=0, column=1, padx=(5, 0), pady=(0, 5), sticky='nsew')
     
-    # Create both plots
+    # Bottom-left: Temperature plot
+    temperature_frame = ttk.LabelFrame(main_frame, text="Temperatures", padding="5")
+    temperature_frame.grid(row=1, column=0, padx=(0, 5), pady=(5, 0), sticky='nsew')
+    
+    # Bottom-right: Info panel
+    info_frame = ttk.LabelFrame(main_frame, text="Plot Information", padding="5")
+    info_frame.grid(row=1, column=1, padx=(5, 0), pady=(5, 0), sticky='nsew')
+    
+    # Create all three plots
     pressure_plot = PressurePlot(pressure_frame)
     voltage_plot = VoltagePlot(voltage_frame)
+    temperature_plot = TemperaturePlot(temperature_frame)
+    
+    # Create info display
+    info_text = tk.Text(info_frame, wrap=tk.WORD, font=("Courier", 8))
+    info_text.pack(fill='both', expand=True)
+    
+    info_content = """PLOT TESTING - ALL LIVE PLOTS
+    
+🔥 Pressure & Gas (Y: 0-1):
+   • Blue solid: Pressure 1
+   • Red solid: Pressure 2  
+   • Green dashed: H₂ (H-side)
+   • Magenta dashed: O₂ (O-side)
+   • Green dotted: H₂ (mixed)
+
+⚡ Cell Voltages (Y: 0-5V):
+   • Blue: Group 1 (cells 1-20)
+   • Green: Group 2 (cells 21-40)
+   • Red: Group 3 (cells 41-60)
+   • Magenta: Group 4 (cells 61-80)
+   • Cyan: Group 5 (cells 81-100)
+   • Yellow: Group 6 (cells 101-120)
+
+🌡️  Temperatures (Y: 0-100°C):
+   • Blue: Inlet water temp
+   • Red: Outlet water temp
+   • Green: Stack temp 1
+   • Magenta: Stack temp 2
+   • Cyan dashed: Ambient temp
+   • Yellow dashed: Cooling temp
+   • Orange: Gas output temp
+   • Brown: Case temp
+
+ARCHITECTURE:
+✅ Static Y-axis, dynamic X-axis
+✅ Same deque() storage pattern
+✅ Same update throttling (10Hz)
+✅ Same state checking logic
+✅ Thread-safe operations
+✅ Reset functionality
+
+Close window when done testing..."""
+    
+    info_text.insert('1.0', info_content)
+    info_text.config(state='disabled')
     
     # Start all services via ControllerManager to generate test data
     controller = get_controller_manager()
@@ -388,31 +591,28 @@ def test_pressure_plot():
             controller.stop_all_services()
         pressure_plot.destroy()
         voltage_plot.destroy()
+        temperature_plot.destroy()
         root.destroy()
     
     root.protocol("WM_DELETE_WINDOW", cleanup)
     
-    print("=" * 60)
-    print("PRESSURE & GAS & VOLTAGE PLOT TEST")
-    print("=" * 60)
+    print("=" * 70)
+    print("ALL PLOTS TEST: PRESSURE, GAS, VOLTAGE & TEMPERATURE")
+    print("=" * 70)
     print("✅ Live pressure & gas concentration plot created")
     print("✅ Live cell voltage plot created (120 cells, 6 groups)")
+    print("✅ Live temperature plot created (8 thermocouples)")
     print("✅ Data updating from GlobalState")
-    print("✅ Static Y-axis, dynamic X-axis for both plots")
+    print("✅ Static Y-axis, dynamic X-axis for all plots")
     print("\nPressure & Gas Plot (Y: 0-1):")
-    print("   • Blue solid: Pressure 1")
-    print("   • Red solid: Pressure 2")
-    print("   • Green dashed: H₂ from hydrogen side")
-    print("   • Magenta dashed: O₂ from oxygen side")
-    print("   • Green dotted: H₂ from mixed stream")
+    print("   • 2 pressure sensors + 3 gas concentrations")
     print("\nVoltage Plot (Y: 0-5V):")
-    print("   • Blue solid: Group 1 (cells 1-20 avg)")
-    print("   • Green solid: Group 2 (cells 21-40 avg)")
-    print("   • Red solid: Group 3 (cells 41-60 avg)")
-    print("   • Magenta solid: Group 4 (cells 61-80 avg)")
-    print("   • Cyan solid: Group 5 (cells 81-100 avg)")
-    print("   • Yellow solid: Group 6 (cells 101-120 avg)")
-    print("\nClose window when done testing...")
+    print("   • 6 group averages (20 cells each)")
+    print("\nTemperature Plot (Y: 0-100°C):")
+    print("   • 8 thermocouple channels")
+    print("   • Inlet, outlet, stack, ambient, cooling, gas, case temps")
+    print("\nAll plots follow same proven architecture!")
+    print("Close window when done testing...")
     
     root.mainloop()
 
