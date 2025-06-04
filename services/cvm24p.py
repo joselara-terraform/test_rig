@@ -164,23 +164,26 @@ class CVM24PService:
                         protocol_type=ProtocolEnum.XC2
                     )
                     
-                    # Connect to bus (run in event loop)
+                    # Connect to bus (run in event loop) - match CVM_test.py pattern exactly
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     
-                    connected = loop.run_until_complete(self.bus.connect())
-                    if not connected:
-                        print(f"      → Failed to connect to serial bus on {selected_port}")
-                        continue
-                    
+                    # Just connect - don't check return value like CVM_test.py
+                    loop.run_until_complete(self.bus.connect())
                     print(f"      → Bus connected on {selected_port}, discovering modules...")
+                    
+                    # Add bus stability pause like CVM_test.py
+                    loop.run_until_complete(asyncio.sleep(3))
                     
                     # Discover modules
                     discovered_modules = loop.run_until_complete(self._discover_modules())
                     
                     if not discovered_modules:
                         print(f"      → No CVM24P modules found on {selected_port}")
-                        loop.run_until_complete(self.bus.disconnect())
+                        try:
+                            loop.run_until_complete(self.bus.disconnect())
+                        except:
+                            pass
                         continue
                     
                     # Initialize modules
@@ -188,7 +191,10 @@ class CVM24PService:
                     
                     if initialized_count == 0:
                         print(f"      → No modules successfully initialized on {selected_port}")
-                        loop.run_until_complete(self.bus.disconnect())
+                        try:
+                            loop.run_until_complete(self.bus.disconnect())
+                        except:
+                            pass
                         continue
                     
                     print(f"   → Success! {initialized_count}/{len(discovered_modules)} modules initialized on {selected_port}")
@@ -310,13 +316,17 @@ class CVM24PService:
         # Close hardware connections
         if self.bus and not self.use_mock:
             try:
-                if self.loop:
+                if self.loop and not self.loop.is_closed():
                     self.loop.run_until_complete(self.bus.disconnect())
+                    # Clean up event loop
+                    self.loop.close()
             except Exception as e:
                 print(f"⚠️  Error disconnecting bus: {e}")
         
-        # Clear modules
+        # Clear state
         self.modules.clear()
+        self.bus = None
+        self.loop = None
         
         self.connected = False
         self.state.update_connection_status('cvm24p', False)
@@ -381,11 +391,14 @@ class CVM24PService:
         
         try:
             # Read from all modules in the event loop
-            if self.loop:
+            if self.loop and not self.loop.is_closed():
                 future = asyncio.run_coroutine_threadsafe(
                     self._async_read_all_modules(), self.loop
                 )
-                all_voltages = future.result(timeout=2.0)
+                all_voltages = future.result(timeout=5.0)  # Increase timeout
+            else:
+                print("⚠️  Event loop not available for hardware reading")
+                all_voltages = [0.0] * self.total_channels
             
         except Exception as e:
             print(f"⚠️  Hardware reading error: {e}")
