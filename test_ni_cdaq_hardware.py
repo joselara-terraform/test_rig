@@ -327,17 +327,26 @@ def test_continuous_monitoring():
                 
                 # Handle single vs multiple channels
                 num_channels = len(ANALOG_CHANNELS)
-                if num_channels == 1:
-                    all_channel_data = [[data[j] for j in range(len(data))]]
-                else:
-                    # For continuous acquisition with multiple channels, data comes as:
-                    # [ch1_s1, ch2_s1, ch3_s1, ch1_s2, ch2_s2, ch3_s2, ...]
-                    # We need to separate by channel
+                
+                # For continuous acquisition, data always comes as a flat list
+                if isinstance(data, list) and len(data) > 0 and not isinstance(data[0], list):
+                    # Data is a flat list - need to de-interleave
                     all_channel_data = [[] for _ in range(num_channels)]
-                    for i in range(0, len(data), num_channels):
-                        for ch in range(num_channels):
-                            if i + ch < len(data):
-                                all_channel_data[ch].append(data[i + ch])
+                    if num_channels == 1:
+                        # Single channel - all data belongs to one channel
+                        all_channel_data[0] = data
+                    else:
+                        # Multiple channels - data is interleaved
+                        for i in range(0, len(data), num_channels):
+                            for ch in range(num_channels):
+                                if i + ch < len(data):
+                                    all_channel_data[ch].append(data[i + ch])
+                else:
+                    # Data is already structured (shouldn't happen in continuous mode)
+                    if num_channels == 1:
+                        all_channel_data = [data] if isinstance(data, list) else [[data]]
+                    else:
+                        all_channel_data = data
                 
                 # Calculate averages and display
                 readings = []
