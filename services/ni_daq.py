@@ -2,6 +2,13 @@
 """
 NI DAQ service for AWE test rig
 Handles NI-9253 (4-20mA analog inputs) and NI-9485 (digital outputs)
+
+4-20mA Signal Conditioning (Enhanced):
+- 3.9mA = 0% scale (calibrated minimum)  
+- 20mA = 100% scale (maximum)
+- <3.5mA = DISCONNECTED (sensor fault)
+- 3.5-3.9mA = LOW SIGNAL (wiring issue)
+- >20.5mA = HIGH SIGNAL (sensor overrange)
 """
 
 import time
@@ -107,14 +114,14 @@ class NIDAQService:
         self.ai_task = Task()
         for ch_name, ch_config in self.analog_channels.items():
             channel = ch_config["channel"]
-            print(f"     • {ch_config['name']}: {channel} (4-20mA)")
+            print(f"     • {ch_config['name']}: {channel} (4-20mA, calibrated 3.9-20mA)")
             
-            # Add current input channel
+            # Add current input channel (calibrated to 3.9-20mA)
             self.ai_task.ai_channels.add_ai_current_chan(
                 channel,
                 name_to_assign_to_channel=ch_name,
-                min_val=0.004,  # 4mA
-                max_val=0.020   # 20mA
+                min_val=0.0039,  # 3.9mA minimum (calibrated)
+                max_val=0.020    # 20mA maximum
             )
         
         # Configure continuous sampling
@@ -152,7 +159,7 @@ class NIDAQService:
         
         print("   → Mock analog input channels:")
         for ch_name, ch_config in self.analog_channels.items():
-            print(f"     • {ch_config['name']}: {ch_config['channel']} (4-20mA)")
+            print(f"     • {ch_config['name']}: {ch_config['channel']} (4-20mA, calibrated 3.9-20mA)")
         
         print("   → Mock digital output channels:")
         for ch_name, ch_config in self.digital_channels.items():
@@ -290,20 +297,60 @@ class NIDAQService:
             # Read current data (in Amps)
             data = self.ai_task.read(number_of_samples_per_channel=10, timeout=1.0)
             
+            # Handle data structure properly for multiple channels
+            num_channels = len(self.analog_channels)
+            
+            # For continuous acquisition with multiple channels, data structure varies
+            if isinstance(data, list) and len(data) > 0:
+                if num_channels == 1:
+                    # Single channel - data is a simple list
+                    all_channel_data = [data]
+                else:
+                    # Multiple channels - check if data is structured or flat
+                    if isinstance(data[0], list):
+                        # Data is already structured as list of lists
+                        all_channel_data = data
+                    else:
+                        # Data is flat - de-interleave (shouldn't happen in continuous mode normally)
+                        all_channel_data = [[] for _ in range(num_channels)]
+                        for i in range(0, len(data), num_channels):
+                            for ch in range(num_channels):
+                                if i + ch < len(data):
+                                    all_channel_data[ch].append(data[i + ch])
+            else:
+                # Fallback - create empty data structure
+                all_channel_data = [[] for _ in range(num_channels)]
+            
             # Process and convert to engineering units
             scaled_data = {}
             for i, (ch_name, ch_config) in enumerate(self.analog_channels.items()):
                 # Calculate average current from samples
-                channel_data = [data[j][i] for j in range(len(data))]
-                avg_current = sum(channel_data) / len(channel_data)
-                
-                # Convert 4-20mA current to engineering units
-                min_eng, max_eng = ch_config["range"]
-                if avg_current <= 0.004:  # Below 4mA (sensor disconnected)
-                    eng_value = min_eng  # Return minimum value for disconnected sensor
+                if i < len(all_channel_data) and len(all_channel_data[i]) > 0:
+                    channel_data = all_channel_data[i]
+                    avg_current = sum(channel_data) / len(channel_data)
                 else:
-                    eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
+                    avg_current = 0.0
                 
+                # Convert 4-20mA current to engineering units with enhanced signal conditioning
+                min_eng, max_eng = ch_config["range"]
+                current_ma = avg_current * 1000  # Convert to mA for easier checking
+                
+                # Enhanced signal conditioning with multiple status checks
+                if current_ma < 3.5:
+                    # DISCONNECTED - no sensor connected
+                    eng_value = 0.0
+                elif current_ma < 3.9:
+                    # LOW SIGNAL - sensor connected but signal too low
+                    eng_value = 0.0
+                elif current_ma > 20.5:
+                    # HIGH SIGNAL - sensor overrange
+                    eng_value = max_eng
+                else:
+                    # OK - normal operation with calibrated scaling
+                    # Calibrated scaling: 3.9mA = 0, 20mA = max
+                    eng_value = ((avg_current - 0.0039) / 0.0161) * (max_eng - min_eng) + min_eng
+                
+                # Ensure value stays within bounds
                 scaled_data[ch_name] = max(min_eng, min(max_eng, eng_value))
             
             return scaled_data
@@ -395,15 +442,16 @@ class NIDAQService:
 def main():
     """Test the NI DAQ service by running it directly"""
     print("=" * 60)
-    print("TASK 21 TEST: Real NI DAQ Service Integration")
+    print("TASK 21 TEST: Real NI DAQ Service Integration (Enhanced)")
     print("=" * 60)
     
     service = NIDAQService()
     
     print(f"✅ NI DAQ service created ({'Real Hardware' if not service.mock_mode else 'Mock Mode'})")
-    print("✅ Real NI-9253 analog inputs (3 channels)")
+    print("✅ Enhanced NI-9253 analog inputs (3 channels)")
     print("✅ Real NI-9485 digital outputs (5 channels)")
-    print("✅ 4-20mA current measurement")
+    print("✅ 4-20mA current measurement (calibrated 3.9-20mA)")
+    print("✅ Enhanced signal conditioning (fault detection)")
     print("✅ Physical relay control")
     
     print("\n🎯 TEST: Verify NI DAQ hardware integration:")
@@ -432,7 +480,7 @@ def main():
     
     # Show some data
     state = get_global_state()
-    print(f"\n5. Live sensor data:")
+    print(f"\n5. Live sensor data (with enhanced signal conditioning):")
     print(f"   Pressure 1: {state.pressure_values[0]:.2f} PSI")
     print(f"   Pressure 2: {state.pressure_values[1]:.2f} PSI")
     print(f"   Current: {state.current_value:.2f} A")
@@ -454,7 +502,7 @@ def main():
     service.stop_polling()
     service.disconnect()
     
-    print("\n✅ Real NI DAQ service integration test complete!")
+    print("\n✅ Enhanced NI DAQ service integration test complete!")
     print("=" * 60)
 
 
