@@ -147,52 +147,67 @@ class CVM24PService:
                 print("   → No serial ports found")
                 return False
             
-            # Use first available port
-            selected_port = available_ports[0]
-            bus_sn = get_serial_from_port(selected_port)
+            print(f"   → Found {len(available_ports)} available ports: {available_ports}")
             
-            print(f"   → Connecting to port {selected_port} at {CVM24PConfig.BAUD_RATE} baud...")
+            # Try each port until one works
+            for port_index, selected_port in enumerate(available_ports):
+                try:
+                    bus_sn = get_serial_from_port(selected_port)
+                    
+                    print(f"   → Trying port {selected_port} ({port_index+1}/{len(available_ports)}) at {CVM24PConfig.BAUD_RATE} baud...")
+                    
+                    # Create bus connection
+                    self.bus = SerialBus(
+                        bus_sn, 
+                        port=selected_port, 
+                        baud_rate=CVM24PConfig.BAUD_RATE,
+                        protocol_type=ProtocolEnum.XC2
+                    )
+                    
+                    # Connect to bus (run in event loop)
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                    connected = loop.run_until_complete(self.bus.connect())
+                    if not connected:
+                        print(f"      → Failed to connect to serial bus on {selected_port}")
+                        continue
+                    
+                    print(f"      → Bus connected on {selected_port}, discovering modules...")
+                    
+                    # Discover modules
+                    discovered_modules = loop.run_until_complete(self._discover_modules())
+                    
+                    if not discovered_modules:
+                        print(f"      → No CVM24P modules found on {selected_port}")
+                        loop.run_until_complete(self.bus.disconnect())
+                        continue
+                    
+                    # Initialize modules
+                    initialized_count = loop.run_until_complete(self._initialize_modules(discovered_modules))
+                    
+                    if initialized_count == 0:
+                        print(f"      → No modules successfully initialized on {selected_port}")
+                        loop.run_until_complete(self.bus.disconnect())
+                        continue
+                    
+                    print(f"   → Success! {initialized_count}/{len(discovered_modules)} modules initialized on {selected_port}")
+                    
+                    # Store event loop for polling
+                    self.loop = loop
+                    self.use_mock = False
+                    
+                    return True
+                    
+                except PermissionError as e:
+                    print(f"      → Port {selected_port} is already in use (Permission denied)")
+                    continue
+                except Exception as e:
+                    print(f"      → Error with port {selected_port}: {e}")
+                    continue
             
-            # Create bus connection
-            self.bus = SerialBus(
-                bus_sn, 
-                port=selected_port, 
-                baud_rate=CVM24PConfig.BAUD_RATE,
-                protocol_type=ProtocolEnum.XC2
-            )
-            
-            # Connect to bus (run in event loop)
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            connected = loop.run_until_complete(self.bus.connect())
-            if not connected:
-                print("   → Failed to connect to serial bus")
-                return False
-            
-            print("   → Bus connected, discovering modules...")
-            
-            # Discover modules
-            discovered_modules = loop.run_until_complete(self._discover_modules())
-            
-            if not discovered_modules:
-                print("   → No CVM24P modules found")
-                return False
-            
-            # Initialize modules
-            initialized_count = loop.run_until_complete(self._initialize_modules(discovered_modules))
-            
-            if initialized_count == 0:
-                print("   → No modules successfully initialized")
-                return False
-            
-            print(f"   → {initialized_count}/{len(discovered_modules)} modules initialized")
-            
-            # Store event loop for polling
-            self.loop = loop
-            self.use_mock = False
-            
-            return True
+            print("   → All ports failed or already in use")
+            return False
             
         except Exception as e:
             print(f"   → Hardware connection error: {e}")
