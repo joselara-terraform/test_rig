@@ -1,0 +1,293 @@
+# devices.yaml
+# AWE Test Rig Hardware Configuration
+# 
+# This file contains all hardware-specific settings including:
+# - NI cDAQ channel mappings and calibration
+# - Serial port configurations  
+# - Device communication settings
+# - CALIBRATED ZERO OFFSETS for each sensor
+
+# NI cDAQ Configuration
+ni_cdaq:
+  chassis: "cDAQ9187-23E902C"
+  
+  # NI-9253 Analog Input Module (4-20mA Current Inputs)
+  analog_inputs:
+    module: "cDAQ9187-23E902CMod1"
+    sample_rate: 100  # Hz
+    
+    # 4-20mA Signal Conditioning
+    current_range:
+      min_ma: 3.9   # Calibrated minimum (below this = sensor fault)
+      max_ma: 20.0  # Standard maximum
+      fault_threshold_low: 3.5   # Below this = DISCONNECTED
+      fault_threshold_high: 20.5 # Above this = OVERRANGE
+    
+    # Individual Sensor Channels with Calibrated Zero Offsets
+    channels:
+      pressure_1:
+        channel: "ai0"
+        name: "Pressure Sensor 1 (Hydrogen Side)"
+        units: "PSI"
+        range: [0, 15]
+        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
+        zero_offset: 0.0  # 4mA represents true 0 PSI
+        description: "Hydrogen side pressure measurement"
+        
+      pressure_2:
+        channel: "ai1" 
+        name: "Pressure Sensor 2 (Oxygen Side)"
+        units: "PSI"
+        range: [0, 15]
+        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
+        zero_offset: 0.0  # 4mA represents true 0 PSI
+        description: "Oxygen side pressure measurement"
+        
+      current:
+        channel: "ai2"
+        name: "Stack Current Sensor"
+        units: "A"
+        range: [0, 150]
+        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
+        zero_offset: 0.0  # 4mA represents true 0 A
+        description: "Electrolyzer stack current measurement"
+  
+  # NI-9485 Digital Output Modules (Relay Control)
+  digital_outputs:
+    module_2: "cDAQ9187-23E902CMod2"
+    module_3: "cDAQ9187-23E902CMod3"
+    
+    # Valve and Pump Control Mapping
+    valves:
+      koh_storage:
+        module: "cDAQ9187-23E902CMod2"
+        line: 0
+        name: "KOH Storage Valve"
+        description: "Controls KOH electrolyte storage tank valve"
+        
+      di_storage:
+        module: "cDAQ9187-23E902CMod2"
+        line: 1
+        name: "DI Storage Valve"
+        description: "Controls deionized water storage tank valve"
+        
+      stack_drain:
+        module: "cDAQ9187-23E902CMod2" 
+        line: 2
+        name: "Stack Drain Valve"
+        description: "Controls electrolyzer stack drain valve"
+        
+      n2_purge:
+        module: "cDAQ9187-23E902CMod2"
+        line: 3
+        name: "N2 Purge Valve"
+        description: "Controls nitrogen purge valve for system cleanup"
+        
+    pump:
+      main_pump:
+        module: "cDAQ9187-23E902CMod2"
+        line: 4
+        name: "Main Circulation Pump"
+        description: "Controls main electrolyte circulation pump"
+
+# Pico TC-08 Thermocouple Logger
+pico_tc08:
+  device_type: "Pico TC-08"
+  connection: "USB"
+  
+  # Temperature Channels with Calibrated Zero Offsets
+  channels:
+    channel_0:
+      name: "Inlet Temperature"
+      type: "K"  # Thermocouple type
+      units: "°C"
+      range: [0, 100]
+      # CALIBRATED ZERO OFFSET - Sensor-specific calibration
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Electrolyte inlet temperature"
+      
+    channel_1:
+      name: "Outlet Temperature"
+      type: "K"
+      units: "°C" 
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Electrolyte outlet temperature"
+      
+    channel_2:
+      name: "Stack Temperature 1"
+      type: "K"
+      units: "°C"
+      range: [0, 100] 
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Electrolyzer stack temperature sensor 1"
+      
+    channel_3:
+      name: "Stack Temperature 2"
+      type: "K"
+      units: "°C"
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Electrolyzer stack temperature sensor 2"
+      
+    channel_4:
+      name: "Ambient Temperature"
+      type: "K"
+      units: "°C"
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Ambient air temperature"
+      
+    channel_5:
+      name: "Cooling System Temperature"
+      type: "K"
+      units: "°C"
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Cooling system temperature"
+      
+    channel_6:
+      name: "Gas Temperature"
+      type: "K"
+      units: "°C"
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Product gas temperature"
+      
+    channel_7:
+      name: "Case Temperature"
+      type: "K"
+      units: "°C"
+      range: [0, 100]
+      zero_offset: 22.5  # Ambient temperature calibration offset
+      description: "Equipment case/enclosure temperature"
+
+# BGA244 Gas Analyzers (3 units)
+bga244:
+  communication:
+    protocol: "RS-422"
+    interface: "USB-to-RS422"
+    baud_rate: 9600
+    data_bits: 8
+    stop_bits: 1
+    parity: "None"
+    timeout: 2.0  # seconds
+  
+  # Three BGA244 Units with Calibrated Zero Offsets
+  units:
+    bga_1:
+      port: "/dev/ttyUSB0"  # Platform-specific
+      name: "Hydrogen Side Analyzer"
+      gas_types: ["H2", "O2", "N2"]
+      # CALIBRATED ZERO OFFSETS for gas concentrations
+      zero_offsets:
+        H2: 0.1  # % concentration offset
+        O2: 0.05 # % concentration offset  
+        N2: 0.02 # % concentration offset
+      description: "Gas analyzer on hydrogen product stream"
+      
+    bga_2:
+      port: "/dev/ttyUSB1"
+      name: "Oxygen Side Analyzer"
+      gas_types: ["H2", "O2", "N2"]
+      zero_offsets:
+        H2: 0.08
+        O2: 0.12
+        N2: 0.03
+      description: "Gas analyzer on oxygen product stream"
+      
+    bga_3:
+      port: "/dev/ttyUSB2"
+      name: "Mixed Stream Analyzer"
+      gas_types: ["H2", "O2", "N2"]
+      zero_offsets:
+        H2: 0.15
+        O2: 0.08
+        N2: 0.05
+      description: "Gas analyzer on mixed product stream"
+
+# CVM-24P Cell Voltage Monitor
+cvm24p:
+  device_type: "CVM-24P"
+  connection: "USB"
+  protocol: "Modbus RTU"
+  
+  # Cell Voltage Configuration
+  cells:
+    total_cells: 120
+    groups: 6  # Group into 6 groups of 20 cells each
+    voltage_range: [0, 5]  # Volts
+    
+    # CALIBRATED ZERO OFFSETS for voltage measurements
+    # Individual cell calibration offsets (in mV)
+    zero_offsets:
+      # Group 1 (Cells 1-20)
+      group_1_offset: 12.5  # mV offset for cells 1-20
+      group_2_offset: 8.3   # mV offset for cells 21-40
+      group_3_offset: 15.1  # mV offset for cells 41-60
+      group_4_offset: 6.7   # mV offset for cells 61-80
+      group_5_offset: 11.2  # mV offset for cells 81-100
+      group_6_offset: 9.8   # mV offset for cells 101-120
+      
+  communication:
+    baud_rate: 115200
+    data_bits: 8
+    stop_bits: 1
+    parity: "None"
+    timeout: 1.0
+
+# System-Wide Configuration
+system:
+  # Data Acquisition Rates
+  sample_rates:
+    ni_daq: 100      # Hz - NI cDAQ analog inputs
+    pico_tc08: 1     # Hz - Temperature readings
+    bga244: 0.2      # Hz - Gas analyzer readings (every 5 seconds)
+    cvm24p: 10       # Hz - Cell voltage readings
+  
+  # Calibration Settings
+  calibration:
+    auto_zero_on_startup: true  # Automatically apply zero offsets on connection
+    allow_runtime_adjustment: false  # Prevent accidental calibration changes during tests
+    calibration_date: "2024-01-15"   # Last calibration date
+    calibration_technician: "Engineering Team"
+    
+    # Zero Offset Application Rules
+    zero_offset_rules:
+      temperature_sensors: "Apply at ambient conditions (20-25°C)"
+      pressure_sensors: "Apply at atmospheric pressure (0 psig)"
+      current_sensor: "Apply with no load current (0 A)"
+      gas_analyzers: "Apply in nitrogen purge environment"
+      voltage_sensors: "Apply with stack at rest potential"
+
+# Platform-Specific Overrides
+platform_overrides:
+  windows:
+    bga244:
+      units:
+        bga_1:
+          port: "COM3"
+        bga_2:
+          port: "COM4"
+        bga_3:
+          port: "COM5"
+  
+  linux:
+    bga244:
+      units:
+        bga_1:
+          port: "/dev/ttyUSB0"
+        bga_2:
+          port: "/dev/ttyUSB1"
+        bga_3:
+          port: "/dev/ttyUSB2"
+  
+  darwin:  # macOS
+    bga244:
+      units:
+        bga_1:
+          port: "/dev/tty.usbserial-A1"
+        bga_2:
+          port: "/dev/tty.usbserial-A2"  
+        bga_3:
+          port: "/dev/tty.usbserial-A3" 

@@ -194,9 +194,28 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ## ⚙️ Phase 8: Config Handling
 
-### 30. Add real device.yaml parser
+### ✅ 30. Add real device.yaml parser
 **Start:** Create `config/devices.yaml`  
-**End:** NI channel numbers, serial ports, COM settings read from config file
+**End:** NI channel numbers, serial ports, COM settings, **CALIBRATED ZERO OFFSETS** read from config file
+
+**Key Requirements Implemented:**
+- **✅ CALIBRATED ZERO OFFSETS for each sensor** - Primary requirement added
+- ✅ Complete hardware configuration in YAML format
+- ✅ Platform-specific overrides (Windows/Linux/macOS)
+- ✅ Fallback configuration when PyYAML not available
+- ✅ Device channel mappings and communication settings
+- ✅ Sample rate configuration for all devices
+- ✅ Calibration date tracking and validation
+- ✅ Auto-zero offset application on startup
+
+**Calibrated Zero Offsets Available For:**
+- **4-20mA Sensors (NI cDAQ)**: 0.0 offset (4mA = true zero)
+  - Pressure H2: 0.0 PSI offset
+  - Pressure O2: 0.0 PSI offset 
+  - Current: 0.0 A offset
+- **Temperature Sensors**: 22.5°C ambient calibration (8 channels)
+- **Gas Analyzers**: H2/O2/N2 concentration offsets (3 units)
+- **Voltage Monitors**: Individual group offsets 6.7-15.1 mV (6 groups)
 
 ---
 
@@ -204,6 +223,6 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ### 31. Enable launching without hardware
 **Start:** Add command-line flag or UI toggle  
-**End:** Dashboard runs standalone, shows “Disconnected” but is functional
+**End:** Dashboard runs standalone, shows "Disconnected" but is functional
 
 ---
