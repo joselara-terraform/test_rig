@@ -41,18 +41,18 @@ def test_voltage_plot_data_integration():
     try:
         state = get_global_state()
         
-        # Set test cell voltage values (24 cells)
-        test_voltages = [2.0 + (i * 0.01) for i in range(24)]  # 2.00V to 2.23V
+        # Set test cell voltage values (120 cells)
+        test_voltages = [2.5 + (i * 0.005) for i in range(120)]  # 2.50V to 3.10V
         
         state.update_sensor_values(cell_voltages=test_voltages)
         
         # Verify state update
-        if len(state.cell_voltages) == 24:
+        if len(state.cell_voltages) == 120:
             print("✅ PASS: GlobalState cell voltages updated correctly")
             print(f"   Sample voltages: {state.cell_voltages[:3]}...{state.cell_voltages[-1]}")
             return True
         else:
-            print(f"❌ FAIL: Expected 24 voltages, got {len(state.cell_voltages)}")
+            print(f"❌ FAIL: Expected 120 voltages, got {len(state.cell_voltages)}")
             return False
         
     except Exception as e:
@@ -80,22 +80,27 @@ def test_voltage_plot_with_live_data():
         state = get_global_state()
         cell_voltages = state.cell_voltages
         
-        if len(cell_voltages) == 24:
+        if len(cell_voltages) == 120:
+            # Calculate group averages
+            group1_avg = sum(cell_voltages[0:20]) / 20
+            group6_avg = sum(cell_voltages[100:120]) / 20
             total_voltage = sum(cell_voltages)
-            avg_voltage = total_voltage / 24
+            overall_avg = total_voltage / 120
             min_voltage = min(cell_voltages)
             max_voltage = max(cell_voltages)
             
             print(f"✅ PASS: Live voltage data collected")
             print(f"   Total stack: {total_voltage:.1f}V")
-            print(f"   Average cell: {avg_voltage:.3f}V")
+            print(f"   Overall average: {overall_avg:.3f}V")
+            print(f"   Group 1 avg: {group1_avg:.3f}V")
+            print(f"   Group 6 avg: {group6_avg:.3f}V")
             print(f"   Min cell: {min_voltage:.3f}V")
             print(f"   Max cell: {max_voltage:.3f}V")
             
-            # Verify reasonable voltage ranges
-            voltage_ok = (1.8 <= min_voltage <= 2.5 and 
-                         1.8 <= max_voltage <= 2.5 and
-                         40.0 <= total_voltage <= 60.0)
+            # Verify reasonable voltage ranges (2.0-3.5V)
+            voltage_ok = (2.0 <= min_voltage <= 3.5 and 
+                         2.0 <= max_voltage <= 3.5 and
+                         240.0 <= total_voltage <= 420.0)  # 120 * (2.0-3.5)
             
             if voltage_ok:
                 print("✅ PASS: Voltage values in realistic range")
@@ -105,7 +110,7 @@ def test_voltage_plot_with_live_data():
                 return False
                 
         else:
-            print(f"❌ FAIL: Expected 24 voltages, got {len(cell_voltages)}")
+            print(f"❌ FAIL: Expected 120 voltages, got {len(cell_voltages)}")
             controller.stop_all_services()
             return False
         
@@ -119,41 +124,48 @@ def test_voltage_plot_with_live_data():
 
 
 def test_voltage_normalization():
-    """Test voltage normalization for 0-1 plot range"""
-    print("\nTesting voltage normalization...")
+    """Test voltage group averaging for plotting"""
+    print("\nTesting voltage group averaging...")
     
     try:
         state = get_global_state()
         
-        # Set test voltages at different levels
-        test_voltages = [2.1] * 24  # All cells at nominal 2.1V
+        # Set test voltages with known values for each group
+        test_voltages = []
+        for group in range(6):
+            group_voltage = 2.5 + (group * 0.1)  # Groups: 2.5V, 2.6V, 2.7V, 2.8V, 2.9V, 3.0V
+            test_voltages.extend([group_voltage] * 20)  # 20 cells per group
+        
         state.update_sensor_values(cell_voltages=test_voltages)
         
-        # Test normalization constants
-        max_cell_voltage = 2.5
-        max_stack_voltage = 60.0  # 24 * 2.5V
+        # Calculate expected group averages
+        expected_averages = [2.5, 2.6, 2.7, 2.8, 2.9, 3.0]
         
-        total_voltage = sum(test_voltages)  # 50.4V
-        avg_voltage = total_voltage / 24    # 2.1V
+        # Calculate actual group averages
+        actual_averages = []
+        for i in range(6):
+            start_idx = i * 20
+            end_idx = (i + 1) * 20
+            group_avg = sum(test_voltages[start_idx:end_idx]) / 20
+            actual_averages.append(group_avg)
         
-        # Calculate normalized values
-        total_normalized = total_voltage / max_stack_voltage  # ~0.84
-        avg_normalized = avg_voltage / max_cell_voltage       # ~0.84
+        print(f"✅ PASS: Voltage group averaging test")
+        for i, (expected, actual) in enumerate(zip(expected_averages, actual_averages)):
+            print(f"   Group {i+1}: {actual:.3f}V (expected {expected:.3f}V)")
         
-        print(f"✅ PASS: Voltage normalization test")
-        print(f"   Total: {total_voltage:.1f}V → {total_normalized:.3f}")
-        print(f"   Average: {avg_voltage:.3f}V → {avg_normalized:.3f}")
+        # Verify values are correct and in 0-5V range
+        averages_correct = all(abs(exp - act) < 0.001 for exp, act in zip(expected_averages, actual_averages))
+        in_range = all(0.0 <= avg <= 5.0 for avg in actual_averages)
         
-        # Verify values are in 0-1 range
-        if 0.0 <= total_normalized <= 1.0 and 0.0 <= avg_normalized <= 1.0:
-            print("✅ PASS: Normalized values in 0-1 range")
+        if averages_correct and in_range:
+            print("✅ PASS: Group averages correct and in 0-5V range")
             return True
         else:
-            print("❌ FAIL: Normalized values outside 0-1 range")
+            print("❌ FAIL: Group averages incorrect or outside 0-5V range")
             return False
         
     except Exception as e:
-        print(f"❌ FAIL: Normalization test error: {e}")
+        print(f"❌ FAIL: Group averaging test error: {e}")
         return False
 
 
@@ -213,8 +225,8 @@ def test_voltage_plot_features():
             print("❌ FAIL: Plot missing matplotlib components")
             return False
         
-        # Check voltage lines
-        required_lines = ['line_total', 'line_avg', 'line_min', 'line_max']
+        # Check voltage lines (6 groups)
+        required_lines = ['line_group1', 'line_group2', 'line_group3', 'line_group4', 'line_group5', 'line_group6']
         for line_name in required_lines:
             if hasattr(plot, line_name):
                 print(f"✅ PASS: Plot has {line_name}")
@@ -222,14 +234,22 @@ def test_voltage_plot_features():
                 print(f"❌ FAIL: Plot missing {line_name}")
                 return False
         
-        # Check data storage
-        required_data = ['total_voltage_data', 'avg_voltage_data', 'min_voltage_data', 'max_voltage_data']
+        # Check data storage (6 groups)
+        required_data = ['group1_data', 'group2_data', 'group3_data', 'group4_data', 'group5_data', 'group6_data']
         for data_name in required_data:
             if hasattr(plot, data_name):
                 print(f"✅ PASS: Plot has {data_name}")
             else:
                 print(f"❌ FAIL: Plot missing {data_name}")
                 return False
+        
+        # Check Y-axis limits (should be 0-5V)
+        y_limits = plot.ax.get_ylim()
+        if y_limits == (0.0, 5.0):
+            print("✅ PASS: Y-axis limits set to 0-5V")
+        else:
+            print(f"❌ FAIL: Y-axis limits incorrect: {y_limits} (expected (0.0, 5.0))")
+            return False
         
         # Test reset
         plot.reset()
@@ -276,11 +296,11 @@ def interactive_test():
         info_label = ttk.Label(
             info_frame,
             text="🎯 Watch the live voltage plot update in real-time!\n"
-                 "Blue solid: Stack Total (normalized)\n"
-                 "Green solid: Cell Average (normalized)\n"
-                 "Red dashed: Cell Min (normalized)\n"
-                 "Magenta dashed: Cell Max (normalized)\n"
-                 "Plot auto-expands X-axis, Y-axis static 0-1",
+                 "6 lines showing group averages (20 cells each)\n"
+                 "Blue: Group 1 (1-20) | Green: Group 2 (21-40) | Red: Group 3 (41-60)\n"
+                 "Magenta: Group 4 (61-80) | Cyan: Group 5 (81-100) | Yellow: Group 6 (101-120)\n"
+                 "Y-axis: 0-5V (static), X-axis: dynamic expansion\n"
+                 "Expected range: 2.0-3.5V per cell",
             justify='center'
         )
         info_label.pack()
@@ -294,11 +314,9 @@ def interactive_test():
         root.protocol("WM_DELETE_WINDOW", cleanup)
         
         print("📊 Live voltage plot window opened")
-        print("   → Blue solid: Stack Total")
-        print("   → Green solid: Cell Average") 
-        print("   → Red dashed: Cell Min")
-        print("   → Magenta dashed: Cell Max")
-        print("   → Static Y-axis (0-1), dynamic X-axis")
+        print("   → 6 group averages (20 cells each)")
+        print("   → Actual voltages (2-3.5V range)")
+        print("   → Static Y-axis (0-5V), dynamic X-axis")
         print("\nClose window when done observing...")
         
         root.mainloop()
@@ -329,7 +347,7 @@ def main():
     success = test_voltage_plot_with_live_data()
     all_tests_passed &= success
     
-    # Test 4: Normalization
+    # Test 4: Group averaging
     success = test_voltage_normalization()
     all_tests_passed &= success
     
@@ -345,15 +363,17 @@ def main():
     if all_tests_passed:
         print("🎉 ALL TESTS PASSED - Task 15 Complete!")
         print("✅ Live voltage plotting fully functional")
-        print("✅ 4 voltage data series (Total, Avg, Min, Max)")
-        print("✅ Voltage normalization to 0-1 range")
-        print("✅ Static Y-axis, dynamic X-axis")
+        print("✅ 120 cell voltages grouped into 6 averages")
+        print("✅ Actual voltages (0-5V range, no normalization)")
+        print("✅ Static Y-axis (0-5V), dynamic X-axis")
         print("✅ Dashboard integration working")
         print("✅ Plot reset functionality working")
         print("✅ Real-time data from CVM-24P service")
         print("\n🎯 Task 15 deliverables:")
         print("   ✅ Enhanced ui/plots.py with VoltagePlot class")
         print("   ✅ Live line plot from voltage data in GlobalState")
+        print("   ✅ 6 group averages (20 cells each)")
+        print("   ✅ Actual voltage values (2-3.5V range)")
         print("   ✅ Integrated into dashboard 2x2 grid")
         print("   ✅ Plot resets when starting new test")
         print("   ✅ Same architecture as PressurePlot")

@@ -29,7 +29,7 @@ class GlobalState:
     pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0])  # 2 pressure sensors
     current_value: float = 0.0  # 1 current sensor
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
-    cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 24)  # 24 cell voltages
+    cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 120)  # 120 cell voltages
     
     # Gas analysis data from BGA244 units
     gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [

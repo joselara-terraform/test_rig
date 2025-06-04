@@ -184,18 +184,16 @@ class VoltagePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting - voltage data
+        # Data storage for plotting - voltage data (6 groups of 20 cells each)
         self.time_data = deque()
-        self.total_voltage_data = deque()     # Total stack voltage (normalized)
-        self.avg_voltage_data = deque()       # Average cell voltage (normalized)
-        self.min_voltage_data = deque()       # Minimum cell voltage (normalized)
-        self.max_voltage_data = deque()       # Maximum cell voltage (normalized)
+        self.group1_data = deque()  # Cells 1-20 average
+        self.group2_data = deque()  # Cells 21-40 average
+        self.group3_data = deque()  # Cells 41-60 average
+        self.group4_data = deque()  # Cells 61-80 average
+        self.group5_data = deque()  # Cells 81-100 average
+        self.group6_data = deque()  # Cells 101-120 average
         
         self.last_update_time = 0
-        
-        # Voltage normalization constants
-        self.max_cell_voltage = 2.5   # Maximum expected cell voltage
-        self.max_stack_voltage = 60.0 # Maximum expected stack voltage (24 * 2.5V)
         
         # Create the matplotlib figure
         self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
@@ -204,21 +202,23 @@ class VoltagePlot:
         # Configure plot appearance
         self.ax.set_title("Cell Voltages vs Time", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Normalized Voltage", fontsize=10)
+        self.ax.set_ylabel("Voltage (V)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         
-        # Create line objects for voltage measurements
-        self.line_total, = self.ax.plot([], [], 'b-', linewidth=2, label='Stack Total', alpha=0.9)
-        self.line_avg, = self.ax.plot([], [], 'g-', linewidth=2, label='Cell Average', alpha=0.9)
-        self.line_min, = self.ax.plot([], [], 'r--', linewidth=1.5, label='Cell Min', alpha=0.8)
-        self.line_max, = self.ax.plot([], [], 'm--', linewidth=1.5, label='Cell Max', alpha=0.8)
+        # Create line objects for voltage group averages
+        self.line_group1, = self.ax.plot([], [], 'b-', linewidth=2, label='Group 1 (1-20)', alpha=0.9)
+        self.line_group2, = self.ax.plot([], [], 'g-', linewidth=2, label='Group 2 (21-40)', alpha=0.9)
+        self.line_group3, = self.ax.plot([], [], 'r-', linewidth=2, label='Group 3 (41-60)', alpha=0.9)
+        self.line_group4, = self.ax.plot([], [], 'm-', linewidth=2, label='Group 4 (61-80)', alpha=0.9)
+        self.line_group5, = self.ax.plot([], [], 'c-', linewidth=2, label='Group 5 (81-100)', alpha=0.9)
+        self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
         
         # Add legend
-        self.ax.legend(loc='upper right', fontsize=8, ncol=2)
+        self.ax.legend(loc='upper right', fontsize=7, ncol=3)
         
-        # Set initial axis limits - static Y, dynamic X
+        # Set initial axis limits - static Y (0-5V), dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
-        self.ax.set_ylim(0, 1)    # Static Y limit (0-1 range)
+        self.ax.set_ylim(0, 5)    # Static Y limit (0-5V range)
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -238,78 +238,87 @@ class VoltagePlot:
         
         # Check test states
         if self.state.emergency_stop or not self.state.test_running:
-            return (self.line_total, self.line_avg, self.line_min, self.line_max)
+            return (self.line_group1, self.line_group2, self.line_group3, 
+                   self.line_group4, self.line_group5, self.line_group6)
         
         if self.state.test_paused:
-            return (self.line_total, self.line_avg, self.line_min, self.line_max)
+            return (self.line_group1, self.line_group2, self.line_group3, 
+                   self.line_group4, self.line_group5, self.line_group6)
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line_total, self.line_avg, self.line_min, self.line_max)
+            return (self.line_group1, self.line_group2, self.line_group3, 
+                   self.line_group4, self.line_group5, self.line_group6)
         
         self.last_update_time = current_time
         
         # Use global timer
         relative_time = self.state.timer_value
         
-        # Get current cell voltage values and calculate statistics
+        # Get current cell voltage values and calculate group averages
         cell_voltages = self.state.cell_voltages
         
-        if len(cell_voltages) > 0:
-            # Calculate voltage statistics
-            total_voltage = sum(cell_voltages)
-            avg_voltage = total_voltage / len(cell_voltages)
-            min_voltage = min(cell_voltages)
-            max_voltage = max(cell_voltages)
-            
-            # Normalize voltages to 0-1 range
-            total_normalized = total_voltage / self.max_stack_voltage
-            avg_normalized = avg_voltage / self.max_cell_voltage
-            min_normalized = min_voltage / self.max_cell_voltage
-            max_normalized = max_voltage / self.max_cell_voltage
+        if len(cell_voltages) >= 120:
+            # Calculate group averages (20 cells per group)
+            group1_avg = sum(cell_voltages[0:20]) / 20      # Cells 1-20
+            group2_avg = sum(cell_voltages[20:40]) / 20     # Cells 21-40
+            group3_avg = sum(cell_voltages[40:60]) / 20     # Cells 41-60
+            group4_avg = sum(cell_voltages[60:80]) / 20     # Cells 61-80
+            group5_avg = sum(cell_voltages[80:100]) / 20    # Cells 81-100
+            group6_avg = sum(cell_voltages[100:120]) / 20   # Cells 101-120
         else:
-            # No data available
-            total_normalized = avg_normalized = min_normalized = max_normalized = 0.0
+            # No data available or insufficient data
+            group1_avg = group2_avg = group3_avg = 0.0
+            group4_avg = group5_avg = group6_avg = 0.0
         
         # Add new data points
         self.time_data.append(relative_time)
-        self.total_voltage_data.append(total_normalized)
-        self.avg_voltage_data.append(avg_normalized)
-        self.min_voltage_data.append(min_normalized)
-        self.max_voltage_data.append(max_normalized)
+        self.group1_data.append(group1_avg)
+        self.group2_data.append(group2_avg)
+        self.group3_data.append(group3_avg)
+        self.group4_data.append(group4_avg)
+        self.group5_data.append(group5_avg)
+        self.group6_data.append(group6_avg)
         
         # Update line data
         if len(self.time_data) > 0:
-            self.line_total.set_data(list(self.time_data), list(self.total_voltage_data))
-            self.line_avg.set_data(list(self.time_data), list(self.avg_voltage_data))
-            self.line_min.set_data(list(self.time_data), list(self.min_voltage_data))
-            self.line_max.set_data(list(self.time_data), list(self.max_voltage_data))
+            self.line_group1.set_data(list(self.time_data), list(self.group1_data))
+            self.line_group2.set_data(list(self.time_data), list(self.group2_data))
+            self.line_group3.set_data(list(self.time_data), list(self.group3_data))
+            self.line_group4.set_data(list(self.time_data), list(self.group4_data))
+            self.line_group5.set_data(list(self.time_data), list(self.group5_data))
+            self.line_group6.set_data(list(self.time_data), list(self.group6_data))
             
             # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
-            # Static Y-axis: [0, 1] (no auto-scaling)
+            # Static Y-axis: [0, 5] (no auto-scaling)
             self.ax.set_xlim(0, max(relative_time*1.2, 120))
         
-        return (self.line_total, self.line_avg, self.line_min, self.line_max)
+        return (self.line_group1, self.line_group2, self.line_group3, 
+               self.line_group4, self.line_group5, self.line_group6)
 
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        self.total_voltage_data.clear()
-        self.avg_voltage_data.clear()
-        self.min_voltage_data.clear()
-        self.max_voltage_data.clear()
+        self.group1_data.clear()
+        self.group2_data.clear()
+        self.group3_data.clear()
+        self.group4_data.clear()
+        self.group5_data.clear()
+        self.group6_data.clear()
 
         self.last_update_time = 0
         
         # Reset axis limits - static Y, initial X
         self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 1)
+        self.ax.set_ylim(0, 5)
         
         # Clear line data
-        self.line_total.set_data([], [])
-        self.line_avg.set_data([], [])
-        self.line_min.set_data([], [])
-        self.line_max.set_data([], [])
+        self.line_group1.set_data([], [])
+        self.line_group2.set_data([], [])
+        self.line_group3.set_data([], [])
+        self.line_group4.set_data([], [])
+        self.line_group5.set_data([], [])
+        self.line_group6.set_data([], [])
         
         self.canvas.draw()
     
@@ -387,20 +396,22 @@ def test_pressure_plot():
     print("PRESSURE & GAS & VOLTAGE PLOT TEST")
     print("=" * 60)
     print("✅ Live pressure & gas concentration plot created")
-    print("✅ Live cell voltage plot created")
+    print("✅ Live cell voltage plot created (120 cells, 6 groups)")
     print("✅ Data updating from GlobalState")
-    print("✅ Static Y-axis (0-1), dynamic X-axis for both plots")
-    print("\nPressure & Gas Plot:")
+    print("✅ Static Y-axis, dynamic X-axis for both plots")
+    print("\nPressure & Gas Plot (Y: 0-1):")
     print("   • Blue solid: Pressure 1")
     print("   • Red solid: Pressure 2")
     print("   • Green dashed: H₂ from hydrogen side")
     print("   • Magenta dashed: O₂ from oxygen side")
     print("   • Green dotted: H₂ from mixed stream")
-    print("\nVoltage Plot:")
-    print("   • Blue solid: Stack Total (normalized)")
-    print("   • Green solid: Cell Average (normalized)")
-    print("   • Red dashed: Cell Min (normalized)")
-    print("   • Magenta dashed: Cell Max (normalized)")
+    print("\nVoltage Plot (Y: 0-5V):")
+    print("   • Blue solid: Group 1 (cells 1-20 avg)")
+    print("   • Green solid: Group 2 (cells 21-40 avg)")
+    print("   • Red solid: Group 3 (cells 41-60 avg)")
+    print("   • Magenta solid: Group 4 (cells 61-80 avg)")
+    print("   • Cyan solid: Group 5 (cells 81-100 avg)")
+    print("   • Yellow solid: Group 6 (cells 101-120 avg)")
     print("\nClose window when done testing...")
     
     root.mainloop()

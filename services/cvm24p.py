@@ -19,27 +19,27 @@ class CVM24PService:
         self.poll_thread = None
         self.state = get_global_state()
         
-        # CVM-24P configuration
+        # CVM-24P configuration - 120 channels total
         self.device_name = "CVM-24P"
         self.sample_rate = 10.0  # 10 Hz for voltage monitoring (faster than gas, slower than DAQ)
-        self.num_channels = 24
+        self.num_channels = 120   # 120 cell voltage channels
         
         # Cell configuration for electrolyzer stack
         self.channel_config = {}
-        for i in range(24):
+        for i in range(120):
             self.channel_config[i] = {
-                "name": f"cell_{i+1:02d}",
+                "name": f"cell_{i+1:03d}",
                 "description": f"Electrolyzer Cell {i+1}",
-                "nominal_voltage": 2.1,  # Nominal 2.1V per cell
-                "min_voltage": 1.8,      # Minimum safe voltage
-                "max_voltage": 2.5       # Maximum voltage under load
+                "nominal_voltage": 2.75,  # Nominal 2.75V per cell
+                "min_voltage": 2.0,       # Minimum safe voltage
+                "max_voltage": 3.5        # Maximum voltage under load
             }
         
         # Base voltages for realistic variation (simulate slight cell differences)
         self.base_voltages = []
-        for i in range(24):
+        for i in range(120):
             # Slight variation in cell characteristics
-            base_v = 2.1 + random.uniform(-0.05, 0.05)  # ±50mV cell variation
+            base_v = 2.75 + random.uniform(-0.1, 0.1)  # ±100mV cell variation
             self.base_voltages.append(base_v)
         
         # Operating state simulation
@@ -54,8 +54,8 @@ class CVM24PService:
             
             print(f"   → Detecting device: {self.device_name}")
             print(f"   → Configuring {self.num_channels} voltage channels:")
-            print(f"     • Channels 1-24: Electrolyzer cell voltages")
-            print(f"     • Voltage range: 1.8V - 2.5V per cell")
+            print(f"     • Channels 1-120: Electrolyzer cell voltages")
+            print(f"     • Voltage range: 2.0V - 3.5V per cell")
             print(f"     • Resolution: 1mV")
             
             print(f"   → Setting sample rate: {self.sample_rate} Hz")
@@ -146,7 +146,7 @@ class CVM24PService:
         
         # Current affects voltage drop (simplified model)
         current_factor = min(self.operating_current / 5.0, 1.0)  # Normalize to 5A max
-        voltage_drop = current_factor * 0.15  # Up to 150mV drop under load
+        voltage_drop = current_factor * 0.2  # Up to 200mV drop under load
         
         for i in range(self.num_channels):
             config = self.channel_config[i]
@@ -156,8 +156,8 @@ class CVM24PService:
             operating_voltage = base_voltage - voltage_drop
             
             # Add realistic noise and variation
-            noise = random.uniform(-0.01, 0.01)  # ±10mV noise
-            drift = random.uniform(-0.005, 0.005)  # ±5mV slow drift
+            noise = random.uniform(-0.015, 0.015)  # ±15mV noise
+            drift = random.uniform(-0.008, 0.008)  # ±8mV slow drift
             
             # Calculate final voltage
             voltage = operating_voltage + noise + drift
@@ -179,7 +179,7 @@ class CVM24PService:
             'sample_rate': f"{self.sample_rate} Hz",
             'channels': self.num_channels,
             'resolution': "1mV",
-            'voltage_range': "1.8V - 2.5V per cell"
+            'voltage_range': "2.0V - 3.5V per cell"
         }
     
     def get_current_readings(self) -> Dict[str, float]:
