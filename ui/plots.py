@@ -117,13 +117,6 @@ class PressurePlot:
         if len(self.time_data) > 0:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
-            
-            # Set x-axis to always show from 0 to max(current_time + 120s, 120s)
-            max_time = max(plot_time + 120, 120)
-            self.ax.set_xlim(0, max_time)
-            
-            # Keep y-axis fixed at 0-1 psig range
-            self.ax.set_ylim(0, 1.0)
         
         return self.line1, self.line2
     
