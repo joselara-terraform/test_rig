@@ -95,15 +95,14 @@ pico_tc08:
   device_type: "Pico TC-08"
   connection: "USB"
   
-  # Temperature Channels with Calibrated Zero Offsets
+  # Temperature Channels - NO ZERO OFFSETS (raw thermocouple readings)
   channels:
     channel_0:
       name: "Inlet Temperature"
       type: "K"  # Thermocouple type
       units: "°C"
       range: [0, 100]
-      # CALIBRATED ZERO OFFSET - Sensor-specific calibration
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Electrolyte inlet temperature"
       
     channel_1:
@@ -111,7 +110,7 @@ pico_tc08:
       type: "K"
       units: "°C" 
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Electrolyte outlet temperature"
       
     channel_2:
@@ -119,7 +118,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100] 
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Electrolyzer stack temperature sensor 1"
       
     channel_3:
@@ -127,7 +126,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Electrolyzer stack temperature sensor 2"
       
     channel_4:
@@ -135,7 +134,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Ambient air temperature"
       
     channel_5:
@@ -143,7 +142,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Cooling system temperature"
       
     channel_6:
@@ -151,7 +150,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Product gas temperature"
       
     channel_7:
@@ -159,7 +158,7 @@ pico_tc08:
       type: "K"
       units: "°C"
       range: [0, 100]
-      zero_offset: 22.5  # Ambient temperature calibration offset
+      # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
       description: "Equipment case/enclosure temperature"
 
 # BGA244 Gas Analyzers (3 units)

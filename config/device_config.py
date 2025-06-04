@@ -132,14 +132,14 @@ class DeviceConfig:
             },
             'pico_tc08': {
                 'channels': {
-                    'channel_0': {'name': 'Inlet Temperature', 'zero_offset': 22.5},
-                    'channel_1': {'name': 'Outlet Temperature', 'zero_offset': 22.5},
-                    'channel_2': {'name': 'Stack Temperature 1', 'zero_offset': 22.5},
-                    'channel_3': {'name': 'Stack Temperature 2', 'zero_offset': 22.5},
-                    'channel_4': {'name': 'Ambient Temperature', 'zero_offset': 22.5},
-                    'channel_5': {'name': 'Cooling System Temperature', 'zero_offset': 22.5},
-                    'channel_6': {'name': 'Gas Temperature', 'zero_offset': 22.5},
-                    'channel_7': {'name': 'Case Temperature', 'zero_offset': 22.5}
+                    'channel_0': {'name': 'Inlet Temperature'},
+                    'channel_1': {'name': 'Outlet Temperature'},
+                    'channel_2': {'name': 'Stack Temperature 1'},
+                    'channel_3': {'name': 'Stack Temperature 2'},
+                    'channel_4': {'name': 'Ambient Temperature'},
+                    'channel_5': {'name': 'Cooling System Temperature'},
+                    'channel_6': {'name': 'Gas Temperature'},
+                    'channel_7': {'name': 'Case Temperature'}
                 }
             },
             'bga244': {
