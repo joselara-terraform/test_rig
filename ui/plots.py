@@ -49,7 +49,7 @@ class PressurePlot:
         
         # Set initial axis limits
         self.ax.set_xlim(0, 120)  # 120 seconds visible
-        self.ax.set_ylim(0, 40)  # 0-40 PSI range
+        self.ax.set_ylim(0, 1)  # 0-40 PSI range
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -98,23 +98,7 @@ class PressurePlot:
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
             # Always show 120 seconds window
-            self.ax.set_xlim(0, max(relative_time + 120, 120))
-            
-            # Auto-scale y-axis based on data
-            if len(self.pressure1_data) > 5:  # Only auto-scale after some data
-                all_pressures = list(self.pressure1_data) + list(self.pressure2_data)
-                min_pressure = min(all_pressures)
-                max_pressure = max(all_pressures)
-                
-                # Add some margin
-                margin = (max_pressure - min_pressure) * 0.1
-                if margin < 2:  # Minimum margin of 2 PSI
-                    margin = 2
-                
-                y_min = max(0, min_pressure - margin)
-                y_max = max_pressure + margin
-                
-                self.ax.set_ylim(y_min, y_max)
+            self.ax.set_xlim(0, max(relative_time*1.2, 120))
     
         return self.line1, self.line2
 
@@ -128,7 +112,7 @@ class PressurePlot:
         
         # Reset axis limits
         self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 40)
+        self.ax.set_ylim(0, 1)
         
         # Clear line data
         self.line1.set_data([], [])
