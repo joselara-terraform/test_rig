@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
 Dashboard window with 2x2 grid layout for AWE test rig
+
+Valve mapping (matches NI cDAQ hardware configuration):
+- Valve 1: KOH Storage    (cDAQ9187-23E902CMod2/port0/line0)
+- Valve 2: DI Storage     (cDAQ9187-23E902CMod2/port0/line1)  
+- Valve 3: Stack Drain    (cDAQ9187-23E902CMod2/port0/line2)
+- Valve 4: N2 Purge       (cDAQ9187-23E902CMod2/port0/line3)
+- Pump:    Pump           (cDAQ9187-23E902CMod2/port0/line4)
 """
 
 import tkinter as tk
@@ -164,15 +171,18 @@ class Dashboard:
         title_label = ttk.Label(container_frame, text="Actuator Controls", font=("Arial", 12, "bold"))
         title_label.pack(pady=(10, 5))
         
-        # Valve states (4 valves)
+        # Valve states (4 valves with real names)
         valve_frame = ttk.Frame(container_frame)
         valve_frame.pack(pady=5)
         
         ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=4, pady=5)
         
+        # Real valve names matching cDAQ configuration
+        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge"]
+        
         self.valve_labels = []
-        for i in range(4):
-            valve_label = ttk.Label(valve_frame, text=f"Valve {i+1}:")
+        for i, valve_name in enumerate(valve_names):
+            valve_label = ttk.Label(valve_frame, text=f"{valve_name}:")
             valve_label.grid(row=1, column=i, padx=5, pady=2)
             
             # Clickable button instead of label
@@ -181,7 +191,7 @@ class Dashboard:
                 text="OFF", 
                 background="red", 
                 foreground="white",
-                width=6,
+                width=8,  # Slightly wider for longer names
                 relief=tk.RAISED,
                 command=lambda valve_idx=i: self._toggle_valve(valve_idx),
                 cursor="hand2"
@@ -218,7 +228,8 @@ class Dashboard:
     def _toggle_valve(self, valve_index):
         """Toggle valve state when clicked"""
         if not self.state.connections.get('ni_daq', False):
-            print(f"⚠️  Cannot control Valve {valve_index+1} - NI DAQ not connected")
+            valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge"]
+            print(f"⚠️  Cannot control {valve_names[valve_index]} - NI DAQ not connected")
             return
         
         # Get current state and toggle it
@@ -228,7 +239,8 @@ class Dashboard:
         # Update state (NI DAQ service will automatically update hardware)
         self.state.set_actuator_state('valve', new_state, valve_index)
         
-        print(f"🔧 Valve {valve_index+1} {'ON' if new_state else 'OFF'}")
+        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge"]
+        print(f"🔧 {valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
     
     def _toggle_pump(self):
         """Toggle pump state when clicked"""
@@ -350,6 +362,7 @@ def main():
     print("   • 🔴 Red buttons = OFF | 🟢 Green buttons = ON")
     print("   • Click valve/pump buttons to toggle (when NI DAQ connected)")
     print("   • Buttons disabled when NI DAQ disconnected")
+    print("   • KOH Storage, DI Storage, Stack Drain, N2 Purge + Pump")
     print("\n🎯 TEST: Verify all functionality:")
     print("   1. Click Connect - all services start, buttons enabled")
     print("   2. Click valve/pump buttons to control actuators")
