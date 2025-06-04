@@ -17,7 +17,9 @@ class StatusIndicators:
         self.device_status = {
             'ni_daq': False,
             'pico_tc08': False,
-            'bga244': False,
+            'bga244_1': False,   # Individual BGA statuses
+            'bga244_2': False,   # Individual BGA statuses  
+            'bga244_3': False,   # Individual BGA statuses
             'cvm24p': False
         }
         
@@ -38,7 +40,9 @@ class StatusIndicators:
         devices = [
             ('ni_daq', 'NI cDAQ', 'Pressure/Current sensors + Valve/Pump control'),
             ('pico_tc08', 'Pico TC-08', '8-channel thermocouple logger'),
-            ('bga244', 'BGA244 (3x)', 'Gas analyzers for H2, O2, N2 measurements'),
+            ('bga244_1', 'BGA-1 (H2 Header)', 'Gas analyzer: H2 in O2 mixture'),
+            ('bga244_2', 'BGA-2 (O2 Header)', 'Gas analyzer: O2 in H2 mixture'),
+            ('bga244_3', 'BGA-3 (De-oxo)', 'Gas analyzer: H2 in O2 mixture'),
             ('cvm24p', 'CVM-24P', '24-channel cell voltage monitor')
         ]
         
@@ -143,9 +147,19 @@ def main():
         print(f"Pico TC-08: {'Connected' if not current else 'Disconnected'}")
     
     def test_bga():
-        current = status_indicators.device_status['bga244']
-        status_indicators.update_device_status('bga244', not current, "0.5 Hz" if not current else "")
-        print(f"BGA244: {'Connected' if not current else 'Disconnected'}")
+        current = status_indicators.device_status['bga244_1']
+        status_indicators.update_device_status('bga244_1', not current, "0.5 Hz" if not current else "")
+        print(f"BGA-1: {'Connected' if not current else 'Disconnected'}")
+    
+    def test_bga2():
+        current = status_indicators.device_status['bga244_2']
+        status_indicators.update_device_status('bga244_2', not current, "0.5 Hz" if not current else "")
+        print(f"BGA-2: {'Connected' if not current else 'Disconnected'}")
+    
+    def test_bga3():
+        current = status_indicators.device_status['bga244_3']
+        status_indicators.update_device_status('bga244_3', not current, "0.5 Hz" if not current else "")
+        print(f"BGA-3: {'Connected' if not current else 'Disconnected'}")
     
     def test_cvm():
         current = status_indicators.device_status['cvm24p']
@@ -158,12 +172,14 @@ def main():
         status_indicators.update_all_status({
             'ni_daq': new_status,
             'pico_tc08': new_status,
-            'bga244': new_status,
+            'bga244_1': new_status,
+            'bga244_2': new_status,
+            'bga244_3': new_status,
             'cvm24p': new_status
         })
         if new_status:
             for device in status_indicators.device_status:
-                rates = {'ni_daq': '250 Hz', 'pico_tc08': '1 Hz', 'bga244': '0.5 Hz', 'cvm24p': '10 Hz'}
+                rates = {'ni_daq': '250 Hz', 'pico_tc08': '1 Hz', 'bga244_1': '0.5 Hz', 'bga244_2': '0.5 Hz', 'bga244_3': '0.5 Hz', 'cvm24p': '10 Hz'}
                 status_indicators.update_device_status(device, True, rates[device])
         print(f"All devices: {'Connected' if new_status else 'Disconnected'}")
         print(f"Summary: {status_indicators.get_connection_summary()}")
@@ -171,7 +187,9 @@ def main():
     # Test buttons
     ttk.Button(test_frame, text="Toggle NI DAQ", command=test_ni_daq).pack(side='left', padx=5)
     ttk.Button(test_frame, text="Toggle Pico TC-08", command=test_pico).pack(side='left', padx=5)
-    ttk.Button(test_frame, text="Toggle BGA244", command=test_bga).pack(side='left', padx=5)
+    ttk.Button(test_frame, text="Toggle BGA-1", command=test_bga).pack(side='left', padx=5)
+    ttk.Button(test_frame, text="Toggle BGA-2", command=test_bga2).pack(side='left', padx=5)
+    ttk.Button(test_frame, text="Toggle BGA-3", command=test_bga3).pack(side='left', padx=5)
     ttk.Button(test_frame, text="Toggle CVM-24P", command=test_cvm).pack(side='left', padx=5)
     ttk.Button(test_frame, text="Toggle All", command=test_all).pack(side='left', padx=10)
     

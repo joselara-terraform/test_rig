@@ -237,9 +237,56 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ---
 
-### 25. Integrate BGA244 into service
+### ✅ 25. Integrate BGA244 into service
 **Start:** Replace `bga244.py` with real serial logic and gas ratio parsing  
 **End:** Plot reflects real-time gas ratios from all devices
+
+**Completed with comprehensive integration as specified:**
+- ✅ Real hardware integration with serial communication
+- ✅ Individual BGA connection status (3 separate displays)
+- ✅ Purge mode functionality (secondary gases → N2)
+- ✅ Updated gas configurations as specified by user:
+  - **BGA 1: H2 Header, H2 in O2** (primary H2, secondary O2)
+  - **BGA 2: O2 Header, O2 in H2** (primary O2, secondary H2)
+  - **BGA 3: De-oxo, H2 in O2** (primary H2, secondary O2)
+- ✅ Service works with partial BGA connections (start test works despite disconnected BGAs)
+- ✅ Mock fallback when hardware unavailable
+- ✅ GlobalState integration for dashboard
+- ✅ Device configuration integration with calibrated zero offsets
+- ✅ Cross-platform serial port support (COM4 prioritized on Windows)
+
+**Key Integration Features:**
+- `BGA244Device` class for individual gas analyzer hardware interface
+- `BGA244Service` class maintains same interface for dashboard compatibility
+- Real-time gas concentration streaming with 0.2 Hz sample rate
+- Individual connection tracking (`bga244_1`, `bga244_2`, `bga244_3`)
+- Purge button functionality (toggles all secondary gases to N2)
+- Hardware/Mock mode detection and graceful fallback
+- Thread-safe gas concentration polling with proper lifecycle management
+- Gas configuration via CAS numbers for binary gas mode
+
+**UI Enhancements:**
+- Status indicators updated to show 3 individual BGA connection statuses
+- Purge button added to control panel with visual state indication
+- Dashboard displays individual BGA statuses instead of combined status
+- Test operations work even when some BGAs are disconnected
+
+**Gas Analysis Commands:**
+- `*IDN?`: Device identification and connection verification
+- `MSMD 1`: Binary gas mode configuration
+- `GASP [CAS]`: Primary gas configuration (H2 or O2)
+- `GASS [CAS]`: Secondary gas configuration (O2, H2, or N2 in purge mode)
+- `TCEL?`: Temperature measurement
+- `PRES?`: Pressure measurement  
+- `NSOS?`: Speed of sound measurement
+- `RATO? 1/2`: Primary/secondary gas concentration readings
+
+**Purge Mode Operation:**
+- Normal mode: Uses configured secondary gas (O2 or H2)
+- Purge mode: All secondary gases changed to N2 (nitrogen)
+- Primary gases remain unchanged in purge mode
+- Real-time reconfiguration of all connected BGA devices
+- Visual indication in UI when purge mode is active
 
 ---
 

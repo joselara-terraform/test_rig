@@ -82,6 +82,20 @@ class ControlPanel:
         )
         self.estop_button.grid(row=0, column=3, padx=5, pady=5)
         
+        # Purge button
+        self.purge_button = tk.Button(
+            button_frame,
+            text="PURGE OFF",
+            command=self._on_purge_click,
+            width=15,
+            background="gray",
+            foreground="white",
+            font=("Arial", 9, "bold"),
+            relief=tk.RAISED,
+            borderwidth=2
+        )
+        self.purge_button.grid(row=0, column=4, padx=5, pady=5)
+        
         # Timer display
         self.timer_label = ttk.Label(
             button_frame,
@@ -89,7 +103,7 @@ class ControlPanel:
             font=("Arial", 16, "bold"),
             foreground="blue"
         )
-        self.timer_label.grid(row=0, column=4, padx=20, pady=5)
+        self.timer_label.grid(row=0, column=5, padx=20, pady=5)
         
         # Bottom row: status
         status_frame = ttk.Frame(control_frame)
@@ -217,6 +231,34 @@ class ControlPanel:
         print("   ✅ Emergency stop complete - system in safe state")
         print("   ℹ️  Press Start Test to begin new test")
     
+    def _on_purge_click(self):
+        """Handle Purge button click"""
+        current_purge = self.state.purge_mode
+        new_purge = not current_purge
+        
+        print(f"🧹 PURGE button clicked")
+        print(f"   → Changing purge mode: {'OFF' if current_purge else 'ON'} → {'ON' if new_purge else 'OFF'}")
+        
+        # Update GlobalState
+        with self.state._lock:
+            self.state.purge_mode = new_purge
+        
+        # Call BGA244 service to actually set purge mode
+        try:
+            bga_service = self.controller.services.get('bga244')
+            if bga_service and hasattr(bga_service, 'set_purge_mode'):
+                bga_service.set_purge_mode(new_purge)
+                if new_purge:
+                    print("   → All BGA244 secondary gases changed to N2")
+                else:
+                    print("   → BGA244 secondary gases restored to normal configuration")
+            else:
+                print("   → BGA244 service not available (purge mode stored in state)")
+        except Exception as e:
+            print(f"   ⚠️  Error setting BGA purge mode: {e}")
+        
+        print(f"   ✅ Purge mode {'ENABLED' if new_purge else 'DISABLED'}")
+    
     def _start_ui_updates(self):
         """Start periodic UI updates"""
         self._update_ui()
@@ -264,6 +306,30 @@ class ControlPanel:
             status_text = "Status: Connected - Ready"
         
         self.status_label.configure(text=status_text)
+        
+        # Purge button - only enabled when BGA244 is connected
+        bga_connected = self.controller.is_bga_connected() if hasattr(self.controller, 'is_bga_connected') else all_connected
+        
+        if bga_connected:
+            self.purge_button.configure(state='normal')
+            if self.state.purge_mode:
+                self.purge_button.configure(
+                    text="PURGE ON",
+                    background="orange",
+                    activebackground="darkorange"
+                )
+            else:
+                self.purge_button.configure(
+                    text="PURGE OFF",
+                    background="gray",
+                    activebackground="darkgray"
+                )
+        else:
+            self.purge_button.configure(
+                state='disabled',
+                text="PURGE OFF",
+                background="lightgray"
+            )
         
         # Timer display
         elapsed = self.state.timer_value

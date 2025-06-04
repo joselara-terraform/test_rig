@@ -311,11 +311,38 @@ class Dashboard:
         connection_info = {
             'ni_daq': "250 Hz" if self.state.connections['ni_daq'] else "",
             'pico_tc08': "1 Hz" if self.state.connections['pico_tc08'] else "",
-            'bga244': "0.2 Hz" if self.state.connections['bga244'] else "",
+            'bga244_1': "0.2 Hz",
+            'bga244_2': "0.2 Hz", 
+            'bga244_3': "0.2 Hz",
             'cvm24p': "10 Hz" if self.state.connections['cvm24p'] else ""
         }
         
-        for device, connected in self.state.connections.items():
+        # Get individual BGA connection statuses
+        from services.controller_manager import get_controller_manager
+        controller = get_controller_manager()
+        bga_service = controller.services.get('bga244')
+        
+        if bga_service and hasattr(bga_service, 'get_individual_connection_status'):
+            individual_bga_status = bga_service.get_individual_connection_status()
+            
+            # Update individual BGA statuses
+            for i, (bga_key, connected) in enumerate(individual_bga_status.items()):
+                device_key = f'bga244_{i+1}'
+                if device_key in self.status_indicators.device_status:
+                    info = connection_info[device_key] if connected else ""
+                    self.status_indicators.update_device_status(device_key, connected, info)
+        else:
+            # Fallback to combined BGA status if individual status not available
+            bga_connected = self.state.connections.get('bga244', False)
+            for i in range(1, 4):
+                device_key = f'bga244_{i}'
+                if device_key in self.status_indicators.device_status:
+                    info = connection_info[device_key] if bga_connected else ""
+                    self.status_indicators.update_device_status(device_key, bga_connected, info)
+        
+        # Update other devices normally
+        for device in ['ni_daq', 'pico_tc08', 'cvm24p']:
+            connected = self.state.connections[device]
             self.status_indicators.update_device_status(device, connected, connection_info[device])
         
         # Update valve button states and colors

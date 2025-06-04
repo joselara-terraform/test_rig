@@ -42,6 +42,9 @@ class GlobalState:
     valve_states: List[bool] = field(default_factory=lambda: [False] * 4)  # 4 solenoid valves
     pump_state: bool = False
     
+    # BGA244 purge mode (changes all secondary gases to N2)
+    purge_mode: bool = False
+    
     # Thread lock for state updates
     _lock: threading.Lock = field(default_factory=threading.Lock)
     
