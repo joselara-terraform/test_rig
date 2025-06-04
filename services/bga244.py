@@ -140,6 +140,9 @@ class BGA244Device:
         try:
             print(f"⚙️  Configuring {self.unit_config['name']}...")
             
+            # Store purge mode state for this device
+            self.purge_mode = purge_mode
+            
             # Set binary gas mode
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
@@ -161,7 +164,6 @@ class BGA244Device:
             self._send_command(f"GASS {secondary_cas}")
             print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
             
-            self.purge_mode = purge_mode
             print(f"✅ Gas configuration complete for {self.unit_config['name']}")
             return True
             
@@ -533,17 +535,48 @@ class BGA244Service:
     def set_purge_mode(self, purge_enabled: bool):
         """Set purge mode - changes all secondary gases to N2"""
         if self.purge_mode == purge_enabled:
+            print(f"🔧 Purge mode already {'ENABLED' if purge_enabled else 'DISABLED'}")
             return  # No change needed
         
         self.purge_mode = purge_enabled
         mode_str = "ENABLED" if purge_enabled else "DISABLED"
         print(f"🔧 Purge mode {mode_str}")
         
+        # Count connected devices
+        connected_devices = [unit_id for unit_id, device in self.devices.items() if device.is_connected]
+        
+        if not connected_devices:
+            print("   ⚠️  No connected BGA devices to reconfigure")
+            return
+        
+        print(f"   → Reconfiguring {len(connected_devices)} connected BGA devices...")
+        
         # Reconfigure all connected devices
         for unit_id, device in self.devices.items():
             if device.is_connected:
-                device.configure_gases(self.purge_mode)
-                print(f"   → {device.unit_config['name']} reconfigured for purge mode")
+                unit_name = device.unit_config['name']
+                print(f"   → Reconfiguring {unit_name}...")
+                
+                try:
+                    success = device.configure_gases(self.purge_mode)
+                    if success:
+                        if purge_enabled:
+                            print(f"     ✅ {unit_name}: Secondary gas → N2 (Nitrogen)")
+                        else:
+                            normal_secondary = device.unit_config['secondary_gas']
+                            print(f"     ✅ {unit_name}: Secondary gas → {normal_secondary}")
+                    else:
+                        print(f"     ❌ {unit_name}: Configuration failed")
+                except Exception as e:
+                    print(f"     ❌ {unit_name}: Error during reconfiguration: {e}")
+        
+        print(f"   ✅ Purge mode reconfiguration complete")
+        
+        # Provide guidance on expected results
+        if purge_enabled:
+            print("   📊 Expected: All BGAs should now show N2 as secondary gas in readings")
+        else:
+            print("   📊 Expected: BGAs should show normal secondary gases (H2/O2) in readings")
     
     def _poll_data(self):
         """Polling thread function"""

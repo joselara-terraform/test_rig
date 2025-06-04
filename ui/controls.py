@@ -245,13 +245,18 @@ class ControlPanel:
         
         # Call BGA244 service to actually set purge mode
         try:
-            bga_service = self.controller.services.get('bga244')
+            # Fix: Access the actual service instance, not the service dict
+            bga_service_info = self.controller.services.get('bga244')
+            bga_service = bga_service_info['service'] if bga_service_info else None
+            
             if bga_service and hasattr(bga_service, 'set_purge_mode'):
                 bga_service.set_purge_mode(new_purge)
                 if new_purge:
                     print("   → All BGA244 secondary gases changed to N2")
+                    print("   → Hardware devices reconfigured for purge mode")
                 else:
                     print("   → BGA244 secondary gases restored to normal configuration")
+                    print("   → Hardware devices reconfigured for normal mode")
             else:
                 print("   → BGA244 service not available (purge mode stored in state)")
         except Exception as e:
