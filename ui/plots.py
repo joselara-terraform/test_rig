@@ -68,22 +68,28 @@ class PressurePlot:
         """Update plot with new data from GlobalState"""
         current_time = time.time()
         
-        # Check test state - only collect data when actively running
+        # Check test state
         test_running = self.state.test_running
         test_paused = self.state.test_paused
         emergency_stop = self.state.emergency_stop
         
-        # Reset plot if test stopped or emergency stop activated
-        if not test_running or emergency_stop:
-            if len(self.time_data) > 0:  # Only reset if we have data to clear
-                self.reset()
-            return self.line1, self.line2
+        # Only respect test controls if a test has been started (timer > 0 or currently running)
+        test_has_been_started = self.state.timer_value > 0 or test_running
         
-        # Don't collect new data if test is paused
-        if test_paused:
-            return self.line1, self.line2
+        if test_has_been_started:
+            # Reset plot if test stopped or emergency stop activated
+            if not test_running or emergency_stop:
+                if len(self.time_data) > 0:  # Only reset if we have data to clear
+                    self.reset()
+                return self.line1, self.line2
+            
+            # Don't collect new data if test is paused
+            if test_paused:
+                return self.line1, self.line2
         
-        # Initialize start time on first update when test starts
+        # If no test has been started, always show live data (for dashboard/standalone viewing)
+        
+        # Initialize start time on first update
         if self.start_time is None:
             self.start_time = current_time
         
