@@ -23,13 +23,11 @@ class PressurePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting
-        self.time_data = deque(maxlen=max_points)
-        self.pressure1_data = deque(maxlen=max_points)
-        self.pressure2_data = deque(maxlen=max_points)
+        # Data storage for plotting - no max length
+        self.time_data = deque()
+        self.pressure1_data = deque()
+        self.pressure2_data = deque()
         
-        # Track start time for relative time display
-        self.start_time = None
         self.last_update_time = 0
         
         # Create the matplotlib figure
@@ -69,18 +67,21 @@ class PressurePlot:
         """Update plot with new data from GlobalState"""
         current_time = time.time()
         
-        # Initialize start time on first update
-        if self.start_time is None:
-            self.start_time = current_time
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running:
+            return self.line1, self.line2
         
-        # Calculate relative time
-        relative_time = current_time - self.start_time
+        if self.state.test_paused:
+            return self.line1, self.line2
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
             return self.line1, self.line2
         
         self.last_update_time = current_time
+        
+        # Use global timer
+        relative_time = self.state.timer_value
         
         # Get current pressure values
         pressure1 = self.state.pressure_values[0] if len(self.state.pressure_values) > 0 else 0.0
@@ -117,15 +118,15 @@ class PressurePlot:
                 y_max = max_pressure + margin
                 
                 self.ax.set_ylim(y_min, y_max)
-        
-        return self.line1, self.line2
     
+        return self.line1, self.line2
+
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
         self.pressure1_data.clear()
         self.pressure2_data.clear()
-        self.start_time = None
+
         self.last_update_time = 0
         
         # Reset axis limits
