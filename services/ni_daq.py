@@ -164,12 +164,31 @@ class NIDAQService:
     
     def _read_analog_inputs(self):
         """Read and scale analog input channels"""
-        # For mock data, return values directly in the 0-1 psig range
-        scaled_data = {
-            'pressure_1': random.uniform(0.25, 0.35),  # Direct PSI values 
-            'pressure_2': random.uniform(0.65, 0.75),  # Direct PSI values
-            'current': random.uniform(4.8, 5.2)       # Direct Amp values
-        }
+        raw_data = {}
+        scaled_data = {}
+        
+        # Mock reading 4-20mA signals
+        for channel_name in self.analog_channels.keys():
+            # Generate realistic mock data
+            if channel_name == 'pressure_1':
+                # Pressure sensor 1: 0-50 PSI, typically around 15 PSI
+                mock_value = random.uniform(14.5, 15.5)
+            elif channel_name == 'pressure_2':
+                # Pressure sensor 2: 0-100 PSI, typically around 30 PSI  
+                mock_value = random.uniform(29.0, 31.0)
+            elif channel_name == 'current':
+                # Current sensor: 0-10 A, typically around 5 A
+                mock_value = random.uniform(4.8, 5.2)
+            else:
+                mock_value = 0.0
+            
+            # Convert to 4-20mA signal (for realism)
+            scaling = self.scaling[channel_name]
+            mock_ma = self._eng_to_ma(mock_value, scaling)
+            raw_data[channel_name] = mock_ma
+            
+            # Convert back to engineering units (simulating real scaling)
+            scaled_data[channel_name] = self._ma_to_eng(mock_ma, scaling)
         
         return scaled_data
     

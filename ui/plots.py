@@ -14,17 +14,19 @@ import time
 from typing import List, Tuple
 from core.state import get_global_state
 
+
 class PressurePlot:
     """Live pressure vs time plot"""
     
-    def __init__(self, parent_frame):
+    def __init__(self, parent_frame, max_points: int = 300):
         self.parent_frame = parent_frame
         self.state = get_global_state()
+        self.max_points = max_points
         
-        # Data storage for plotting - no maxlen to retain all data
-        self.time_data = deque()
-        self.pressure1_data = deque()
-        self.pressure2_data = deque()
+        # Data storage for plotting
+        self.time_data = deque(maxlen=max_points)
+        self.pressure1_data = deque(maxlen=max_points)
+        self.pressure2_data = deque(maxlen=max_points)
         
         # Track start time for relative time display
         self.start_time = None
@@ -37,7 +39,7 @@ class PressurePlot:
         # Configure plot appearance
         self.ax.set_title("Pressure vs Time", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Pressure (psig)", fontsize=10)
+        self.ax.set_ylabel("Pressure (PSI)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         
         # Create line objects for both pressure sensors
@@ -47,9 +49,9 @@ class PressurePlot:
         # Add legend
         self.ax.legend(loc='upper right', fontsize=9)
         
-        # Set initial axis limits - 0-1 psig range, 0-120s time
-        self.ax.set_xlim(0, 120)  # 120 seconds minimum
-        self.ax.set_ylim(0, 50)    # 0-1 psig range
+        # Set initial axis limits
+        self.ax.set_xlim(0, 60)  # 60 seconds visible
+        self.ax.set_ylim(0, 40)  # 0-40 PSI range
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -67,36 +69,12 @@ class PressurePlot:
         """Update plot with new data from GlobalState"""
         current_time = time.time()
         
-        # Check test state
-        test_running = self.state.test_running
-        test_paused = self.state.test_paused
-        emergency_stop = self.state.emergency_stop
+        # Initialize start time on first update
+        if self.start_time is None:
+            self.start_time = current_time
         
-        # Only respect test controls if a test has been started (timer > 0 or currently running)
-        test_has_been_started = self.state.timer_value > 0 or test_running
-        
-        if test_has_been_started:
-            # Reset plot if test stopped or emergency stop activated
-            if not test_running or emergency_stop:
-                if len(self.time_data) > 0:  # Only reset if we have data to clear
-                    self.reset()
-                return self.line1, self.line2
-            
-            # Don't collect new data if test is paused
-            if test_paused:
-                return self.line1, self.line2
-        
-        # If no test has been started, always show live data (for dashboard/standalone viewing)
-        
-        # Determine what time to use for x-axis
-        if test_has_been_started:
-            # Use test timer when test is active (properly handles pause/resume)
-            plot_time = self.state.timer_value
-        else:
-            # Use relative time for live monitoring when no test is running
-            if self.start_time is None:
-                self.start_time = current_time
-            plot_time = current_time - self.start_time
+        # Calculate relative time
+        relative_time = current_time - self.start_time
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
@@ -109,7 +87,7 @@ class PressurePlot:
         pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
         
         # Add new data points
-        self.time_data.append(plot_time)
+        self.time_data.append(relative_time)
         self.pressure1_data.append(pressure1)
         self.pressure2_data.append(pressure2)
         
@@ -117,6 +95,28 @@ class PressurePlot:
         if len(self.time_data) > 0:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
+            
+            # Auto-scale x-axis to show last 60 seconds
+            if relative_time > 60:
+                self.ax.set_xlim(relative_time - 60, relative_time + 5)
+            else:
+                self.ax.set_xlim(0, max(60, relative_time + 5))
+            
+            # Auto-scale y-axis based on data
+            if len(self.pressure1_data) > 5:  # Only auto-scale after some data
+                all_pressures = list(self.pressure1_data) + list(self.pressure2_data)
+                min_pressure = min(all_pressures)
+                max_pressure = max(all_pressures)
+                
+                # Add some margin
+                margin = (max_pressure - min_pressure) * 0.1
+                if margin < 2:  # Minimum margin of 2 PSI
+                    margin = 2
+                
+                y_min = max(0, min_pressure - margin)
+                y_max = max_pressure + margin
+                
+                self.ax.set_ylim(y_min, y_max)
         
         return self.line1, self.line2
     
@@ -129,8 +129,8 @@ class PressurePlot:
         self.last_update_time = 0
         
         # Reset axis limits
-        self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 1.0)  # Fixed y-axis range
+        self.ax.set_xlim(0, 60)
+        self.ax.set_ylim(0, 40)
         
         # Clear line data
         self.line1.set_data([], [])
