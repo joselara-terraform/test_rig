@@ -65,7 +65,7 @@ def test_device_detection():
             print(f"  • {device.name}: {device.product_type}")
             if "cDAQ" in device.product_type:
                 cdaq_found = True
-                print(f"    Serial Number: {device.dev_serial_num}")
+                print(f"    Serial Number: {device.serial_num}")
                 
                 # List modules if it's a chassis
                 try:
