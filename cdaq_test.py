@@ -90,14 +90,10 @@ def main():
                 max_val=SENSOR_MAX_CURRENT
             )
             
-            # Configure continuous sampling
-            task.timing.cfg_samp_clk_timing(
-                rate=UPDATE_RATE * SAMPLES_PER_READ,  # Sample rate
-                sample_mode=AcquisitionType.CONTINUOUS  # Continuous acquisition
-            )
+            # Configure finite sampling instead of continuous
+            # This avoids timeout issues when sensors are disconnected
             
-            # Start the task
-            task.start()
+            # Don't start the task - we'll read on demand
             print("📊 Started continuous pressure monitoring...\n")
             
             # Initialize statistics
@@ -109,23 +105,31 @@ def main():
             # Main reading loop
             while running:
                 try:
-                    # Read samples
-                    current_samples = task.read(
-                        number_of_samples_per_channel=SAMPLES_PER_READ,
-                        timeout=1.0
-                    )
+                    # Read single sample (on-demand)
+                    current_sample = task.read()
                     
-                    # Calculate average current
-                    avg_current = sum(current_samples) / len(current_samples)
-                    avg_current_ma = avg_current * 1000  # Convert to mA
+                    # Convert to mA
+                    current_ma = current_sample * 1000
                     
-                    # Convert to pressure
-                    pressure_psig = convert_current_to_pressure(avg_current_ma)
+                    # Check if sensor is connected (should be between 4-20mA)
+                    if current_ma < 3.5:
+                        sensor_status = "⚠️  DISCONNECTED"
+                        pressure_psig = 0.0
+                    elif current_ma < 4.0:
+                        sensor_status = "⚠️  LOW SIGNAL"
+                        pressure_psig = 0.0
+                    elif current_ma > 20.5:
+                        sensor_status = "⚠️  HIGH SIGNAL"
+                        pressure_psig = PRESSURE_MAX
+                    else:
+                        sensor_status = "✅ CONNECTED"
+                        pressure_psig = convert_current_to_pressure(current_ma)
                     
                     # Update statistics
                     reading_count += 1
-                    min_pressure = min(min_pressure, pressure_psig)
-                    max_pressure = max(max_pressure, pressure_psig)
+                    if sensor_status == "✅ CONNECTED":
+                        min_pressure = min(min_pressure, pressure_psig)
+                        max_pressure = max(max_pressure, pressure_psig)
                     
                     # Calculate runtime
                     elapsed_time = time.time() - start_time
@@ -134,13 +138,20 @@ def main():
                     seconds = int(elapsed_time % 60)
                     
                     # Display reading with statistics
-                    print(f"\r⏱️  Runtime: {hours:02d}:{minutes:02d}:{seconds:02d} | "
-                          f"📊 Pressure: {pressure_psig:6.2f} PSIG | "
-                          f"⚡ Current: {avg_current_ma:5.2f} mA | "
-                          f"📈 Min: {min_pressure:5.2f} | "
-                          f"📉 Max: {max_pressure:5.2f} | "
-                          f"#️⃣  Readings: {reading_count}", 
-                          end='', flush=True)
+                    if sensor_status == "✅ CONNECTED":
+                        print(f"\r⏱️  Runtime: {hours:02d}:{minutes:02d}:{seconds:02d} | "
+                              f"📊 Pressure: {pressure_psig:6.2f} PSIG | "
+                              f"⚡ Current: {current_ma:5.2f} mA | "
+                              f"📈 Min: {min_pressure:5.2f} | "
+                              f"📉 Max: {max_pressure:5.2f} | "
+                              f"#️⃣  Readings: {reading_count}", 
+                              end='', flush=True)
+                    else:
+                        print(f"\r⏱️  Runtime: {hours:02d}:{minutes:02d}:{seconds:02d} | "
+                              f"{sensor_status} | "
+                              f"⚡ Current: {current_ma:5.2f} mA | "
+                              f"#️⃣  Readings: {reading_count}                    ", 
+                              end='', flush=True)
                     
                     # Sleep to maintain update rate
                     time.sleep(1.0 / UPDATE_RATE)
@@ -155,19 +166,24 @@ def main():
                     print(f"\n❌ Unexpected error: {e}")
                     break
             
-            # Stop the task
-            task.stop()
+            # Clean shutdown
             
             # Print final statistics
             print(f"\n\n{'='*60}")
             print("MEASUREMENT STATISTICS")
             print(f"{'='*60}")
-            print(f"Total Runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
-            print(f"Total Readings: {reading_count:,}")
-            print(f"Average Rate: {reading_count/elapsed_time:.1f} readings/second")
-            print(f"Minimum Pressure: {min_pressure:.2f} PSIG")
-            print(f"Maximum Pressure: {max_pressure:.2f} PSIG")
-            print(f"Pressure Range: {max_pressure - min_pressure:.2f} PSIG")
+            if reading_count > 0:
+                print(f"Total Runtime: {hours:02d}:{minutes:02d}:{seconds:02d}")
+                print(f"Total Readings: {reading_count:,}")
+                print(f"Average Rate: {reading_count/elapsed_time:.1f} readings/second")
+                if min_pressure != float('inf'):
+                    print(f"Minimum Pressure: {min_pressure:.2f} PSIG")
+                    print(f"Maximum Pressure: {max_pressure:.2f} PSIG")
+                    print(f"Pressure Range: {max_pressure - min_pressure:.2f} PSIG")
+                else:
+                    print("No valid pressure readings (sensor disconnected)")
+            else:
+                print("No readings collected")
             print(f"{'='*60}")
             
     except nidaqmx.errors.DaqError as e:
