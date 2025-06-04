@@ -320,7 +320,10 @@ class Dashboard:
         # Get individual BGA connection statuses
         from services.controller_manager import get_controller_manager
         controller = get_controller_manager()
-        bga_service = controller.services.get('bga244')
+        
+        # Fix: Access the actual service instance, not the service dict
+        bga_service_info = controller.services.get('bga244')
+        bga_service = bga_service_info['service'] if bga_service_info else None
         
         if bga_service and hasattr(bga_service, 'get_individual_connection_status'):
             individual_bga_status = bga_service.get_individual_connection_status()
@@ -378,20 +381,56 @@ class Dashboard:
         self.update_job = self.root.after(100, self._update_status_indicators)
     
     def cleanup(self):
-        """Clean up resources"""
+        """Clean up resources and stop all services"""
+        print("🧹 Cleaning up dashboard resources...")
+        
+        # Cancel UI update timer
         if self.update_job:
             self.root.after_cancel(self.update_job)
+            print("   → UI update timer cancelled")
+        
+        # Stop all services through controller manager
+        try:
+            from services.controller_manager import get_controller_manager
+            controller = get_controller_manager()
+            if controller.services_running:
+                print("   → Stopping all hardware services...")
+                controller.stop_all_services()
+                print("   → All services stopped")
+        except Exception as e:
+            print(f"   ⚠️  Error stopping services: {e}")
         
         # Clean up plots
         if self.pressure_plot:
-            self.pressure_plot.destroy()
+            try:
+                self.pressure_plot.destroy()
+                print("   → Pressure plot destroyed")
+            except Exception as e:
+                print(f"   ⚠️  Error destroying pressure plot: {e}")
+                
         if self.voltage_plot:
-            self.voltage_plot.destroy()
+            try:
+                self.voltage_plot.destroy()
+                print("   → Voltage plot destroyed")
+            except Exception as e:
+                print(f"   ⚠️  Error destroying voltage plot: {e}")
+                
         if self.temperature_plot:
-            self.temperature_plot.destroy()
+            try:
+                self.temperature_plot.destroy()
+                print("   → Temperature plot destroyed")
+            except Exception as e:
+                print(f"   ⚠️  Error destroying temperature plot: {e}")
         
+        # Clean up control panel
         if hasattr(self.control_panel, 'cleanup'):
-            self.control_panel.cleanup()
+            try:
+                self.control_panel.cleanup()
+                print("   → Control panel cleaned up")
+            except Exception as e:
+                print(f"   ⚠️  Error cleaning up control panel: {e}")
+        
+        print("✅ Dashboard cleanup complete")
 
 
 def main():
