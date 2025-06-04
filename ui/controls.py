@@ -97,83 +97,6 @@ class ControlPanel:
         
         self.status_label = ttk.Label(status_frame, text="Status: Disconnected", font=("Arial", 10))
         self.status_label.pack()
-        
-        # Manual Relay Controls - separate frame below main controls
-        self._create_relay_controls()
-    
-    def _create_relay_controls(self):
-        """Create manual relay control buttons for valves and pump"""
-        
-        # Manual controls frame
-        relay_frame = ttk.LabelFrame(self.parent_frame, text="Manual Relay Controls", padding="10")
-        relay_frame.pack(fill='x', pady=5)
-        
-        # Warning label
-        warning_label = ttk.Label(
-            relay_frame,
-            text="⚠️ Manual overrides - Use only when necessary",
-            font=("Arial", 9, "italic"),
-            foreground="orange"
-        )
-        warning_label.pack(pady=(0, 5))
-        
-        # Controls grid
-        controls_frame = ttk.Frame(relay_frame)
-        controls_frame.pack()
-        
-        # Valve controls (4 valves in a row)
-        valve_label = ttk.Label(controls_frame, text="Solenoid Valves:", font=("Arial", 10, "bold"))
-        valve_label.grid(row=0, column=0, columnspan=4, pady=(0, 5), sticky='w')
-        
-        self.valve_buttons = []
-        for i in range(4):
-            # Valve label
-            label = ttk.Label(controls_frame, text=f"Valve {i+1}:")
-            label.grid(row=1, column=i, padx=5, pady=2, sticky='w')
-            
-            # Toggle button
-            button = tk.Button(
-                controls_frame,
-                text="OFF",
-                command=lambda v=i: self._toggle_valve(v),
-                width=8,
-                background="red",
-                foreground="white",
-                font=("Arial", 9, "bold"),
-                relief=tk.RAISED
-            )
-            button.grid(row=2, column=i, padx=5, pady=2)
-            self.valve_buttons.append(button)
-        
-        # Pump control (separate section)
-        pump_label = ttk.Label(controls_frame, text="Pump:", font=("Arial", 10, "bold"))
-        pump_label.grid(row=0, column=5, padx=(20, 5), pady=(0, 5), sticky='w')
-        
-        # Pump toggle button
-        self.pump_button = tk.Button(
-            controls_frame,
-            text="OFF",
-            command=self._toggle_pump,
-            width=10,
-            background="red",
-            foreground="white",
-            font=("Arial", 9, "bold"),
-            relief=tk.RAISED
-        )
-        self.pump_button.grid(row=2, column=5, padx=(20, 5), pady=2)
-        
-        # All OFF button (emergency function)
-        all_off_button = tk.Button(
-            controls_frame,
-            text="ALL OFF",
-            command=self._all_relays_off,
-            width=12,
-            background="darkred",
-            foreground="white",
-            font=("Arial", 9, "bold"),
-            relief=tk.RAISED
-        )
-        all_off_button.grid(row=2, column=6, padx=(20, 5), pady=2)
     
     def _on_connect_click(self):
         """Handle Connect button click"""
@@ -350,123 +273,38 @@ class ControlPanel:
         timer_text = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         self.timer_label.configure(text=timer_text)
         
-        # Update relay control buttons (only if they exist)
-        if hasattr(self, 'valve_buttons') and hasattr(self, 'pump_button'):
-            self._update_relay_buttons(all_connected)
-        
         # Schedule next update
         self.update_job = self.parent_frame.after(100, self._update_ui)
-    
-    def _update_relay_buttons(self, all_connected):
-        """Update relay control button states and colors"""
-        # Update valve buttons
-        for i, button in enumerate(self.valve_buttons):
-            valve_state = self.state.valve_states[i]
-            
-            if all_connected:
-                button.configure(state='normal')
-                if valve_state:
-                    button.configure(text="ON", background="green")
-                else:
-                    button.configure(text="OFF", background="red")
-            else:
-                button.configure(state='disabled', text="OFF", background="gray")
-        
-        # Update pump button
-        if all_connected:
-            self.pump_button.configure(state='normal')
-            if self.state.pump_state:
-                self.pump_button.configure(text="ON", background="green")
-            else:
-                self.pump_button.configure(text="OFF", background="red")
-        else:
-            self.pump_button.configure(state='disabled', text="OFF", background="gray")
     
     def cleanup(self):
         """Clean up resources"""
         if self.update_job:
             self.parent_frame.after_cancel(self.update_job)
-    
-    def _toggle_valve(self, valve_index):
-        """Toggle specific valve state"""
-        if not self.controller.is_all_connected():
-            print(f"❌ Cannot control Valve {valve_index+1} - System not connected")
-            return
-        
-        current_state = self.state.valve_states[valve_index]
-        new_state = not current_state
-        
-        # Update state via GlobalState (NI DAQ will pick this up automatically)
-        self.state.set_actuator_state('valve', new_state, valve_index)
-        
-        print(f"🔧 Manual Control: Valve {valve_index+1} {'ON' if new_state else 'OFF'}")
-        print(f"   → State updated in GlobalState")
-        print(f"   → NI DAQ will update hardware output")
-    
-    def _toggle_pump(self):
-        """Toggle pump state"""
-        if not self.controller.is_all_connected():
-            print("❌ Cannot control Pump - System not connected")
-            return
-        
-        current_state = self.state.pump_state
-        new_state = not current_state
-        
-        # Update state via GlobalState (NI DAQ will pick this up automatically)
-        self.state.set_actuator_state('pump', new_state)
-        
-        print(f"🔧 Manual Control: Pump {'ON' if new_state else 'OFF'}")
-        print(f"   → State updated in GlobalState")
-        print(f"   → NI DAQ will update hardware output")
-    
-    def _all_relays_off(self):
-        """Turn all relays OFF (emergency function)"""
-        if not self.controller.is_all_connected():
-            print("❌ Cannot control relays - System not connected")
-            return
-        
-        print("🔧 Manual Control: ALL RELAYS OFF")
-        
-        # Turn off all valves
-        for i in range(4):
-            self.state.set_actuator_state('valve', False, i)
-        
-        # Turn off pump
-        self.state.set_actuator_state('pump', False)
-        
-        print("   → All valve and pump states set to OFF")
-        print("   → NI DAQ will update hardware outputs")
 
 
 def main():
     """Test the control panel by running it directly"""
     root = tk.Tk()
-    root.title("Test - Control Panel with Manual Relay Controls")
-    root.geometry("900x300")
+    root.title("Test - Control Panel with ControllerManager")
+    root.geometry("800x200")
     
-    print("=" * 70)
-    print("TASK 18 TEST: Controls with Manual Relay Control Buttons")
-    print("=" * 70)
+    print("=" * 60)
+    print("TASK 9 TEST: Controls with ControllerManager")
+    print("=" * 60)
     print("✅ Control panel connected to ControllerManager")
-    print("✅ Manual relay control buttons added")
-    print("✅ 4 valve toggle buttons + 1 pump toggle button")
-    print("✅ Buttons update GlobalState and NI DAQ hardware")
-    print("✅ Real-time button color updates (red=OFF, green=ON)")
-    print("✅ Buttons disabled when system not connected")
+    print("✅ Connect button uses real service coordination")
+    print("✅ Timer display shows real elapsed time")
+    print("✅ Buttons actually control state and timer")
     print("\n🎯 TEST: Click buttons and verify:")
-    print("   1. Connect - enables relay control buttons")
-    print("   2. Manual valve/pump buttons toggle states")
-    print("   3. Button colors change: Red=OFF, Green=ON")
-    print("   4. State updates are reflected in dashboard indicators")
-    print("   5. Emergency Stop sets all relays to safe state")
-    print("   6. 'ALL OFF' button turns off all relays")
-    print("\n🔧 Manual Controls:")
-    print("   • Valve 1-4: Individual solenoid valve control")
-    print("   • Pump: Water circulation pump control")
-    print("   • ALL OFF: Emergency relay shutdown")
-    print("\n⚠️  Manual controls update hardware via NI DAQ service")
+    print("   1. Connect - actually starts all services via ControllerManager")
+    print("   2. Status indicators should update automatically")
+    print("   3. Start Test - actually starts Timer")
+    print("   4. Pause - actually pauses Timer")
+    print("   5. Timer display updates in real-time")
+    print("   6. Emergency Stop - resets everything")
+    print("\nTimer display format: HH:MM:SS")
     print("Close window when done testing...")
-    print("=" * 70)
+    print("=" * 60)
     
     control_panel = ControlPanel(root)
     

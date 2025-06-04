@@ -150,18 +150,18 @@ class Dashboard:
         self.valve_frame.columnconfigure(0, weight=1)
         self.valve_frame.rowconfigure(0, weight=1)
         
-        # Create valve state indicators
+        # Create valve state indicators with toggle controls
         self._create_valve_indicators()
     
     def _create_valve_indicators(self):
-        """Create valve and pump state indicators"""
+        """Create valve and pump state indicators with toggle controls"""
         
         # Container frame to center content and control sizing
         container_frame = ttk.Frame(self.valve_frame)
         container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Title
-        title_label = ttk.Label(container_frame, text="[Valve/Pump State Panel]", font=("Arial", 12, "bold"))
+        title_label = ttk.Label(container_frame, text="Actuator Controls", font=("Arial", 12, "bold"))
         title_label.pack(pady=(10, 5))
         
         # Valve states (4 valves)
@@ -175,41 +175,75 @@ class Dashboard:
             valve_label = ttk.Label(valve_frame, text=f"Valve {i+1}:")
             valve_label.grid(row=1, column=i, padx=5, pady=2)
             
-            # OFF indicator (will be updated from state)
-            state_label = tk.Label(
+            # Clickable button instead of label
+            valve_button = tk.Button(
                 valve_frame, 
                 text="OFF", 
                 background="red", 
                 foreground="white",
                 width=6,
-                relief=tk.RAISED
+                relief=tk.RAISED,
+                command=lambda valve_idx=i: self._toggle_valve(valve_idx),
+                cursor="hand2"
             )
-            state_label.grid(row=2, column=i, padx=5, pady=2)
-            self.valve_labels.append(state_label)
+            valve_button.grid(row=2, column=i, padx=5, pady=2)
+            self.valve_labels.append(valve_button)
         
         # Pump state
         pump_frame = ttk.Frame(container_frame)
         pump_frame.pack(pady=10)
         
         ttk.Label(pump_frame, text="Pump:", font=("Arial", 10, "bold")).pack()
-        self.pump_state_label = tk.Label(
+        self.pump_state_label = tk.Button(
             pump_frame, 
             text="OFF", 
             background="red", 
             foreground="white",
             width=8,
             relief=tk.RAISED,
-            font=("Arial", 10, "bold")
+            font=("Arial", 10, "bold"),
+            command=self._toggle_pump,
+            cursor="hand2"
         )
         self.pump_state_label.pack(pady=5)
         
-        # Current sensor display
+        # Current sensor display (read-only)
         current_frame = ttk.Frame(container_frame)
         current_frame.pack(pady=10)
         
         ttk.Label(current_frame, text="Current Sensor:", font=("Arial", 10, "bold")).pack()
         self.current_label = ttk.Label(current_frame, text="0.0 A", font=("Arial", 12))
         self.current_label.pack()
+    
+    def _toggle_valve(self, valve_index):
+        """Toggle valve state when clicked"""
+        if not self.state.connections.get('ni_daq', False):
+            print(f"⚠️  Cannot control Valve {valve_index+1} - NI DAQ not connected")
+            return
+        
+        # Get current state and toggle it
+        current_state = self.state.valve_states[valve_index]
+        new_state = not current_state
+        
+        # Update state (NI DAQ service will automatically update hardware)
+        self.state.set_actuator_state('valve', new_state, valve_index)
+        
+        print(f"🔧 Valve {valve_index+1} {'ON' if new_state else 'OFF'}")
+    
+    def _toggle_pump(self):
+        """Toggle pump state when clicked"""
+        if not self.state.connections.get('ni_daq', False):
+            print("⚠️  Cannot control Pump - NI DAQ not connected")
+            return
+        
+        # Get current state and toggle it
+        current_state = self.state.pump_state
+        new_state = not current_state
+        
+        # Update state (NI DAQ service will automatically update hardware)
+        self.state.set_actuator_state('pump', new_state)
+        
+        print(f"🔧 Pump {'ON' if new_state else 'OFF'}")
     
     def reset_plots(self):
         """Reset all plots when starting a new test"""
@@ -237,17 +271,31 @@ class Dashboard:
         for device, connected in self.state.connections.items():
             self.status_indicators.update_device_status(device, connected, connection_info[device])
         
-        # Update actuator states
-        for i, valve_state in enumerate(self.state.valve_states):
+        # Update valve button states and colors
+        for i, valve_button in enumerate(self.valve_labels):
+            valve_state = self.state.valve_states[i]
             if valve_state:
-                self.valve_labels[i].configure(text="ON", background="green")
+                valve_button.configure(text="ON", background="green", activebackground="lightgreen")
             else:
-                self.valve_labels[i].configure(text="OFF", background="red")
+                valve_button.configure(text="OFF", background="red", activebackground="lightcoral")
+            
+            # Enable/disable based on NI DAQ connection
+            if self.state.connections.get('ni_daq', False):
+                valve_button.configure(state='normal')
+            else:
+                valve_button.configure(state='disabled')
         
+        # Update pump button state and color
         if self.state.pump_state:
-            self.pump_state_label.configure(text="ON", background="green")
+            self.pump_state_label.configure(text="ON", background="green", activebackground="lightgreen")
         else:
-            self.pump_state_label.configure(text="OFF", background="red")
+            self.pump_state_label.configure(text="OFF", background="red", activebackground="lightcoral")
+        
+        # Enable/disable pump based on NI DAQ connection
+        if self.state.connections.get('ni_daq', False):
+            self.pump_state_label.configure(state='normal')
+        else:
+            self.pump_state_label.configure(state='disabled')
         
         # Update current sensor
         self.current_label.configure(text=f"{self.state.current_value:.1f} A")
@@ -278,13 +326,14 @@ def main():
     dashboard = Dashboard(root)
     
     print("=" * 70)
-    print("DASHBOARD TEST: All Live Plots - Pressure, Gas, Voltage & Temperature")
+    print("DASHBOARD TEST: All Live Plots + Interactive Valve/Pump Controls")
     print("=" * 70)
     print("✅ Dashboard with live pressure & gas concentration plotting")
     print("✅ Dashboard with live cell voltage plotting (120 cells)")
     print("✅ Dashboard with live temperature plotting (8 thermocouples)")
     print("✅ All plots update from GlobalState")
     print("✅ Static Y-axis, dynamic X-axis for all plots")
+    print("✅ Interactive valve/pump controls with relay outputs")
     print("\nPressure & Gas Plot (Y: 0-1):")
     print("   • Blue: Pressure 1 | Red: Pressure 2")
     print("   • Green dashed: H₂ (H-side) | Magenta dashed: O₂ (O-side)")  
@@ -297,14 +346,17 @@ def main():
     print("   • Blue: Inlet | Red: Outlet | Green: Stack 1 | Magenta: Stack 2")
     print("   • Cyan dashed: Ambient | Yellow dashed: Cooling")
     print("   • Orange: Gas | Brown: Case")
-    print("\n🎯 TEST: Verify all live plotting:")
-    print("   1. Click Connect - all services start providing data")
-    print("   2. Start Test - all plots begin updating")
-    print("   3. Watch all plots update in real-time")
-    print("   4. X-axis expands dynamically with time")
-    print("   5. Y-axis remains static for consistent scale")
-    print("   6. Temperature shows 15-80°C, voltage 2-3.5V, pressure 0.3-0.8")
-    print("\nAll three plots show realistic electrolyzer data!")
+    print("\nValve/Pump Controls:")
+    print("   • 🔴 Red buttons = OFF | 🟢 Green buttons = ON")
+    print("   • Click valve/pump buttons to toggle (when NI DAQ connected)")
+    print("   • Buttons disabled when NI DAQ disconnected")
+    print("\n🎯 TEST: Verify all functionality:")
+    print("   1. Click Connect - all services start, buttons enabled")
+    print("   2. Click valve/pump buttons to control actuators")
+    print("   3. Start Test - all plots begin updating")
+    print("   4. Watch plots update and actuator control in real-time")
+    print("   5. Emergency Stop turns off all actuators")
+    print("\nFull AWE test rig control dashboard!")
     print("Close window when done testing...")
     print("=" * 70)
     

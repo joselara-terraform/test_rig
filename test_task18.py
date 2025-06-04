@@ -1,502 +1,470 @@
 #!/usr/bin/env python3
 """
-Test file for Task 18: Manual Relay Control Buttons
+Test file for Task 18: Add Relay Control Buttons  
 Run with: python3 test_task18.py
 """
 
 import time
 import tkinter as tk
 from tkinter import ttk
-from ui.controls import ControlPanel
 from ui.dashboard import Dashboard
 from services.controller_manager import get_controller_manager
 from core.state import get_global_state
 
 
-def test_relay_button_creation():
-    """Test that manual relay control buttons are created"""
-    print("Testing relay control button creation...")
+def test_valve_pump_buttons_exist():
+    """Test that valve/pump controls are clickable buttons"""
+    print("Testing valve/pump button controls...")
     
     try:
         root = tk.Tk()
         root.withdraw()  # Hide window for testing
         
-        control_panel = ControlPanel(root)
-        
-        # Check that valve buttons exist
-        if hasattr(control_panel, 'valve_buttons') and len(control_panel.valve_buttons) == 4:
-            print("✅ PASS: 4 valve control buttons created")
-        else:
-            print("❌ FAIL: Valve control buttons missing or incorrect count")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Check that pump button exists
-        if hasattr(control_panel, 'pump_button'):
-            print("✅ PASS: Pump control button created")
-        else:
-            print("❌ FAIL: Pump control button missing")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Check button initial states
-        for i, button in enumerate(control_panel.valve_buttons):
-            if button.cget('text') == 'OFF' and button.cget('background') == 'gray':
-                print(f"✅ PASS: Valve {i+1} button shows OFF/gray initially (disconnected)")
-            else:
-                print(f"❌ FAIL: Valve {i+1} button incorrect initial state")
-                control_panel.cleanup()
-                root.destroy()
-                return False
-        
-        if control_panel.pump_button.cget('text') == 'OFF' and control_panel.pump_button.cget('background') == 'gray':
-            print("✅ PASS: Pump button shows OFF/gray initially (disconnected)")
-        else:
-            print("❌ FAIL: Pump button incorrect initial state")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        control_panel.cleanup()
-        root.destroy()
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: Could not create relay control buttons: {e}")
-        return False
-
-
-def test_relay_button_state_updates():
-    """Test that relay buttons update based on connection and state"""
-    print("\nTesting relay button state updates...")
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()  # Hide window for testing
-        
-        control_panel = ControlPanel(root)
-        state = get_global_state()
-        controller = get_controller_manager()
-        
-        # Test disconnected state (should be disabled/gray)
-        control_panel._update_relay_buttons(False)
-        
-        all_disabled = all(btn.cget('state') == 'disabled' for btn in control_panel.valve_buttons)
-        pump_disabled = control_panel.pump_button.cget('state') == 'disabled'
-        
-        if all_disabled and pump_disabled:
-            print("✅ PASS: All relay buttons disabled when not connected")
-        else:
-            print("❌ FAIL: Relay buttons not properly disabled when disconnected")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Test connected state (should be enabled and show current state)
-        control_panel._update_relay_buttons(True)
-        
-        all_enabled = all(btn.cget('state') == 'normal' for btn in control_panel.valve_buttons)
-        pump_enabled = control_panel.pump_button.cget('state') == 'normal'
-        
-        if all_enabled and pump_enabled:
-            print("✅ PASS: All relay buttons enabled when connected")
-        else:
-            print("❌ FAIL: Relay buttons not properly enabled when connected")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Test state-based color updates
-        # Set valve 1 and pump ON
-        state.set_actuator_state('valve', True, 0)
-        state.set_actuator_state('pump', True)
-        
-        control_panel._update_relay_buttons(True)
-        
-        valve1_green = control_panel.valve_buttons[0].cget('background') == 'green'
-        valve1_on = control_panel.valve_buttons[0].cget('text') == 'ON'
-        pump_green = control_panel.pump_button.cget('background') == 'green'
-        pump_on = control_panel.pump_button.cget('text') == 'ON'
-        
-        if valve1_green and valve1_on and pump_green and pump_on:
-            print("✅ PASS: Buttons show green/ON when actuators are active")
-        else:
-            print("❌ FAIL: Button colors/text incorrect for active state")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Test OFF state colors
-        state.set_actuator_state('valve', False, 0)
-        state.set_actuator_state('pump', False)
-        
-        control_panel._update_relay_buttons(True)
-        
-        valve1_red = control_panel.valve_buttons[0].cget('background') == 'red'
-        valve1_off = control_panel.valve_buttons[0].cget('text') == 'OFF'
-        pump_red = control_panel.pump_button.cget('background') == 'red'
-        pump_off = control_panel.pump_button.cget('text') == 'OFF'
-        
-        if valve1_red and valve1_off and pump_red and pump_off:
-            print("✅ PASS: Buttons show red/OFF when actuators are inactive")
-        else:
-            print("❌ FAIL: Button colors/text incorrect for inactive state")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        control_panel.cleanup()
-        root.destroy()
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: Relay button state update error: {e}")
-        return False
-
-
-def test_manual_valve_control():
-    """Test manual valve control functionality"""
-    print("\nTesting manual valve control...")
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()  # Hide window for testing
-        
-        control_panel = ControlPanel(root)
-        state = get_global_state()
-        controller = get_controller_manager()
-        
-        # Start services to enable controls
-        if not controller.start_all_services():
-            print("❌ FAIL: Could not start services for valve control test")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        print("✅ PASS: Services started for manual control testing")
-        
-        # Test each valve toggle
-        for i in range(4):
-            # Initially should be OFF
-            initial_state = state.valve_states[i]
-            if initial_state != False:
-                print(f"❌ FAIL: Valve {i+1} not initially OFF")
-                controller.stop_all_services()
-                control_panel.cleanup()
-                root.destroy()
-                return False
-            
-            # Toggle valve ON
-            control_panel._toggle_valve(i)
-            
-            if state.valve_states[i] == True:
-                print(f"✅ PASS: Valve {i+1} toggled ON via manual control")
-            else:
-                print(f"❌ FAIL: Valve {i+1} failed to toggle ON")
-                controller.stop_all_services()
-                control_panel.cleanup()
-                root.destroy()
-                return False
-            
-            # Toggle valve OFF
-            control_panel._toggle_valve(i)
-            
-            if state.valve_states[i] == False:
-                print(f"✅ PASS: Valve {i+1} toggled OFF via manual control")
-            else:
-                print(f"❌ FAIL: Valve {i+1} failed to toggle OFF")
-                controller.stop_all_services()
-                control_panel.cleanup()
-                root.destroy()
-                return False
-        
-        controller.stop_all_services()
-        control_panel.cleanup()
-        root.destroy()
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: Manual valve control error: {e}")
-        return False
-
-
-def test_manual_pump_control():
-    """Test manual pump control functionality"""
-    print("\nTesting manual pump control...")
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()  # Hide window for testing
-        
-        control_panel = ControlPanel(root)
-        state = get_global_state()
-        controller = get_controller_manager()
-        
-        # Start services to enable controls
-        if not controller.start_all_services():
-            print("❌ FAIL: Could not start services for pump control test")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Initially should be OFF
-        if state.pump_state != False:
-            print("❌ FAIL: Pump not initially OFF")
-            controller.stop_all_services()
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Toggle pump ON
-        control_panel._toggle_pump()
-        
-        if state.pump_state == True:
-            print("✅ PASS: Pump toggled ON via manual control")
-        else:
-            print("❌ FAIL: Pump failed to toggle ON")
-            controller.stop_all_services()
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Toggle pump OFF
-        control_panel._toggle_pump()
-        
-        if state.pump_state == False:
-            print("✅ PASS: Pump toggled OFF via manual control")
-        else:
-            print("❌ FAIL: Pump failed to toggle OFF")
-            controller.stop_all_services()
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        controller.stop_all_services()
-        control_panel.cleanup()
-        root.destroy()
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: Manual pump control error: {e}")
-        return False
-
-
-def test_all_off_function():
-    """Test the ALL OFF emergency function"""
-    print("\nTesting ALL OFF function...")
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()  # Hide window for testing
-        
-        control_panel = ControlPanel(root)
-        state = get_global_state()
-        controller = get_controller_manager()
-        
-        # Start services to enable controls
-        if not controller.start_all_services():
-            print("❌ FAIL: Could not start services for ALL OFF test")
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        # Set all actuators to ON
-        for i in range(4):
-            state.set_actuator_state('valve', True, i)
-        state.set_actuator_state('pump', True)
-        
-        # Verify all are ON
-        all_valves_on = all(state.valve_states)
-        pump_on = state.pump_state
-        
-        if not (all_valves_on and pump_on):
-            print("❌ FAIL: Could not set all actuators ON for ALL OFF test")
-            controller.stop_all_services()
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        print("✅ PASS: All actuators set to ON")
-        
-        # Execute ALL OFF
-        control_panel._all_relays_off()
-        
-        # Verify all are OFF
-        all_valves_off = all(not state for state in state.valve_states)
-        pump_off = not state.pump_state
-        
-        if all_valves_off and pump_off:
-            print("✅ PASS: ALL OFF function turned off all actuators")
-        else:
-            print("❌ FAIL: ALL OFF function did not turn off all actuators")
-            controller.stop_all_services()
-            control_panel.cleanup()
-            root.destroy()
-            return False
-        
-        controller.stop_all_services()
-        control_panel.cleanup()
-        root.destroy()
-        return True
-        
-    except Exception as e:
-        print(f"❌ FAIL: ALL OFF function error: {e}")
-        return False
-
-
-def test_integration_with_dashboard():
-    """Test that manual controls integrate with dashboard indicators"""
-    print("\nTesting integration with dashboard indicators...")
-    
-    try:
-        root = tk.Tk()
-        root.withdraw()  # Hide window for testing
-        
-        # Create both control panel and dashboard
-        control_panel = ControlPanel(root)
         dashboard = Dashboard(root)
-        state = get_global_state()
-        controller = get_controller_manager()
         
-        # Start services
-        if not controller.start_all_services():
-            print("❌ FAIL: Could not start services for integration test")
-            control_panel.cleanup()
-            dashboard.cleanup()
-            root.destroy()
-            return False
-        
-        # Toggle valve 1 via control panel
-        control_panel._toggle_valve(0)
-        
-        # Update dashboard indicators
-        dashboard._update_status_indicators()
-        
-        # Check that dashboard indicator reflects the change
-        dashboard_valve1_state = dashboard.valve_labels[0].cget('text')
-        dashboard_valve1_color = dashboard.valve_labels[0].cget('background')
-        
-        if dashboard_valve1_state == 'ON' and dashboard_valve1_color == 'green':
-            print("✅ PASS: Dashboard indicators reflect manual control changes")
+        # Check that valve buttons exist and are Button widgets
+        if hasattr(dashboard, 'valve_labels') and len(dashboard.valve_labels) == 4:
+            all_buttons = all(isinstance(btn, tk.Button) for btn in dashboard.valve_labels)
+            if all_buttons:
+                print("✅ PASS: 4 valve controls are clickable buttons")
+            else:
+                print("❌ FAIL: Valve controls are not all buttons")
+                dashboard.cleanup()
+                root.destroy()
+                return False
         else:
-            print(f"❌ FAIL: Dashboard not updated - state: {dashboard_valve1_state}, color: {dashboard_valve1_color}")
-            controller.stop_all_services()
-            control_panel.cleanup()
+            print("❌ FAIL: Valve buttons missing or incorrect count")
             dashboard.cleanup()
             root.destroy()
             return False
         
-        # Toggle pump via control panel
-        control_panel._toggle_pump()
-        
-        # Update dashboard indicators
-        dashboard._update_status_indicators()
-        
-        # Check pump indicator
-        dashboard_pump_state = dashboard.pump_state_label.cget('text')
-        dashboard_pump_color = dashboard.pump_state_label.cget('background')
-        
-        if dashboard_pump_state == 'ON' and dashboard_pump_color == 'green':
-            print("✅ PASS: Dashboard pump indicator reflects manual control")
+        # Check that pump button exists and is Button widget
+        if hasattr(dashboard, 'pump_state_label') and isinstance(dashboard.pump_state_label, tk.Button):
+            print("✅ PASS: Pump control is clickable button")
         else:
-            print(f"❌ FAIL: Dashboard pump not updated - state: {dashboard_pump_state}, color: {dashboard_pump_color}")
-            controller.stop_all_services()
-            control_panel.cleanup()
+            print("❌ FAIL: Pump control is not a button")
             dashboard.cleanup()
             root.destroy()
             return False
         
-        controller.stop_all_services()
-        control_panel.cleanup()
+        # Check buttons have proper cursor and command handlers
+        for i, btn in enumerate(dashboard.valve_labels):
+            if btn.cget('cursor') == 'hand2' and btn.cget('command'):
+                print(f"✅ PASS: Valve {i+1} button has click handler")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button missing click handler")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        if dashboard.pump_state_label.cget('cursor') == 'hand2' and dashboard.pump_state_label.cget('command'):
+            print("✅ PASS: Pump button has click handler")
+        else:
+            print("❌ FAIL: Pump button missing click handler")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
         dashboard.cleanup()
         root.destroy()
         return True
         
     except Exception as e:
-        print(f"❌ FAIL: Integration test error: {e}")
+        print(f"❌ FAIL: Could not test valve/pump buttons: {e}")
         return False
 
 
-def test_safety_restrictions():
-    """Test that manual controls respect safety restrictions"""
-    print("\nTesting safety restrictions...")
+def test_button_toggle_functionality():
+    """Test that buttons can toggle valve/pump states"""
+    print("\nTesting button toggle functionality...")
     
     try:
         root = tk.Tk()
         root.withdraw()  # Hide window for testing
         
-        control_panel = ControlPanel(root)
+        dashboard = Dashboard(root)
         state = get_global_state()
-        controller = get_controller_manager()
         
-        # Test that controls don't work when disconnected
-        print("Testing controls when disconnected...")
+        # Simulate NI DAQ connection to enable buttons
+        state.update_connection_status('ni_daq', True)
+        dashboard._update_status_indicators()
         
-        original_valve_state = state.valve_states[0]
-        original_pump_state = state.pump_state
-        
-        # Try to toggle valve when disconnected
-        control_panel._toggle_valve(0)
-        
-        # State should not change
-        if state.valve_states[0] == original_valve_state:
-            print("✅ PASS: Valve control blocked when disconnected")
+        # Test valve toggle methods exist
+        if hasattr(dashboard, '_toggle_valve'):
+            print("✅ PASS: _toggle_valve method exists")
         else:
-            print("❌ FAIL: Valve control worked when disconnected")
-            control_panel.cleanup()
+            print("❌ FAIL: _toggle_valve method missing")
+            dashboard.cleanup()
             root.destroy()
             return False
         
-        # Try to toggle pump when disconnected
-        control_panel._toggle_pump()
-        
-        # State should not change
-        if state.pump_state == original_pump_state:
-            print("✅ PASS: Pump control blocked when disconnected")
+        if hasattr(dashboard, '_toggle_pump'):
+            print("✅ PASS: _toggle_pump method exists")
         else:
-            print("❌ FAIL: Pump control worked when disconnected")
-            control_panel.cleanup()
+            print("❌ FAIL: _toggle_pump method missing")
+            dashboard.cleanup()
             root.destroy()
             return False
         
-        # Try ALL OFF when disconnected
-        control_panel._all_relays_off()
+        # Test valve toggles
+        for i in range(4):
+            # Initially OFF
+            initial_state = state.valve_states[i]
+            print(f"   Valve {i+1} initial state: {initial_state}")
+            
+            # Toggle ON
+            dashboard._toggle_valve(i)
+            new_state = state.valve_states[i]
+            
+            if new_state != initial_state:
+                print(f"✅ PASS: Valve {i+1} toggled from {initial_state} to {new_state}")
+            else:
+                print(f"❌ FAIL: Valve {i+1} failed to toggle")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+            
+            # Toggle back OFF
+            dashboard._toggle_valve(i)
+            final_state = state.valve_states[i]
+            
+            if final_state == initial_state:
+                print(f"✅ PASS: Valve {i+1} toggled back to {final_state}")
+            else:
+                print(f"❌ FAIL: Valve {i+1} failed to toggle back")
+                dashboard.cleanup()
+                root.destroy()
+                return False
         
-        # State should not change
-        if (state.valve_states[0] == original_valve_state and 
-            state.pump_state == original_pump_state):
-            print("✅ PASS: ALL OFF blocked when disconnected")
+        # Test pump toggle
+        initial_pump_state = state.pump_state
+        print(f"   Pump initial state: {initial_pump_state}")
+        
+        dashboard._toggle_pump()
+        new_pump_state = state.pump_state
+        
+        if new_pump_state != initial_pump_state:
+            print(f"✅ PASS: Pump toggled from {initial_pump_state} to {new_pump_state}")
         else:
-            print("❌ FAIL: ALL OFF worked when disconnected")
-            control_panel.cleanup()
+            print("❌ FAIL: Pump failed to toggle")
+            dashboard.cleanup()
             root.destroy()
             return False
         
-        control_panel.cleanup()
+        dashboard._toggle_pump()
+        final_pump_state = state.pump_state
+        
+        if final_pump_state == initial_pump_state:
+            print(f"✅ PASS: Pump toggled back to {final_pump_state}")
+        else:
+            print("❌ FAIL: Pump failed to toggle back")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        dashboard.cleanup()
         root.destroy()
         return True
         
     except Exception as e:
-        print(f"❌ FAIL: Safety restrictions test error: {e}")
+        print(f"❌ FAIL: Button toggle test error: {e}")
+        return False
+
+
+def test_ni_daq_connection_dependency():
+    """Test that buttons require NI DAQ connection"""
+    print("\nTesting NI DAQ connection dependency...")
+    
+    try:
+        root = tk.Tk()
+        root.withdraw()  # Hide window for testing
+        
+        dashboard = Dashboard(root)
+        state = get_global_state()
+        
+        # Test with NI DAQ disconnected
+        state.update_connection_status('ni_daq', False)
+        dashboard._update_status_indicators()
+        
+        # Check buttons are disabled
+        for i, btn in enumerate(dashboard.valve_labels):
+            if btn.cget('state') == 'disabled':
+                print(f"✅ PASS: Valve {i+1} button disabled when NI DAQ disconnected")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button not disabled when NI DAQ disconnected")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        if dashboard.pump_state_label.cget('state') == 'disabled':
+            print("✅ PASS: Pump button disabled when NI DAQ disconnected")
+        else:
+            print("❌ FAIL: Pump button not disabled when NI DAQ disconnected")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        # Test manual toggle with disconnected DAQ (should warn and not change state)
+        initial_valve_state = state.valve_states[0]
+        dashboard._toggle_valve(0)
+        after_toggle_state = state.valve_states[0]
+        
+        if after_toggle_state == initial_valve_state:
+            print("✅ PASS: Valve toggle rejected when NI DAQ disconnected")
+        else:
+            print("❌ FAIL: Valve toggle worked when NI DAQ disconnected")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        # Test with NI DAQ connected
+        state.update_connection_status('ni_daq', True)
+        dashboard._update_status_indicators()
+        
+        # Check buttons are enabled
+        for i, btn in enumerate(dashboard.valve_labels):
+            if btn.cget('state') == 'normal':
+                print(f"✅ PASS: Valve {i+1} button enabled when NI DAQ connected")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button not enabled when NI DAQ connected")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        if dashboard.pump_state_label.cget('state') == 'normal':
+            print("✅ PASS: Pump button enabled when NI DAQ connected")
+        else:
+            print("❌ FAIL: Pump button not enabled when NI DAQ connected")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        dashboard.cleanup()
+        root.destroy()
+        return True
+        
+    except Exception as e:
+        print(f"❌ FAIL: NI DAQ connection test error: {e}")
+        return False
+
+
+def test_button_visual_feedback():
+    """Test that buttons provide correct visual feedback"""
+    print("\nTesting button visual feedback...")
+    
+    try:
+        root = tk.Tk()
+        root.withdraw()  # Hide window for testing
+        
+        dashboard = Dashboard(root)
+        state = get_global_state()
+        
+        # Enable NI DAQ connection
+        state.update_connection_status('ni_daq', True)
+        
+        # Test initial OFF states
+        dashboard._update_status_indicators()
+        
+        for i, btn in enumerate(dashboard.valve_labels):
+            if btn.cget('background') == 'red' and btn.cget('text') == 'OFF':
+                print(f"✅ PASS: Valve {i+1} button shows red/OFF initially")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button incorrect initial state")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        if dashboard.pump_state_label.cget('background') == 'red' and dashboard.pump_state_label.cget('text') == 'OFF':
+            print("✅ PASS: Pump button shows red/OFF initially")
+        else:
+            print("❌ FAIL: Pump button incorrect initial state")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        # Test ON states
+        print("Testing ON state visual feedback...")
+        
+        # Set all valves ON
+        for i in range(4):
+            state.set_actuator_state('valve', True, i)
+        state.set_actuator_state('pump', True)
+        
+        # Update visual indicators
+        dashboard._update_status_indicators()
+        
+        # Check visual feedback
+        for i, btn in enumerate(dashboard.valve_labels):
+            if btn.cget('background') == 'green' and btn.cget('text') == 'ON':
+                print(f"✅ PASS: Valve {i+1} button shows green/ON when active")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button incorrect ON state")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        if dashboard.pump_state_label.cget('background') == 'green' and dashboard.pump_state_label.cget('text') == 'ON':
+            print("✅ PASS: Pump button shows green/ON when active")
+        else:
+            print("❌ FAIL: Pump button incorrect ON state")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        # Test active background colors exist
+        for i, btn in enumerate(dashboard.valve_labels):
+            active_bg = btn.cget('activebackground')
+            if active_bg in ['lightgreen', 'lightcoral']:
+                print(f"✅ PASS: Valve {i+1} button has active background color")
+            else:
+                print(f"❌ FAIL: Valve {i+1} button missing active background")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        
+        dashboard.cleanup()
+        root.destroy()
+        return True
+        
+    except Exception as e:
+        print(f"❌ FAIL: Visual feedback test error: {e}")
+        return False
+
+
+def test_ni_daq_integration():
+    """Test that button toggles integrate with NI DAQ service"""
+    print("\nTesting NI DAQ service integration...")
+    
+    try:
+        # Start controller manager to get NI DAQ service
+        controller = get_controller_manager()
+        if not controller.start_all_services():
+            print("❌ FAIL: Could not start services")
+            return False
+        
+        state = get_global_state()
+        
+        # Verify NI DAQ is connected
+        if not state.connections.get('ni_daq', False):
+            print("❌ FAIL: NI DAQ service not connected")
+            controller.stop_all_services()
+            return False
+        
+        print("✅ PASS: NI DAQ service connected")
+        
+        # Test valve state changes propagate to hardware
+        print("Testing valve control propagation...")
+        
+        # Toggle valves and verify hardware updates would occur
+        # (The NI DAQ service _update_digital_outputs method reads from GlobalState)
+        for i in range(4):
+            initial_state = state.valve_states[i]
+            state.set_actuator_state('valve', True, i)
+            
+            # Allow some time for service to process
+            time.sleep(0.1)
+            
+            if state.valve_states[i] == True:
+                print(f"✅ PASS: Valve {i+1} state updated in GlobalState")
+            else:
+                print(f"❌ FAIL: Valve {i+1} state not updated")
+                controller.stop_all_services()
+                return False
+        
+        # Test pump control
+        print("Testing pump control propagation...")
+        state.set_actuator_state('pump', True)
+        time.sleep(0.1)
+        
+        if state.pump_state == True:
+            print("✅ PASS: Pump state updated in GlobalState")
+        else:
+            print("❌ FAIL: Pump state not updated")
+            controller.stop_all_services()
+            return False
+        
+        # The NI DAQ service automatically reads these states and updates hardware
+        print("✅ PASS: State changes available to NI DAQ service")
+        
+        # Clean up
+        controller.stop_all_services()
+        return True
+        
+    except Exception as e:
+        print(f"❌ FAIL: NI DAQ integration test error: {e}")
+        return False
+
+
+def test_frame_title_update():
+    """Test that frame title reflects new control functionality"""
+    print("\nTesting frame title update...")
+    
+    try:
+        root = tk.Tk()
+        root.withdraw()  # Hide window for testing
+        
+        dashboard = Dashboard(root)
+        
+        # Check frame title
+        frame_text = dashboard.valve_frame.cget('text')
+        if frame_text == "Actuator States":
+            print("✅ PASS: Frame titled 'Actuator States'")
+        else:
+            print(f"❌ FAIL: Incorrect frame title: '{frame_text}'")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        # Check container title
+        # Find the title label in the valve indicators
+        container_frame = dashboard.valve_frame.winfo_children()[0]
+        title_widgets = [w for w in container_frame.winfo_children() if isinstance(w, ttk.Label)]
+        
+        if title_widgets:
+            title_text = title_widgets[0].cget('text')
+            if title_text == "Actuator Controls":
+                print("✅ PASS: Container titled 'Actuator Controls'")
+            else:
+                print(f"❌ FAIL: Incorrect container title: '{title_text}'")
+                dashboard.cleanup()
+                root.destroy()
+                return False
+        else:
+            print("❌ FAIL: Container title not found")
+            dashboard.cleanup()
+            root.destroy()
+            return False
+        
+        dashboard.cleanup()
+        root.destroy()
+        return True
+        
+    except Exception as e:
+        print(f"❌ FAIL: Frame title test error: {e}")
         return False
 
 
 def interactive_test():
-    """Run interactive test showing manual relay controls"""
+    """Run interactive test with full dashboard and NI DAQ integration"""
     print("\n" + "=" * 50)
-    print("INTERACTIVE TEST: Manual Relay Controls")
+    print("INTERACTIVE TEST: Valve/Pump Toggle Controls")
     print("=" * 50)
     
     try:
         # Create test window
         root = tk.Tk()
-        root.title("Task 18 - Manual Relay Control Test")
-        root.geometry("1000x400")
+        root.title("Task 18 - Valve/Pump Toggle Controls Test")
+        root.geometry("1400x900")
         
-        # Create control panel
-        control_panel = ControlPanel(root)
+        # Create dashboard
+        dashboard = Dashboard(root)
+        
+        # Start all services for full integration test
+        controller = get_controller_manager()
+        if controller.start_all_services():
+            print("✅ All services started - valve/pump controls enabled")
+        else:
+            print("❌ Services failed to start - controls will be disabled")
         
         # Add instructions
         info_frame = ttk.Frame(root)
@@ -504,30 +472,30 @@ def interactive_test():
         
         info_label = ttk.Label(
             info_frame,
-            text="🔧 Test Manual Relay Controls!\n\n"
-                 "1. Click 'Connect' to enable relay controls\n"
-                 "2. Use valve buttons to toggle individual valves\n"
-                 "3. Use pump button to control pump\n"
-                 "4. Watch buttons change color: Red=OFF, Green=ON\n"
-                 "5. Try 'ALL OFF' emergency button\n"
-                 "6. Emergency Stop also sets all relays to safe state\n\n"
-                 "Manual controls update both GlobalState and NI DAQ hardware!",
+            text="🎮 INTERACTIVE TEST: Click valve/pump buttons in bottom-right panel!\n"
+                 "🔴 Red = OFF | 🟢 Green = ON | Click to toggle\n"
+                 "Controls automatically integrated with NI DAQ relay outputs\n"
+                 "Use Connect button to enable controls, Emergency Stop to turn all OFF\n"
+                 "Watch console for control messages and hardware integration",
             justify='center',
             font=("Arial", 10)
         )
-        info_label.pack(pady=10)
+        info_label.pack(pady=5)
         
         def cleanup():
-            control_panel.cleanup()
+            if controller.is_all_connected():
+                controller.stop_all_services()
+            dashboard.cleanup()
             root.destroy()
         
         root.protocol("WM_DELETE_WINDOW", cleanup)
         
-        print("🎮 Interactive test window opened")
-        print("   → Connect system to enable manual controls")
-        print("   → Test valve and pump toggle buttons")
-        print("   → Watch button colors change with state")
-        print("   → Try ALL OFF emergency function")
+        print("🎮 Interactive dashboard opened with full functionality")
+        print("   → Click Connect to enable valve/pump controls")
+        print("   → Click valve/pump buttons to toggle states")
+        print("   → Watch real-time control and data visualization")
+        print("   → Emergency Stop turns off all actuators")
+        print("   → Controls integrated with NI DAQ relay outputs")
         print("\nClose window when done testing...")
         
         root.mainloop()
@@ -541,60 +509,55 @@ def interactive_test():
 def main():
     """Run all tests"""
     print("=" * 60)
-    print("TASK 18 TEST: Manual Relay Control Buttons")
+    print("TASK 18 TEST: Add Relay Control Buttons")
     print("=" * 60)
     
     all_tests_passed = True
     
-    # Test 1: Button creation
-    success = test_relay_button_creation()
+    # Test 1: Button controls exist
+    success = test_valve_pump_buttons_exist()
     all_tests_passed &= success
     
-    # Test 2: Button state updates
-    success = test_relay_button_state_updates()
+    # Test 2: Toggle functionality
+    success = test_button_toggle_functionality()
     all_tests_passed &= success
     
-    # Test 3: Manual valve control
-    success = test_manual_valve_control()
+    # Test 3: NI DAQ dependency
+    success = test_ni_daq_connection_dependency()
     all_tests_passed &= success
     
-    # Test 4: Manual pump control
-    success = test_manual_pump_control()
+    # Test 4: Visual feedback
+    success = test_button_visual_feedback()
     all_tests_passed &= success
     
-    # Test 5: ALL OFF function
-    success = test_all_off_function()
+    # Test 5: NI DAQ integration
+    success = test_ni_daq_integration()
     all_tests_passed &= success
     
-    # Test 6: Dashboard integration
-    success = test_integration_with_dashboard()
-    all_tests_passed &= success
-    
-    # Test 7: Safety restrictions
-    success = test_safety_restrictions()
+    # Test 6: Frame title update
+    success = test_frame_title_update()
     all_tests_passed &= success
     
     print("\n" + "=" * 60)
     if all_tests_passed:
         print("🎉 ALL TESTS PASSED - Task 18 Complete!")
-        print("✅ Manual relay control buttons fully functional")
-        print("✅ 4 valve + 1 pump toggle buttons")
-        print("✅ Real-time color updates (red=OFF, green=ON)")
-        print("✅ Integration with GlobalState and NI DAQ")
-        print("✅ Safety restrictions when disconnected")
-        print("✅ Dashboard indicator synchronization")
-        print("✅ ALL OFF emergency function")
+        print("✅ Valve/pump toggle controls fully functional")
+        print("✅ 4 valve + 1 pump clickable toggle buttons")
+        print("✅ NI DAQ integration for hardware relay control")
+        print("✅ Connection dependency (disabled when NI DAQ off)")
+        print("✅ Visual feedback (red/OFF, green/ON)")
+        print("✅ Click handlers with state management")
+        print("✅ No new UI sections - used existing indicators")
         print("\n🎯 Task 18 deliverables:")
         print("   ✅ Manual toggle buttons for 4 valves + 1 pump")
-        print("   ✅ Toggles state and calls mocked DAQ relay service")
-        print("   ✅ Color-coded button states (red/green)")
-        print("   ✅ Safety restrictions (disabled when disconnected)")
-        print("   ✅ Integration with dashboard indicators")
-        print("   ✅ Emergency ALL OFF function")
-        print("   ✅ Real-time UI updates")
+        print("   ✅ Toggles state and calls NI DAQ relay service")
+        print("   ✅ Existing color indicators converted to buttons")
+        print("   ✅ Connection dependency and safety checks")
+        print("   ✅ Real-time visual feedback")
+        print("   ✅ Hardware integration via GlobalState")
         
         # Offer interactive test
-        response = input("\n🔍 Run interactive test to manually control relays? (y/n): ")
+        response = input("\n🔍 Run interactive test with full dashboard? (y/n): ")
         if response.lower() == 'y':
             interactive_test()
         

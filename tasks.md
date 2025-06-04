@@ -173,3 +173,76 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 **End:** Dashboard runs standalone, shows “Disconnected” but is functional
 
 ---
+
+
+## 🧩 Phase 8: NI DAQ (NI-9253, NI-9485)
+
+### 27. Install NI-DAQmx and Python bindings
+**Start:** Set up required Python packages and verify NI MAX sees the cDAQ  
+**End:** A test script can list devices and read a dummy analog input channel
+
+---
+
+### 28. Read pressure and current via NI-9253
+**Start:** Connect 4–20mA pressure sensors and current sensor  
+**End:** `ni_daq.py` reads live analog values and scales to engineering units
+
+---
+
+### 29. Control relays via NI-9485
+**Start:** Wire 4 solenoids and 1 pump to relay channels  
+**End:** Button presses toggle physical relays and actuators function
+
+---
+
+### 30. Sync relay reads with `GlobalState`
+**Start:** Add relay readback logic or state tracking  
+**End:** UI indicators reflect real hardware state after physical actuation
+
+---
+
+## 🌡 Phase 9: Pico TC-08 Thermocouple Logger
+
+### 31. Install Pico SDK and Python bindings
+**Start:** Download Pico SDK and required Python wrapper  
+**End:** TC-08 recognized by a test script that reads 1 thermocouple channel
+
+---
+
+### 32. Read 8 thermocouple channels
+**Start:** Populate `pico_tc08.py` with polling logic  
+**End:** State is updated with all channel temperatures every 1–2s
+
+---
+
+## 🌬 Phase 10: SRS BGA244 (RS-422 Serial)
+
+### 33. Set up RS-422 to USB hardware
+**Start:** Connect all 3 BGA244 units to known COM ports  
+**End:** Device responds to `*IDN?` or `RATO?` queries
+
+---
+
+### 34. Poll gas ratio from each BGA
+**Start:** Implement real serial communication in `bga244.py`  
+**End:** Live RATO/PRES data is updated in state per device
+
+---
+
+### 35. Parse and scale BGA outputs
+**Start:** Implement conversion logic (e.g., %H₂ from RATO)  
+**End:** Outputs plotted as clean % values or ratios
+
+---
+
+## ⚡ Phase 11: Kolibrik CVM-24P Cell Voltage Monitor
+
+### 36. Connect CVM via USB and install driver
+**Start:** Verify CVM is detected and accessible via COM port  
+**End:** Can send and receive basic Modbus/ASCII commands
+
+---
+
+### 37. Read cell voltages
+**Start:** Implement `cvm24p.py` to read and parse cell array  
+**End:** Average and/or individual cell voltages shown on plot
