@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Task 20: NI cDAQ Hardware Test Script
+Task 20: NI cDAQ Hardware Test Script (FIXED)
 Standalone script to test real NI-9253 analog inputs and NI-9485 digital outputs
-Run with: python3 test_ni_cdaq_hardware.py
+Run with: python3 test_ni_cdaq_hardware_fixed.py
 
 Hardware Configuration:
 - NI-9253: Analog inputs (pressure/current sensors)  
@@ -104,12 +104,12 @@ def test_analog_inputs():
                 
                 print(f"Adding channel: {channel} ({ch_config['name']})")
                 
-                # Add current input channel (4-20mA sensors)
+                # Add current input channel (4-20mA sensors, calibrated to 3.9-20mA)
                 task.ai_channels.add_ai_current_chan(
                     channel,
                     name_to_assign_to_channel=ch_name,
-                    min_val=0.004,  # 4mA minimum
-                    max_val=0.020   # 20mA maximum
+                    min_val=0.0039,  # 3.9mA minimum (calibrated)
+                    max_val=0.020    # 20mA maximum
                 )
             
             # Configure timing (single sample for test)
@@ -121,20 +121,49 @@ def test_analog_inputs():
             
             print(f"\n📊 Reading analog inputs (10 samples at 1kHz)...")
             
-            # Read data
+            # Read data - returns 2D array when multiple channels
             data = task.read(number_of_samples_per_channel=10)
             
             # Process and display results
             print(f"\nAnalog Input Results:")
+            
+            # When reading multiple channels, data structure is:
+            # - Single channel: list of samples [s1, s2, s3, ...]
+            # - Multiple channels: list of lists [[ch1_s1, ch1_s2, ...], [ch2_s1, ch2_s2, ...], ...]
+            
+            num_channels = len(ANALOG_CHANNELS)
+            if num_channels == 1:
+                # Single channel - data is a simple list
+                all_channel_data = [data]
+            else:
+                # Multiple channels - data is already a list of lists
+                all_channel_data = data
+            
             for i, (ch_name, ch_config) in enumerate(ANALOG_CHANNELS.items()):
-                channel_data = [data[j][i] for j in range(len(data))]
-                avg_current = sum(channel_data) / len(channel_data)
+                # Get samples for this channel
+                channel_samples = all_channel_data[i]
+                avg_current = sum(channel_samples) / len(channel_samples)
                 
                 # Convert current to engineering units (4-20mA scaling)
                 min_eng, max_eng = ch_config["range"]
-                eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
                 
-                print(f"  • {ch_config['name']}: {avg_current*1000:.1f}mA → {eng_value:.2f} {ch_config['units']}")
+                # Check if sensor is connected
+                current_ma = avg_current * 1000
+                if current_ma < 3.5:
+                    status = "DISCONNECTED"
+                    eng_value = 0.0
+                elif current_ma < 3.9:
+                    status = "LOW SIGNAL"
+                    eng_value = 0.0
+                elif current_ma > 20.5:
+                    status = "HIGH SIGNAL"
+                    eng_value = max_eng
+                else:
+                    status = "OK"
+                    # Calibrated scaling: 3.9mA = 0, 20mA = max
+                    eng_value = ((avg_current - 0.0039) / 0.0161) * (max_eng - min_eng) + min_eng
+                
+                print(f"  • {ch_config['name']}: {current_ma:.2f}mA → {eng_value:.2f} {ch_config['units']} [{status}]")
             
             print("\n✅ PASS: Analog input test successful")
             return True
@@ -268,8 +297,8 @@ def test_continuous_monitoring():
             ai_task.ai_channels.add_ai_current_chan(
                 ch_config["channel"],
                 name_to_assign_to_channel=ch_name,
-                min_val=0.004,  # 4mA
-                max_val=0.020   # 20mA
+                min_val=0.0039,  # 3.9mA (calibrated)
+                max_val=0.020    # 20mA
             )
         
         ai_task.timing.cfg_samp_clk_timing(rate=100)  # 100Hz
@@ -296,16 +325,30 @@ def test_continuous_monitoring():
             try:
                 data = ai_task.read(number_of_samples_per_channel=10, timeout=1.0)
                 
+                # Handle single vs multiple channels
+                num_channels = len(ANALOG_CHANNELS)
+                if num_channels == 1:
+                    all_channel_data = [[data[j] for j in range(len(data))]]
+                else:
+                    # Multiple channels - transpose to get per-channel data
+                    all_channel_data = [[row[i] for row in data] for i in range(num_channels)]
+                
                 # Calculate averages and display
                 readings = []
                 for i, (ch_name, ch_config) in enumerate(ANALOG_CHANNELS.items()):
-                    channel_data = [data[j][i] for j in range(len(data))]
-                    avg_current = sum(channel_data) / len(channel_data)
+                    channel_samples = all_channel_data[i]
+                    avg_current = sum(channel_samples) / len(channel_samples)
                     
                     # Convert to engineering units
                     min_eng, max_eng = ch_config["range"]
-                    eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
-                    readings.append(f"{ch_config['name']}: {eng_value:.2f} {ch_config['units']}")
+                    current_ma = avg_current * 1000
+                    
+                    if current_ma >= 3.9 and current_ma <= 20.0:
+                        # Calibrated scaling: 3.9mA = 0, 20mA = max
+                        eng_value = ((avg_current - 0.0039) / 0.0161) * (max_eng - min_eng) + min_eng
+                        readings.append(f"{ch_config['name']}: {eng_value:.2f} {ch_config['units']}")
+                    else:
+                        readings.append(f"{ch_config['name']}: {current_ma:.2f}mA [NC]")
                 
                 # Check if it's time to switch valves
                 elapsed = time.time() - start_time
@@ -358,7 +401,7 @@ def test_continuous_monitoring():
 def main():
     """Run all NI cDAQ hardware tests"""
     print("="*60)
-    print("TASK 20: NI cDAQ HARDWARE TEST SCRIPT")
+    print("TASK 20: NI cDAQ HARDWARE TEST SCRIPT (FIXED)")
     print("="*60)
     print("Testing real NI-9253 analog inputs and NI-9485 digital outputs")
     print(f"Hardware Configuration:")
@@ -418,4 +461,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()
