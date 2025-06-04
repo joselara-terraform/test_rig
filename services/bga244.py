@@ -292,6 +292,13 @@ class BGA244Service:
             'bga_3': False
         }
         
+        # BGA-to-port mapping to maintain consistent assignments
+        self.bga_port_mapping = {
+            'bga_1': None,
+            'bga_2': None,
+            'bga_3': None
+        }
+        
         # BGA244 configuration from device config
         self.device_name = "BGA244"
         self.sample_rate = self.device_config.get_sample_rate('bga244')
@@ -344,62 +351,156 @@ class BGA244Service:
             return False
     
     def _connect_hardware(self) -> int:
-        """Connect to real BGA244 hardware"""
+        """Connect to real BGA244 hardware with persistent port mapping"""
         if self.system not in BGA244Config.SERIAL_PORTS:
             return 0
         
         ports_to_try = BGA244Config.SERIAL_PORTS[self.system]
         connected_count = 0
         
+        print("   → Attempting to reconnect BGAs to their assigned ports...")
+        
+        # Step 1: Try to reconnect BGAs to their previously assigned ports
         for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
-            if connected_count < len(ports_to_try):
-                port = ports_to_try[connected_count]
+            if self.bga_port_mapping[unit_id] is not None:
+                # This BGA had a port assigned before
+                assigned_port = self.bga_port_mapping[unit_id]
+                print(f"   → Trying to reconnect {unit_config['name']} to {assigned_port}...")
                 
-                try:
-                    device = BGA244Device(port, unit_config, unit_id)
-                    
-                    if device.connect():
-                        if device.configure_gases(self.purge_mode):
-                            self.devices[unit_id] = device
-                            self.individual_connections[unit_id] = True
-                            connected_count += 1
-                            print(f"✅ {unit_config['name']} ready on {port}")
-                        else:
-                            device.disconnect()
-                            self.individual_connections[unit_id] = False
-                            print(f"❌ Gas configuration failed for {unit_config['name']}")
-                    else:
-                        self.individual_connections[unit_id] = False
-                        print(f"❌ Connection failed for {unit_config['name']} on {port}")
-                        
-                except Exception as e:
-                    self.individual_connections[unit_id] = False
-                    print(f"❌ Device error for {unit_config['name']}: {e}")
+                if self._try_connect_bga_to_port(unit_id, unit_config, assigned_port):
+                    connected_count += 1
+                    print(f"   ✅ {unit_config['name']} reconnected to {assigned_port}")
+                else:
+                    print(f"   ❌ {unit_config['name']} failed to reconnect to {assigned_port}")
+                    # Clear the mapping since this port is no longer working
+                    self.bga_port_mapping[unit_id] = None
+        
+        # Step 2: For BGAs without port assignments, scan available ports
+        unassigned_bgas = [uid for uid in BGA244Config.BGA_UNITS.keys() 
+                          if not self.individual_connections[uid]]
+        used_ports = [port for port in self.bga_port_mapping.values() if port is not None]
+        available_ports = [port for port in ports_to_try if port not in used_ports]
+        
+        if unassigned_bgas and available_ports:
+            print(f"   → Scanning {len(available_ports)} available ports for {len(unassigned_bgas)} unassigned BGAs...")
+            
+            for port in available_ports:
+                if not unassigned_bgas:
+                    break  # All BGAs assigned
+                
+                # Try to identify which BGA is on this port
+                bga_unit_id = self._identify_bga_on_port(port, unassigned_bgas)
+                
+                if bga_unit_id:
+                    unit_config = BGA244Config.BGA_UNITS[bga_unit_id]
+                    if self._try_connect_bga_to_port(bga_unit_id, unit_config, port):
+                        # Assign this port to this BGA permanently
+                        self.bga_port_mapping[bga_unit_id] = port
+                        connected_count += 1
+                        unassigned_bgas.remove(bga_unit_id)
+                        print(f"   ✅ {unit_config['name']} connected and assigned to {port}")
         
         return connected_count
     
+    def _try_connect_bga_to_port(self, unit_id: str, unit_config: Dict[str, Any], port: str) -> bool:
+        """Try to connect a specific BGA to a specific port"""
+        try:
+            device = BGA244Device(port, unit_config, unit_id)
+            
+            if device.connect():
+                if device.configure_gases(self.purge_mode):
+                    self.devices[unit_id] = device
+                    self.individual_connections[unit_id] = True
+                    return True
+                else:
+                    device.disconnect()
+                    self.individual_connections[unit_id] = False
+                    print(f"      ❌ Gas configuration failed for {unit_config['name']}")
+            else:
+                self.individual_connections[unit_id] = False
+                
+        except Exception as e:
+            self.individual_connections[unit_id] = False
+            print(f"      ❌ Device error for {unit_config['name']} on {port}: {e}")
+        
+        return False
+    
+    def _identify_bga_on_port(self, port: str, candidate_bgas: List[str]) -> Optional[str]:
+        """Try to identify which BGA is connected to a specific port"""
+        try:
+            # Create a temporary connection to identify the device
+            temp_serial = serial.Serial(
+                port=port,
+                baudrate=BGA244Config.BAUD_RATE,
+                bytesize=BGA244Config.DATA_BITS,
+                stopbits=BGA244Config.STOP_BITS,
+                parity=BGA244Config.PARITY,
+                timeout=BGA244Config.TIMEOUT
+            )
+            
+            # Clear buffers
+            temp_serial.reset_input_buffer()
+            temp_serial.reset_output_buffer()
+            time.sleep(0.2)
+            
+            # Send identification command
+            command_bytes = '*IDN?\r\n'.encode('ascii')
+            temp_serial.write(command_bytes)
+            time.sleep(BGA244Config.COMMAND_DELAY)
+            
+            # Read response
+            response_bytes = temp_serial.read_all()
+            response = response_bytes.decode('ascii', errors='ignore').strip()
+            
+            temp_serial.close()
+            
+            if response:
+                print(f"      → Device on {port} responds: {response}")
+                
+                # For now, assign to the first candidate BGA
+                # In a real implementation, you might use the device serial number
+                # or other identifying information from the response
+                if candidate_bgas:
+                    return candidate_bgas[0]
+            else:
+                print(f"      → No response from device on {port}")
+                
+        except Exception as e:
+            print(f"      → Error identifying device on {port}: {e}")
+        
+        return None
+    
     def disconnect(self):
-        """Disconnect from BGA244 analyzers"""
+        """Disconnect from BGA244 analyzers but preserve port mappings"""
         print("⚗️  Disconnecting from BGA244 analyzers...")
         
         # Stop polling first
         if self.polling:
             self.stop_polling()
         
-        # Disconnect hardware devices
+        # Disconnect hardware devices but preserve port mappings for reconnection
         for unit_id, device in self.devices.items():
             device.disconnect()
             self.individual_connections[unit_id] = False
+            # Keep self.bga_port_mapping[unit_id] intact for reconnection
+        
         self.devices.clear()
         
-        # Reset all connection states
-        for unit_id in self.individual_connections:
-            self.individual_connections[unit_id] = False
-        
+        # Reset overall connection status but keep individual port mappings
         self.connected = False
         self.state.update_connection_status('bga244', False)
         
-        print("✅ BGA244 analyzers disconnected")
+        print("✅ BGA244 analyzers disconnected (port mappings preserved for reconnection)")
+    
+    def reset_port_mappings(self):
+        """Reset BGA-to-port mappings (for troubleshooting)"""
+        print("🔧 Resetting BGA port mappings...")
+        self.bga_port_mapping = {
+            'bga_1': None,
+            'bga_2': None,
+            'bga_3': None
+        }
+        print("✅ Port mappings reset")
     
     def start_polling(self) -> bool:
         """Start polling gas analysis data"""
@@ -532,9 +633,18 @@ class BGA244Service:
             'mode': mode,
             'purge_mode': self.purge_mode,
             'individual_connections': self.individual_connections.copy(),
+            'bga_port_mapping': self.bga_port_mapping.copy(),
             'connected_count': connected_count,
             'calibration_date': self.device_config.get_calibration_date()
         }
+    
+    def get_port_assignments(self) -> Dict[str, str]:
+        """Get current BGA-to-port assignments for debugging"""
+        assignments = {}
+        for unit_id, port in self.bga_port_mapping.items():
+            unit_name = BGA244Config.BGA_UNITS[unit_id]['name']
+            assignments[unit_name] = port if port else "Not assigned"
+        return assignments
     
     def get_current_readings(self) -> Dict[str, Dict[str, float]]:
         """Get current gas readings with unit names"""
