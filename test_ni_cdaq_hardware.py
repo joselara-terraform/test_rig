@@ -104,12 +104,12 @@ def test_analog_inputs():
                 
                 print(f"Adding channel: {channel} ({ch_config['name']})")
                 
-                # Add voltage input channel (4-20mA sensors typically use voltage measurement)
-                task.ai_channels.add_ai_voltage_chan(
+                # Add current input channel (4-20mA sensors)
+                task.ai_channels.add_ai_current_chan(
                     channel,
                     name_to_assign_to_channel=ch_name,
-                    min_val=1.0,  # 4mA = 1V (typical scaling)
-                    max_val=5.0   # 20mA = 5V (typical scaling)
+                    min_val=0.004,  # 4mA minimum
+                    max_val=0.020   # 20mA maximum
                 )
             
             # Configure timing (single sample for test)
@@ -128,13 +128,13 @@ def test_analog_inputs():
             print(f"\nAnalog Input Results:")
             for i, (ch_name, ch_config) in enumerate(ANALOG_CHANNELS.items()):
                 channel_data = [data[j][i] for j in range(len(data))]
-                avg_voltage = sum(channel_data) / len(channel_data)
+                avg_current = sum(channel_data) / len(channel_data)
                 
-                # Convert voltage to engineering units (simplified 4-20mA scaling)
+                # Convert current to engineering units (4-20mA scaling)
                 min_eng, max_eng = ch_config["range"]
-                eng_value = ((avg_voltage - 1.0) / 4.0) * (max_eng - min_eng) + min_eng
+                eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
                 
-                print(f"  • {ch_config['name']}: {avg_voltage:.3f}V → {eng_value:.2f} {ch_config['units']}")
+                print(f"  • {ch_config['name']}: {avg_current*1000:.1f}mA → {eng_value:.2f} {ch_config['units']}")
             
             print("\n✅ PASS: Analog input test successful")
             return True
@@ -265,11 +265,11 @@ def test_continuous_monitoring():
         # Setup analog input task
         ai_task = Task()
         for ch_name, ch_config in ANALOG_CHANNELS.items():
-            ai_task.ai_channels.add_ai_voltage_chan(
+            ai_task.ai_channels.add_ai_current_chan(
                 ch_config["channel"],
                 name_to_assign_to_channel=ch_name,
-                min_val=1.0,
-                max_val=5.0
+                min_val=0.004,  # 4mA
+                max_val=0.020   # 20mA
             )
         
         ai_task.timing.cfg_samp_clk_timing(rate=100)  # 100Hz
@@ -300,11 +300,11 @@ def test_continuous_monitoring():
                 readings = []
                 for i, (ch_name, ch_config) in enumerate(ANALOG_CHANNELS.items()):
                     channel_data = [data[j][i] for j in range(len(data))]
-                    avg_voltage = sum(channel_data) / len(channel_data)
+                    avg_current = sum(channel_data) / len(channel_data)
                     
                     # Convert to engineering units
                     min_eng, max_eng = ch_config["range"]
-                    eng_value = ((avg_voltage - 1.0) / 4.0) * (max_eng - min_eng) + min_eng
+                    eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
                     readings.append(f"{ch_config['name']}: {eng_value:.2f} {ch_config['units']}")
                 
                 # Check if it's time to switch valves
