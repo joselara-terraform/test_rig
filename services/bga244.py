@@ -317,13 +317,17 @@ class BGA244Service:
             print("   → Attempting hardware connection...")
             connected_count = self._connect_hardware()
             
-            if connected_count > 0:
+            # Determine if we have mixed hardware/mock or pure mock
+            hardware_connected = connected_count > 0
+            
+            if hardware_connected:
                 print(f"✅ Connected {connected_count}/{self.num_units} BGA244 devices (HARDWARE)")
-                self.use_mock = False
+                # Mixed mode: some hardware, some mock for disconnected units
+                self.use_mock = False  # We have some hardware
             else:
-                print("⚠️  No hardware detected - falling back to MOCK mode")
+                print("⚠️  No hardware detected - using MOCK mode for all units")
                 self.use_mock = True
-                # Simulate all units connected in mock mode
+                # Pure mock mode: simulate all units connected
                 for unit_id in BGA244Config.BGA_UNITS.keys():
                     self.individual_connections[unit_id] = True
                 connected_count = self.num_units
@@ -333,7 +337,23 @@ class BGA244Service:
             self.connected = overall_connected
             self.state.update_connection_status('bga244', overall_connected)
             
-            mode_str = "MOCK" if self.use_mock else "HARDWARE"
+            if hardware_connected:
+                # Report individual connection status
+                connected_units = [unit_id for unit_id, connected in self.individual_connections.items() if connected]
+                disconnected_units = [unit_id for unit_id, connected in self.individual_connections.items() if not connected]
+                
+                if connected_units:
+                    unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in connected_units]
+                    print(f"   → Hardware connected: {', '.join(unit_names)}")
+                
+                if disconnected_units:
+                    unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in disconnected_units]
+                    print(f"   → Using mock data: {', '.join(unit_names)}")
+                
+                mode_str = f"MIXED ({connected_count} hardware, {self.num_units - connected_count} mock)"
+            else:
+                mode_str = "MOCK"
+            
             print(f"✅ BGA244 service ready ({mode_str} mode)")
             return True
             
@@ -462,12 +482,9 @@ class BGA244Service:
         """Polling thread function"""
         while self.polling and (self.connected or any(self.individual_connections.values())):
             try:
-                if self.use_mock:
-                    # Generate mock gas concentration readings
-                    gas_readings = self._generate_mock_gas_data()
-                else:
-                    # Read from real hardware
-                    gas_readings = self._read_hardware_gas_data()
+                # Always use hardware reading method which handles mixed mode
+                # (real hardware for connected units, mock for disconnected units)
+                gas_readings = self._read_hardware_gas_data()
                 
                 # Update global state
                 self.state.update_sensor_values(gas_concentrations=gas_readings)
@@ -487,6 +504,7 @@ class BGA244Service:
         
         for i, unit_id in enumerate(unit_ids):
             if unit_id in self.devices and self.individual_connections[unit_id]:
+                # Read from real hardware
                 try:
                     device = self.devices[unit_id]
                     measurements = device.read_measurements()
@@ -523,20 +541,49 @@ class BGA244Service:
                     print(f"⚠️  Hardware reading error for {unit_id}: {e}")
                     gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
             else:
-                # Device not connected
-                gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                # Device not connected - generate mock data for this unit
+                unit_config = BGA244Config.BGA_UNITS[unit_id]
+                mock_data = self._generate_unit_mock_data(unit_config, i)
+                gas_readings.append(mock_data)
         
         return gas_readings
     
-    def _generate_mock_gas_data(self) -> List[Dict[str, float]]:
-        """Generate realistic mock gas concentration readings"""
+    def _generate_unit_mock_data(self, unit_config: Dict[str, Any], unit_index: int) -> Dict[str, float]:
+        """Generate mock data for a single BGA unit respecting purge mode"""
         import random
         
-        gas_readings = []
+        # Base concentrations per unit type
+        if unit_index < len(self.mock_concentrations):
+            base_concentrations = self.mock_concentrations[unit_index].copy()
+        else:
+            # Fallback
+            base_concentrations = {'H2': 50.0, 'O2': 45.0, 'N2': 5.0}
         
-        for i, base_concentrations in enumerate(self.mock_concentrations):
-            readings = {}
+        readings = {}
+        
+        # Apply purge mode logic to mock data
+        if self.purge_mode:
+            # In purge mode, secondary gas becomes N2
+            primary_gas = unit_config['primary_gas']
+            secondary_gas = 'N2'  # Force secondary to N2 in purge mode
             
+            # Determine remaining gas
+            if primary_gas == 'H2':
+                remaining_gas = 'O2'
+            else:
+                remaining_gas = 'H2'
+            
+            # Generate concentrations with N2 as secondary
+            primary_conc = base_concentrations.get(primary_gas, 90.0) + random.uniform(-1.0, 1.0)
+            secondary_conc = random.uniform(2.0, 8.0)  # N2 concentration in purge mode
+            remaining_conc = 100.0 - primary_conc - secondary_conc
+            
+            readings[primary_gas] = max(0.0, min(100.0, primary_conc))
+            readings[secondary_gas] = max(0.0, min(100.0, secondary_conc))
+            readings[remaining_gas] = max(0.0, min(100.0, remaining_conc))
+            
+        else:
+            # Normal mode - use configured gases
             for gas, base_conc in base_concentrations.items():
                 # Add realistic variation
                 if gas == 'H2' or gas == 'O2':
@@ -547,28 +594,56 @@ class BGA244Service:
                 concentration = base_conc + variation
                 concentration = max(0.0, min(100.0, concentration))
                 readings[gas] = round(concentration, 2)
-            
-            # Normalize to 100%
-            total = sum(readings.values())
-            if total > 0:
-                for gas in readings:
-                    readings[gas] = round((readings[gas] / total) * 100.0, 2)
-            
-            gas_readings.append(readings)
+        
+        # Normalize to 100%
+        total = sum(readings.values())
+        if total > 0:
+            for gas in readings:
+                readings[gas] = round((readings[gas] / total) * 100.0, 2)
+        
+        return readings
+    
+    def _generate_mock_gas_data(self) -> List[Dict[str, float]]:
+        """Generate realistic mock gas concentration readings for all units"""
+        gas_readings = []
+        
+        unit_ids = list(BGA244Config.BGA_UNITS.keys())
+        
+        for i, unit_id in enumerate(unit_ids):
+            unit_config = BGA244Config.BGA_UNITS[unit_id]
+            mock_data = self._generate_unit_mock_data(unit_config, i)
+            gas_readings.append(mock_data)
         
         return gas_readings
     
     def get_status(self) -> Dict[str, Any]:
         """Get current service status"""
+        # Determine mode based on actual connections
+        connected_count = sum(1 for connected in self.individual_connections.values() if connected)
+        
+        if self.use_mock and connected_count == self.num_units:
+            # Pure mock mode - no hardware detected
+            mode = 'MOCK'
+        elif connected_count == 0:
+            # No connections at all
+            mode = 'DISCONNECTED'
+        elif connected_count == self.num_units and not self.use_mock:
+            # All hardware connected
+            mode = 'HARDWARE'
+        else:
+            # Mixed mode - some hardware, some mock
+            mode = f'MIXED ({connected_count} hardware, {self.num_units - connected_count} mock)'
+        
         return {
             'connected': self.connected,
             'polling': self.polling,
             'device': self.device_name,
             'sample_rate': f"{self.sample_rate} Hz",
             'units': self.num_units,
-            'mode': 'MOCK' if self.use_mock else 'HARDWARE',
+            'mode': mode,
             'purge_mode': self.purge_mode,
             'individual_connections': self.individual_connections.copy(),
+            'connected_count': connected_count,
             'calibration_date': self.device_config.get_calibration_date()
         }
     
