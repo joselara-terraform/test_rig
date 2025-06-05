@@ -313,15 +313,20 @@ class CVM24PService:
         if self.polling:
             self.stop_polling()
         
-        # Close hardware connections
+        # Close hardware connections - SerialBus doesn't have disconnect method
         if self.bus and not self.use_mock:
             try:
+                # Just close the event loop - let SerialBus clean up automatically
                 if self.loop and not self.loop.is_closed():
-                    self.loop.run_until_complete(self.bus.disconnect())
-                    # Clean up event loop
+                    # Cancel any pending tasks
+                    pending = asyncio.all_tasks(self.loop)
+                    for task in pending:
+                        task.cancel()
+                    
+                    # Close the loop
                     self.loop.close()
             except Exception as e:
-                print(f"⚠️  Error disconnecting bus: {e}")
+                print(f"⚠️  Error cleaning up event loop: {e}")
         
         # Clear state
         self.modules.clear()
@@ -392,10 +397,17 @@ class CVM24PService:
         try:
             # Read from all modules in the event loop
             if self.loop and not self.loop.is_closed():
-                future = asyncio.run_coroutine_threadsafe(
-                    self._async_read_all_modules(), self.loop
-                )
-                all_voltages = future.result(timeout=5.0)  # Increase timeout
+                try:
+                    future = asyncio.run_coroutine_threadsafe(
+                        self._async_read_all_modules(), self.loop
+                    )
+                    all_voltages = future.result(timeout=5.0)  # Increase timeout
+                except asyncio.TimeoutError:
+                    print("⚠️  Hardware reading timeout")
+                    all_voltages = [0.0] * self.total_channels
+                except Exception as e:
+                    print(f"⚠️  Hardware reading error: {e}")
+                    all_voltages = [0.0] * self.total_channels
             else:
                 print("⚠️  Event loop not available for hardware reading")
                 all_voltages = [0.0] * self.total_channels
@@ -411,11 +423,24 @@ class CVM24PService:
         """Async function to read from all modules"""
         all_voltages = []
         
-        # Read from each module
-        for serial, module in self.modules.items():
+        # Read from each module (sorted by module_id for consistent order)
+        sorted_modules = sorted(self.modules.items(), key=lambda x: x[1].module_id)
+        
+        for serial, module in sorted_modules:
             try:
-                module_voltages = await module.read_voltages()
-                all_voltages.extend(module_voltages)
+                if module.is_initialized and module.device:
+                    # Read voltages using the same method as CVM_test.py
+                    cell_voltages = await module.device.read_and_get_reg_by_name("ch_V")
+                    # Take only the expected number of channels
+                    module_voltages = cell_voltages[:CVM24PConfig.CHANNELS_PER_MODULE]
+                    # Pad with zeros if we got fewer channels than expected
+                    while len(module_voltages) < CVM24PConfig.CHANNELS_PER_MODULE:
+                        module_voltages.append(0.0)
+                    all_voltages.extend(module_voltages)
+                else:
+                    # Add zeros for uninitialized module
+                    all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
+                    
             except Exception as e:
                 print(f"⚠️  Error reading module {serial}: {e}")
                 # Add zeros for failed module
