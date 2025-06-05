@@ -50,9 +50,9 @@ class PressurePlot:
         self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O_2 Header')
         
         # Create line objects for gas concentrations - only 3 BGA series
-        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H2: Header', alpha=0.8)
-        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O_2: Header', alpha=0.8)
-        self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H_2: Deoxo', alpha=0.7)
+        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H_2 Ratio 1', alpha=0.8)
+        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O_2 Ratio 1', alpha=0.8)
+        self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H_2 Ratio 2', alpha=0.7)
         
         # Add legend with smaller font to fit entries
         self.ax.legend(loc='upper right', fontsize=10, ncol=1)
