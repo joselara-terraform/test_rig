@@ -3,7 +3,7 @@ Global application state singleton for AWE test rig
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional, Any
 import threading
 
 
@@ -17,12 +17,23 @@ class GlobalState:
     emergency_stop: bool = False
     timer_value: float = 0.0  # seconds
     
+    # Session information
+    current_session_id: Optional[str] = None
+    session_start_time: Optional[str] = None
+    
     # Connection status for each device
     connections: Dict[str, bool] = field(default_factory=lambda: {
         'ni_daq': False,
         'pico_tc08': False,
         'bga244': False,
         'cvm24p': False
+    })
+    
+    # Individual BGA connection status (for 3 separate units)
+    bga_connections: Dict[str, bool] = field(default_factory=lambda: {
+        'bga244_1': False,
+        'bga244_2': False,
+        'bga244_3': False
     })
     
     # Sensor values (mocked initially)
@@ -60,6 +71,21 @@ class GlobalState:
         with self._lock:
             if device in self.connections:
                 self.connections[device] = connected
+            elif device in self.bga_connections:
+                self.bga_connections[device] = connected
+    
+    def update_test_status(self, running: bool = None, paused: bool = None, 
+                          session_id: str = None, session_start_time: str = None):
+        """Thread-safe update of test status and session info"""
+        with self._lock:
+            if running is not None:
+                self.test_running = running
+            if paused is not None:
+                self.test_paused = paused
+            if session_id is not None:
+                self.current_session_id = session_id
+            if session_start_time is not None:
+                self.session_start_time = session_start_time
     
     def set_actuator_state(self, actuator: str, state: bool, index: int = None):
         """Thread-safe update of actuator states"""
@@ -69,6 +95,36 @@ class GlobalState:
             elif actuator == 'valve' and index is not None:
                 if 0 <= index < len(self.valve_states):
                     self.valve_states[index] = state
+    
+    def set_emergency_stop(self, stop: bool = True):
+        """Thread-safe emergency stop activation"""
+        with self._lock:
+            self.emergency_stop = stop
+            if stop:
+                self.test_running = False
+                self.test_paused = False
+    
+    def get_test_status(self) -> Dict[str, Any]:
+        """Get current test status information"""
+        with self._lock:
+            return {
+                "running": self.test_running,
+                "paused": self.test_paused,
+                "emergency_stop": self.emergency_stop,
+                "timer_value": self.timer_value,
+                "session_id": self.current_session_id,
+                "session_start_time": self.session_start_time
+            }
+    
+    def get_connection_summary(self) -> Dict[str, Any]:
+        """Get summary of all connection statuses"""
+        with self._lock:
+            return {
+                "main_services": self.connections.copy(),
+                "bga_units": self.bga_connections.copy(),
+                "all_connected": all(self.connections.values()),
+                "any_bga_connected": any(self.bga_connections.values())
+            }
 
 
 # Singleton instance

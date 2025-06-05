@@ -46,13 +46,13 @@ class PressurePlot:
         self.ax.grid(True, alpha=0.3)
         
         # Create line objects for pressure sensors
-        self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='Pressure 1')
-        self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='Pressure 2')
+        self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='H_2 Header')
+        self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O_2 Header')
         
         # Create line objects for gas concentrations - only 3 BGA series
-        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H₂ (H-side)', alpha=0.8)
-        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O₂ (O-side)', alpha=0.8)
-        self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H₂ (mixed)', alpha=0.7)
+        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H2: Header', alpha=0.8)
+        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O_2: Header', alpha=0.8)
+        self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H_2: Deoxo', alpha=0.7)
         
         # Add legend with smaller font to fit entries
         self.ax.legend(loc='upper right', fontsize=8, ncol=2)
@@ -361,14 +361,14 @@ class TemperaturePlot:
         self.ax.grid(True, alpha=0.3)
         
         # Create line objects for temperature channels
-        self.line_inlet, = self.ax.plot([], [], 'b-', linewidth=2, label='Inlet', alpha=0.9)
-        self.line_outlet, = self.ax.plot([], [], 'r-', linewidth=2, label='Outlet', alpha=0.9)
-        self.line_stack1, = self.ax.plot([], [], 'g-', linewidth=2, label='Stack 1', alpha=0.9)
-        self.line_stack2, = self.ax.plot([], [], 'm-', linewidth=2, label='Stack 2', alpha=0.9)
-        self.line_ambient, = self.ax.plot([], [], 'c--', linewidth=1.5, label='Ambient', alpha=0.8)
-        self.line_cooling, = self.ax.plot([], [], 'y--', linewidth=1.5, label='Cooling', alpha=0.8)
-        self.line_gas, = self.ax.plot([], [], 'orange', linewidth=1.5, label='Gas', alpha=0.8)
-        self.line_case, = self.ax.plot([], [], 'brown', linewidth=1.5, label='Case', alpha=0.8)
+        self.line_TC1, = self.ax.plot([], [], 'b-', linewidth=2, label='Stack 1', alpha=0.9)
+        self.line_TC2, = self.ax.plot([], [], 'r-', linewidth=2, label='Stack 2', alpha=0.9)
+        self.line_TC3, = self.ax.plot([], [], 'g-', linewidth=2, label='Stack 3', alpha=0.9)
+        self.line_TC4, = self.ax.plot([], [], 'm-', linewidth=2, label='Stack 4', alpha=0.9)
+        self.line_TC5, = self.ax.plot([], [], 'c--', linewidth=1.5, label='H_2 Bubbler', alpha=0.8)
+        self.line_TC6, = self.ax.plot([], [], 'y--', linewidth=1.5, label='O_2 Bubbler', alpha=0.8)
+        self.line_TC7, = self.ax.plot([], [], 'orange', linewidth=1.5, label='H_2 Line HEX', alpha=0.8)
+        self.line_TC8, = self.ax.plot([], [], 'brown', linewidth=1.5, label='O_2 Line HEX', alpha=0.8)
         
         # Add legend with smaller font to fit entries
         self.ax.legend(loc='upper right', fontsize=6, ncol=4)

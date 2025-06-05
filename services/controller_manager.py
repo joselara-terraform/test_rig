@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Controller manager for coordinating all hardware services
+Controller manager for coordinating all hardware services and test sessions
 """
 
 import time
 import threading
+from typing import Optional, Dict, Any
 from core.state import get_global_state
+from data.session_manager import get_session_manager, start_test_session, end_test_session
+from data.logger import get_csv_logger
 from .ni_daq import NIDAQService
 from .pico_tc08 import PicoTC08Service
 from .bga244 import BGA244Service
@@ -13,11 +16,15 @@ from .cvm24p import CVM24PService
 
 
 class ControllerManager:
-    """Manages lifecycle of all hardware services"""
+    """Manages lifecycle of all hardware services and test sessions"""
     
     def __init__(self):
         self.state = get_global_state()
+        self.session_manager = get_session_manager()
+        self.csv_logger = get_csv_logger()
         self.services_running = False
+        self.test_running = False
+        self.current_session = None
         
         # Actual service instances
         self.ni_daq_service = None
@@ -86,6 +93,185 @@ class ControllerManager:
         
         self.services_running = False
         print("✅ All services stopped")
+    
+    def start_test(self, session_name: Optional[str] = None) -> bool:
+        """
+        Start a new test session with data logging
+        
+        Args:
+            session_name: Optional custom name for the test session
+            
+        Returns:
+            True if test started successfully
+        """
+        if self.test_running:
+            print("⚠️  Test already running")
+            return False
+        
+        # Ensure services are connected first
+        if not self.services_running:
+            print("❌ Cannot start test - services not running")
+            print("   → Please connect to hardware first")
+            return False
+        
+        print("🧪 Starting new test session...")
+        
+        try:
+            # Start new session with timestamped folder
+            self.current_session = start_test_session(session_name)
+            
+            # Update test state
+            self.test_running = True
+            self.state.update_test_status(running=True)
+            
+            # Register configuration snapshot
+            config_file = f"{self.session_manager.get_base_filename('config')}.json"
+            config_path = self.session_manager.register_file(
+                config_file, 
+                "config", 
+                "Device configuration snapshot at test start"
+            )
+            
+            # Save current device configuration
+            self._save_test_configuration(config_path)
+            
+            # Start CSV data logging
+            logging_started = self.csv_logger.start_logging()
+            if not logging_started:
+                print("⚠️  CSV logging failed to start - test will continue without logging")
+            
+            print(f"✅ Test session started: {self.current_session['session_id']}")
+            print(f"   → Session folder: {self.current_session['folder_path']}")
+            print(f"   → Configuration saved: {config_file}")
+            if logging_started:
+                print(f"   → CSV logging: ✅ Started")
+            else:
+                print(f"   → CSV logging: ❌ Failed")
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Failed to start test session: {e}")
+            self.test_running = False
+            self.state.update_test_status(running=False)
+            return False
+    
+    def stop_test(self, status: str = "completed") -> Optional[Dict[str, Any]]:
+        """
+        Stop the current test session
+        
+        Args:
+            status: Final status of the test (completed, stopped, error)
+            
+        Returns:
+            Final session metadata or None if no test was running
+        """
+        if not self.test_running:
+            print("⚠️  No test running to stop")
+            return None
+        
+        print("🧪 Stopping test session...")
+        
+        try:
+            # Stop CSV logging first
+            logging_stats = self.csv_logger.stop_logging()
+            
+            # End the current session
+            final_session = end_test_session(status)
+            
+            # Update test state
+            self.test_running = False
+            self.state.update_test_status(running=False)
+            
+            # Clear current session
+            self.current_session = None
+            
+            print(f"✅ Test session stopped")
+            print(f"   → Final status: {status}")
+            if final_session:
+                print(f"   → Duration: {final_session.get('duration_formatted', 'Unknown')}")
+                print(f"   → Files created: {len(final_session.get('files', {}))}")
+            if logging_stats:
+                print(f"   → Data logged: {logging_stats.get('log_count', 0)} entries")
+            
+            return final_session
+            
+        except Exception as e:
+            print(f"❌ Error stopping test session: {e}")
+            self.test_running = False
+            self.state.update_test_status(running=False)
+            return None
+    
+    def emergency_stop(self) -> Optional[Dict[str, Any]]:
+        """Emergency stop - immediately halt test and disconnect services"""
+        print("🚨 EMERGENCY STOP ACTIVATED")
+        
+        # Stop test session first
+        final_session = None
+        if self.test_running:
+            # Stop CSV logging immediately
+            try:
+                self.csv_logger.stop_logging()
+            except Exception as e:
+                print(f"⚠️  Error stopping CSV logging during emergency: {e}")
+            
+            final_session = self.stop_test("emergency_stop")
+        
+        # Stop all services
+        self.stop_all_services()
+        
+        # Update state
+        self.state.update_test_status(running=False)
+        
+        print("🚨 Emergency stop completed - all systems halted")
+        return final_session
+    
+    def _save_test_configuration(self, config_path: str):
+        """Save current device configuration to test session"""
+        try:
+            import json
+            from config.device_config import get_device_config
+            
+            # Get current device configuration
+            device_config = get_device_config()
+            
+            # Create configuration snapshot
+            config_snapshot = {
+                "test_start_time": self.current_session['start_time'],
+                "session_id": self.current_session['session_id'],
+                "services": self.get_service_details(),
+                "device_config": device_config.get_all_config(),
+                "connection_status": self.get_connection_status()
+            }
+            
+            # Save to file
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_snapshot, f, indent=2, ensure_ascii=False)
+            
+            print(f"   → Configuration snapshot saved")
+            
+        except Exception as e:
+            print(f"⚠️  Error saving configuration: {e}")
+    
+    def get_test_status(self) -> Dict[str, Any]:
+        """Get current test status and session info"""
+        return {
+            "test_running": self.test_running,
+            "services_running": self.services_running,
+            "current_session": self.current_session,
+            "session_manager_active": self.session_manager.get_current_session() is not None
+        }
+    
+    def get_session_file_path(self, filename: str, file_type: str = "csv") -> Optional[str]:
+        """Get file path in current session (convenience method)"""
+        if not self.test_running or not self.current_session:
+            return None
+        
+        try:
+            from data.session_manager import get_session_file_path
+            return get_session_file_path(filename, file_type)
+        except Exception:
+            return None
     
     def _start_ni_daq(self):
         """Start NI DAQ service using actual NIDAQService"""
