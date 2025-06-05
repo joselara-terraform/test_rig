@@ -395,8 +395,8 @@ class TemperaturePlot:
         
         # Check test states
         if self.state.emergency_stop or not self.state.test_running:
-            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
-                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
+                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
         
         if self.state.test_paused:
             return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
