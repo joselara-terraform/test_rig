@@ -55,7 +55,7 @@ class PressurePlot:
         self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H_2: Deoxo', alpha=0.7)
         
         # Add legend with smaller font to fit entries
-        self.ax.legend(loc='upper right', fontsize=8, ncol=2)
+        self.ax.legend(loc='upper right', fontsize=8, ncol=1)
         
         # Set initial axis limits - static Y, dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
@@ -214,7 +214,7 @@ class VoltagePlot:
         self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
         
         # Add legend
-        self.ax.legend(loc='upper right', fontsize=7, ncol=3)
+        self.ax.legend(loc='upper right', fontsize=7, ncol=1)
         
         # Set initial axis limits - static Y (0-5V), dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
@@ -371,7 +371,7 @@ class TemperaturePlot:
         self.line_TC8, = self.ax.plot([], [], 'brown', linewidth=1.5, label='O_2 Line HEX', alpha=0.8)
         
         # Add legend with smaller font to fit entries
-        self.ax.legend(loc='upper right', fontsize=6, ncol=4)
+        self.ax.legend(loc='upper right', fontsize=6, ncol=1)
         
         # Set initial axis limits - static Y (0-100°C), dynamic X
         self.ax.set_xlim(0, 120)   # Initial X limit
