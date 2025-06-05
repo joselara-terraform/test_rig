@@ -399,13 +399,13 @@ class TemperaturePlot:
                    self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
         
         if self.state.test_paused:
-            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
-                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
+                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
-                   self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
+                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
         
         self.last_update_time = current_time
         
@@ -443,21 +443,21 @@ class TemperaturePlot:
         
         # Update line data
         if len(self.time_data) > 0:
-            self.line_inlet.set_data(list(self.time_data), list(self.inlet_temp_data))
-            self.line_outlet.set_data(list(self.time_data), list(self.outlet_temp_data))
-            self.line_stack1.set_data(list(self.time_data), list(self.stack_temp1_data))
-            self.line_stack2.set_data(list(self.time_data), list(self.stack_temp2_data))
-            self.line_ambient.set_data(list(self.time_data), list(self.ambient_temp_data))
-            self.line_cooling.set_data(list(self.time_data), list(self.cooling_temp_data))
-            self.line_gas.set_data(list(self.time_data), list(self.gas_temp_data))
-            self.line_case.set_data(list(self.time_data), list(self.case_temp_data))
+            self.line_TC1.set_data(list(self.time_data), list(self.inlet_temp_data))
+            self.line_TC2.set_data(list(self.time_data), list(self.outlet_temp_data))
+            self.line_TC3.set_data(list(self.time_data), list(self.stack_temp1_data))
+            self.line_TC4.set_data(list(self.time_data), list(self.stack_temp2_data))
+            self.line_TC5.set_data(list(self.time_data), list(self.ambient_temp_data))
+            self.line_TC6.set_data(list(self.time_data), list(self.cooling_temp_data))
+            self.line_TC7.set_data(list(self.time_data), list(self.gas_temp_data))
+            self.line_TC8.set_data(list(self.time_data), list(self.case_temp_data))
             
             # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
             # Static Y-axis: [0, 100] (no auto-scaling)
             self.ax.set_xlim(0, max(relative_time*1.2, 120))
         
-        return (self.line_inlet, self.line_outlet, self.line_stack1, self.line_stack2,
-               self.line_ambient, self.line_cooling, self.line_gas, self.line_case)
+        return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
+               self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
 
     def reset(self):
         """Reset plot data"""
