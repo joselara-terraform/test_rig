@@ -141,42 +141,29 @@ class ControlPanel:
             print("▶️  Start Test button clicked")
             print("   → Starting test sequence...")
             
-            # Reset timer and start fresh
-            self.timer.reset()
-            
             # Reset plots for new test
             if self.plot_reset_callback:
                 self.plot_reset_callback()
                 print("   → Plots reset for new test")
             
-            # Update GlobalState and start timer
-            with self.state._lock:
-                self.state.test_running = True
-                self.state.test_paused = False
-                self.state.emergency_stop = False  # Clear any previous e-stop
+            # Use controller manager to start test with real CSV logging
+            success = self.controller.start_test("UI_Test_Session")
             
-            self.timer.start()
-            print("   → Timer started from 0")
-            print("   → Data logging started (mocked)")
-            print("   ✅ Test started")
+            if success:
+                print("   ✅ Test started with real data logging")
+            else:
+                print("   ❌ Failed to start test")
         else:
             print("⏹️  Stop Test button clicked")
             self._stop_test()
     
     def _stop_test(self):
-        """Stop the current test (normal stop - timer resets, no valve/pump changes)"""
+        """Stop the current test using controller manager"""
         print("   → Stopping test sequence...")
         
-        # Update GlobalState and reset timer
-        with self.state._lock:
-            self.state.test_running = False
-            self.state.test_paused = False
-        
-        self.timer.reset()  # Reset timer to 0 for next test
-        print("   → Timer stopped and reset to 0")
-        print("   → Data logging stopped (mocked)")
-        print("   → CSV file generated (mocked)")
-        print("   ✅ Test stopped - ready for new test")
+        # Use controller manager to stop test (this handles CSV logging and session finalization)
+        self.controller.stop_test("completed")
+        print("   ✅ Test stopped with real data logging")
     
     def _on_pause_click(self):
         """Handle Pause/Resume button click"""
@@ -208,26 +195,11 @@ class ControlPanel:
     def _on_estop_click(self):
         """Handle Emergency Stop button click"""
         print("🚨 EMERGENCY STOP ACTIVATED! 🚨")
-        print("   → All operations halted immediately")
+        print("   → Emergency stop initiated via controller manager")
         
-        # Update GlobalState - emergency stop does more than regular stop
-        with self.state._lock:
-            self.state.test_running = False
-            self.state.test_paused = False
-            # Close all actuators to safe state (key difference from regular stop)
-            self.state.pump_state = False
-            for i in range(len(self.state.valve_states)):
-                self.state.valve_states[i] = False
+        # Use controller manager for emergency stop (handles CSV logging, sessions, and hardware safety)
+        self.controller.emergency_stop()
         
-        # Reset timer
-        self.timer.reset()
-        
-        print("   → Timer stopped and reset to 0")
-        print("   → All valves closed (SAFE STATE)")
-        print("   → Pump stopped (SAFE STATE)")
-        print("   → Data logging stopped")
-        print("   → CSV file generated (mocked)")
-        print("   → Power systems ready for disconnect (future)")
         print("   ✅ Emergency stop complete - system in safe state")
         print("   ℹ️  Press Start Test to begin new test")
     
