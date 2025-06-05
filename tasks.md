@@ -290,15 +290,50 @@ Each task is atomic, testable, and narrowly scoped to ensure rapid iteration and
 
 ---
 
-### 26. CVM-24P test script review + cleanup
+### ✅ 26. CVM-24P test script review + cleanup
 **Start:** Review your existing CVM-24P test script  
 **End:** Write cleaned standalone script to retrieve all cell voltages
 
 ---
 
-### 27. Integrate CVM-24P into service
+### ✅ 27. Integrate CVM-24P into service
 **Start:** Replace `cvm24p.py` with real USB communication and parsing  
 **End:** Real voltage values update plots and state
+
+**Completed with comprehensive hardware integration:**
+- ✅ Real XC2 protocol communication via SerialBus at 1MHz baud rate
+- ✅ Multi-module support: 5 CVM24P modules with 120 total channels (5 × 24)
+- ✅ Hardware module discovery and initialization using broadcast echo
+- ✅ Individual module management with persistent addressing
+- ✅ Real-time voltage reading using `read_and_get_reg_by_name("ch_V")`
+- ✅ GlobalState integration for dashboard voltage updates
+- ✅ Thread-safe voltage polling at 10 Hz with async event loop integration
+- ✅ Hardware/Mock mode detection with graceful fallback
+- ✅ Device configuration integration with sample rate management
+- ✅ Proper service lifecycle (connect/poll/disconnect) with robust error handling
+
+**Hardware Integration Features:**
+- `CVM24PModule` class for individual module interface with XC2Cvm24p devices
+- `CVM24PService` maintains dashboard compatibility while using real hardware
+- Serial port discovery and connection with cross-platform support
+- Module initialization using `initial_structure_reading()` from CVM_test.py pattern
+- Real voltage data streaming from electrolyzer cell monitoring
+- Automatic hardware detection with fallback to mock when unavailable
+- Event loop management for async XC2 protocol communication
+- Module serial number tracking (158435, 158436, 158340, 158431, 158458)
+
+**CVM24P Modules Discovered:**
+- Module 158435 (Address 0xA7): 24 channels | Module 158436 (Address 0xA6): 24 channels
+- Module 158340 (Address 0xA9): 24 channels | Module 158431 (Address 0xA8): 24 channels  
+- Module 158458 (Address 0xA1): 24 channels
+
+**Real Hardware Communication:**
+- XC2 protocol via SerialBus with 1MHz baud rate (COM5 on Windows)
+- Module discovery using `get_broadcast_echo()` and `get_serial_broadcast()`
+- Device identification and initialization using `XC2Cvm24p` class
+- Voltage reading using `device.read_and_get_reg_by_name("ch_V")` method
+- 120-channel real-time monitoring for electrolyzer cell voltage analysis
+- Hardware validation: 0.000V readings when no cells connected (correct behavior)
 
 ---
 

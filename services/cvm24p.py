@@ -318,13 +318,24 @@ class CVM24PService:
             try:
                 # Just close the event loop - let SerialBus clean up automatically
                 if self.loop and not self.loop.is_closed():
-                    # Cancel any pending tasks
-                    pending = asyncio.all_tasks(self.loop)
-                    for task in pending:
-                        task.cancel()
+                    # Cancel any pending tasks more gently
+                    try:
+                        pending = [task for task in asyncio.all_tasks(self.loop) if not task.done()]
+                        if pending:
+                            for task in pending:
+                                task.cancel()
+                            # Give tasks a moment to cancel
+                            try:
+                                self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                            except:
+                                pass
+                    except RuntimeError:
+                        # Loop might already be closed
+                        pass
                     
                     # Close the loop
-                    self.loop.close()
+                    if not self.loop.is_closed():
+                        self.loop.close()
             except Exception as e:
                 print(f"⚠️  Error cleaning up event loop: {e}")
         
