@@ -213,11 +213,11 @@ class Dashboard:
         ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=4, pady=5)
         
         # Real valve names matching cDAQ configuration
-        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge"]
+        valve_names = ["KOH Fill", "DI Fill", "Stack Drain", "N2 Purge"]
         
         self.valve_labels = []
         for i, valve_name in enumerate(valve_names):
-            valve_label = ttk.Label(valve_frame, text=f"{valve_name}:")
+            valve_label = ttk.Label(valve_frame, text=f"{valve_name}")
             valve_label.grid(row=1, column=i, padx=5, pady=2)
             
             # Clickable button instead of label
@@ -238,7 +238,7 @@ class Dashboard:
         pump_frame = ttk.Frame(container_frame)
         pump_frame.pack(pady=10)
         
-        ttk.Label(pump_frame, text="Pump:", font=("Arial", 10, "bold")).pack()
+        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 10, "bold")).pack()
         self.pump_state_label = tk.Button(
             pump_frame, 
             text="OFF", 
@@ -274,7 +274,7 @@ class Dashboard:
         # Update state (NI DAQ service will automatically update hardware)
         self.state.set_actuator_state('valve', new_state, valve_index)
         
-        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge"]
+        valve_names = ["KOH Fill", "DI Fill", "Stack Drain", "N2 Purge"]
         print(f"🔧 {valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
     
     def _toggle_pump(self):
