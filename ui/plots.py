@@ -478,14 +478,14 @@ class TemperaturePlot:
         self.ax.set_ylim(0, 100)
         
         # Clear line data
-        self.line_inlet.set_data([], [])
-        self.line_outlet.set_data([], [])
-        self.line_stack1.set_data([], [])
-        self.line_stack2.set_data([], [])
-        self.line_ambient.set_data([], [])
-        self.line_cooling.set_data([], [])
-        self.line_gas.set_data([], [])
-        self.line_case.set_data([], [])
+        self.line_TC1.set_data([], [])
+        self.line_TC2.set_data([], [])
+        self.line_TC3.set_data([], [])
+        self.line_TC4.set_data([], [])
+        self.line_TC5.set_data([], [])
+        self.line_TC6.set_data([], [])
+        self.line_TC7.set_data([], [])
+        self.line_TC8.set_data([], [])
         
         self.canvas.draw()
     
