@@ -1,0 +1,266 @@
+{
+  "test_start_time": "2025-06-04T18:37:52.585224",
+  "session_id": "2025-06-04_18-37-52_Data_Flow_Test",
+  "services": {
+    "ni_daq": {
+      "connected": true,
+      "polling": true,
+      "mode": "Mock",
+      "device": "cDAQ9187-23E902CMod1",
+      "sample_rate": "100 Hz",
+      "analog_channels": 3,
+      "digital_channels": 5
+    },
+    "pico_tc08": {
+      "connected": true,
+      "polling": true,
+      "device": "TC-08",
+      "sample_rate": "1 Hz",
+      "channels": 8,
+      "mode": "MOCK",
+      "channel_config": {
+        "0": {
+          "name": "Inlet Temperature",
+          "type": "K",
+          "description": "Temperature channel 1"
+        },
+        "1": {
+          "name": "Outlet Temperature",
+          "type": "K",
+          "description": "Temperature channel 2"
+        },
+        "2": {
+          "name": "Stack Temperature 1",
+          "type": "K",
+          "description": "Temperature channel 3"
+        },
+        "3": {
+          "name": "Stack Temperature 2",
+          "type": "K",
+          "description": "Temperature channel 4"
+        },
+        "4": {
+          "name": "Ambient Temperature",
+          "type": "K",
+          "description": "Temperature channel 5"
+        },
+        "5": {
+          "name": "Cooling System Temperature",
+          "type": "K",
+          "description": "Temperature channel 6"
+        },
+        "6": {
+          "name": "Gas Temperature",
+          "type": "K",
+          "description": "Temperature channel 7"
+        },
+        "7": {
+          "name": "Case Temperature",
+          "type": "K",
+          "description": "Temperature channel 8"
+        }
+      },
+      "calibration_date": "2024-01-15"
+    },
+    "bga244": {
+      "connected": false,
+      "polling": true,
+      "device": "BGA244",
+      "sample_rate": "0.2 Hz",
+      "units": 3,
+      "mode": "DISCONNECTED",
+      "purge_mode": false,
+      "individual_connections": {
+        "bga_1": false,
+        "bga_2": false,
+        "bga_3": false
+      },
+      "bga_port_mapping": {
+        "bga_1": null,
+        "bga_2": null,
+        "bga_3": null
+      },
+      "connected_count": 0,
+      "calibration_date": "2024-01-15"
+    },
+    "cvm24p": {
+      "connected": true,
+      "polling": true,
+      "device": "CVM-24P",
+      "sample_rate": "10 Hz",
+      "mode": "MOCK",
+      "modules": 0,
+      "channels": 120,
+      "resolution": "1.0mV",
+      "voltage_range": "2.0V - 3.5V"
+    }
+  },
+  "device_config": {
+    "ni_cdaq": {
+      "chassis": "cDAQ9187-23E902C",
+      "analog_inputs": {
+        "module": "cDAQ9187-23E902CMod1",
+        "sample_rate": 100,
+        "current_range": {
+          "min_ma": 3.9,
+          "max_ma": 20.0,
+          "fault_threshold_low": 3.5,
+          "fault_threshold_high": 20.5
+        },
+        "channels": {
+          "pressure_1": {
+            "channel": "ai0",
+            "name": "Pressure Sensor 1 (Hydrogen Side)",
+            "units": "PSI",
+            "range": [
+              0,
+              15
+            ],
+            "zero_offset": 0.0,
+            "description": "Hydrogen side pressure measurement"
+          },
+          "pressure_2": {
+            "channel": "ai1",
+            "name": "Pressure Sensor 2 (Oxygen Side)",
+            "units": "PSI",
+            "range": [
+              0,
+              15
+            ],
+            "zero_offset": 0.0,
+            "description": "Oxygen side pressure measurement"
+          },
+          "current": {
+            "channel": "ai2",
+            "name": "Stack Current Sensor",
+            "units": "A",
+            "range": [
+              0,
+              150
+            ],
+            "zero_offset": 0.0,
+            "description": "Electrolyzer stack current measurement"
+          }
+        }
+      },
+      "digital_outputs": {
+        "valves": {
+          "koh_storage": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 0,
+            "name": "KOH Storage Valve"
+          },
+          "di_storage": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 1,
+            "name": "DI Storage Valve"
+          },
+          "stack_drain": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 2,
+            "name": "Stack Drain Valve"
+          },
+          "n2_purge": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 3,
+            "name": "N2 Purge Valve"
+          }
+        },
+        "pump": {
+          "main_pump": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 4,
+            "name": "Main Circulation Pump"
+          }
+        }
+      }
+    },
+    "pico_tc08": {
+      "channels": {
+        "channel_0": {
+          "name": "Inlet Temperature"
+        },
+        "channel_1": {
+          "name": "Outlet Temperature"
+        },
+        "channel_2": {
+          "name": "Stack Temperature 1"
+        },
+        "channel_3": {
+          "name": "Stack Temperature 2"
+        },
+        "channel_4": {
+          "name": "Ambient Temperature"
+        },
+        "channel_5": {
+          "name": "Cooling System Temperature"
+        },
+        "channel_6": {
+          "name": "Gas Temperature"
+        },
+        "channel_7": {
+          "name": "Case Temperature"
+        }
+      }
+    },
+    "bga244": {
+      "units": {
+        "bga_1": {
+          "name": "Hydrogen Side Analyzer",
+          "zero_offsets": {
+            "H2": 0.1,
+            "O2": 0.05,
+            "N2": 0.02
+          }
+        },
+        "bga_2": {
+          "name": "Oxygen Side Analyzer",
+          "zero_offsets": {
+            "H2": 0.08,
+            "O2": 0.12,
+            "N2": 0.03
+          }
+        },
+        "bga_3": {
+          "name": "Mixed Stream Analyzer",
+          "zero_offsets": {
+            "H2": 0.15,
+            "O2": 0.08,
+            "N2": 0.05
+          }
+        }
+      }
+    },
+    "cvm24p": {
+      "cells": {
+        "zero_offsets": {
+          "group_1_offset": 12.5,
+          "group_2_offset": 8.3,
+          "group_3_offset": 15.1,
+          "group_4_offset": 6.7,
+          "group_5_offset": 11.2,
+          "group_6_offset": 9.8
+        }
+      }
+    },
+    "system": {
+      "sample_rates": {
+        "ni_daq": 100,
+        "pico_tc08": 1,
+        "bga244": 0.2,
+        "cvm24p": 10
+      },
+      "calibration": {
+        "auto_zero_on_startup": true,
+        "calibration_date": "2024-01-15",
+        "calibration_technician": "Engineering Team"
+      }
+    }
+  },
+  "connection_status": {
+    "ni_daq": true,
+    "pico_tc08": true,
+    "bga244": true,
+    "cvm24p": true
+  }
+}

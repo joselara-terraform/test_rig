@@ -7,6 +7,7 @@ import time
 import threading
 from typing import Optional, Dict, Any
 from core.state import get_global_state
+from core.timer import get_timer
 from data.session_manager import get_session_manager, start_test_session, end_test_session
 from data.logger import get_csv_logger
 from .ni_daq import NIDAQService
@@ -20,6 +21,7 @@ class ControllerManager:
     
     def __init__(self):
         self.state = get_global_state()
+        self.timer = get_timer()
         self.session_manager = get_session_manager()
         self.csv_logger = get_csv_logger()
         self.services_running = False
@@ -120,6 +122,11 @@ class ControllerManager:
             # Start new session with timestamped folder
             self.current_session = start_test_session(session_name)
             
+            # Reset and start timer for plotting
+            self.timer.reset()
+            self.timer.start()
+            print("   → Timer started from 0")
+            
             # Update test state
             self.test_running = True
             self.state.update_test_status(running=True)
@@ -143,6 +150,7 @@ class ControllerManager:
             print(f"✅ Test session started: {self.current_session['session_id']}")
             print(f"   → Session folder: {self.current_session['folder_path']}")
             print(f"   → Configuration saved: {config_file}")
+            print(f"   → Timer: ✅ Started")
             if logging_started:
                 print(f"   → CSV logging: ✅ Started")
             else:
@@ -154,6 +162,7 @@ class ControllerManager:
             print(f"❌ Failed to start test session: {e}")
             self.test_running = False
             self.state.update_test_status(running=False)
+            self.timer.reset()
             return False
     
     def stop_test(self, status: str = "completed") -> Optional[Dict[str, Any]]:
@@ -173,6 +182,10 @@ class ControllerManager:
         print("🧪 Stopping test session...")
         
         try:
+            # Stop timer
+            self.timer.reset()
+            print("   → Timer stopped and reset")
+            
             # Stop CSV logging first
             logging_stats = self.csv_logger.stop_logging()
             
@@ -200,11 +213,16 @@ class ControllerManager:
             print(f"❌ Error stopping test session: {e}")
             self.test_running = False
             self.state.update_test_status(running=False)
+            self.timer.reset()
             return None
     
     def emergency_stop(self) -> Optional[Dict[str, Any]]:
         """Emergency stop - immediately halt test and disconnect services"""
         print("🚨 EMERGENCY STOP ACTIVATED")
+        
+        # Stop timer immediately
+        self.timer.reset()
+        print("   → Timer stopped immediately")
         
         # Stop test session first
         final_session = None
@@ -240,7 +258,7 @@ class ControllerManager:
                 "test_start_time": self.current_session['start_time'],
                 "session_id": self.current_session['session_id'],
                 "services": self.get_service_details(),
-                "device_config": device_config.get_all_config(),
+                "device_config": device_config.config,  # Access config attribute directly
                 "connection_status": self.get_connection_status()
             }
             

@@ -1,0 +1,4 @@
+timestamp,elapsed_seconds,bga1_h2_pct,bga1_o2_pct,bga1_n2_pct,bga1_other_pct,bga2_h2_pct,bga2_o2_pct,bga2_n2_pct,bga2_other_pct,bga3_h2_pct,bga3_o2_pct,bga3_n2_pct,bga3_other_pct,purge_mode
+2025-06-04 18:39:05.956,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,False
+2025-06-04 18:39:06.961,1.005,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,False
+2025-06-04 18:39:07.966,2.011,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,False
