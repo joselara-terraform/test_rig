@@ -15,6 +15,7 @@ import time
 import threading
 import random
 from core.state import get_global_state
+from config.device_config import get_device_config  # Add config import
 
 # Try to import real NI-DAQmx library
 try:
@@ -33,10 +34,16 @@ class NIDAQService:
     
     def __init__(self, mock_mode=None):
         self.state = get_global_state()
+        self.device_config = get_device_config()  # Add device config
         self.connected = False
         self.polling = False
         self.polling_thread = None
         self._stop_event = threading.Event()
+        
+        # Get current range configuration
+        self.current_range = self.device_config.get_current_range_config()
+        self.min_current_ma = self.current_range.get('min_ma', 4.0)
+        self.max_current_ma = self.current_range.get('max_ma', 20.0)
         
         # Determine if we should use mock mode
         if mock_mode is None:
@@ -114,14 +121,14 @@ class NIDAQService:
         self.ai_task = Task()
         for ch_name, ch_config in self.analog_channels.items():
             channel = ch_config["channel"]
-            print(f"     • {ch_config['name']}: {channel} (4-20mA, calibrated 3.9-20mA)")
+            print(f"     • {ch_config['name']}: {channel} (4-20mA, calibrated {self.min_current_ma}-{self.max_current_ma}mA)")
             
-            # Add current input channel (calibrated to 3.9-20mA)
+            # Add current input channel using configured range
             self.ai_task.ai_channels.add_ai_current_chan(
                 channel,
                 name_to_assign_to_channel=ch_name,
-                min_val=0.0039,  # 3.9mA minimum (calibrated)
-                max_val=0.020    # 20mA maximum
+                min_val=self.min_current_ma / 1000.0,  # Convert mA to A
+                max_val=self.max_current_ma / 1000.0   # Convert mA to A
             )
         
         # Configure continuous sampling
@@ -159,7 +166,7 @@ class NIDAQService:
         
         print("   → Mock analog input channels:")
         for ch_name, ch_config in self.analog_channels.items():
-            print(f"     • {ch_config['name']}: {ch_config['channel']} (4-20mA, calibrated 3.9-20mA)")
+            print(f"     • {ch_config['name']}: {ch_config['channel']} (4-20mA, calibrated {self.min_current_ma}-{self.max_current_ma}mA)")
         
         print("   → Mock digital output channels:")
         for ch_name, ch_config in self.digital_channels.items():
@@ -331,24 +338,32 @@ class NIDAQService:
                 else:
                     avg_current = 0.0
                 
-                # Convert 4-20mA current to engineering units with enhanced signal conditioning
+                # Convert 4-20mA current to engineering units with configuration-based scaling
                 min_eng, max_eng = ch_config["range"]
                 current_ma = avg_current * 1000  # Convert to mA for easier checking
                 
-                # Enhanced signal conditioning with multiple status checks
-                if current_ma < 3.5:
+                # Enhanced signal conditioning with configurable status checks
+                fault_low = self.current_range.get('fault_threshold_low', 3.5)
+                fault_high = self.current_range.get('fault_threshold_high', 20.5)
+                
+                if current_ma < fault_low:
                     # DISCONNECTED - no sensor connected
                     eng_value = 0.0
-                elif current_ma < 3.9:
+                elif current_ma < self.min_current_ma:
                     # LOW SIGNAL - sensor connected but signal too low
                     eng_value = 0.0
-                elif current_ma > 20.5:
+                elif current_ma > fault_high:
                     # HIGH SIGNAL - sensor overrange
                     eng_value = max_eng
                 else:
                     # OK - normal operation with calibrated scaling
-                    # Calibrated scaling: 3.9mA = 0, 20mA = max
-                    eng_value = ((avg_current - 0.0039) / 0.0161) * (max_eng - min_eng) + min_eng
+                    # Calibrated scaling: min_current_ma = 0, 20mA = max
+                    current_range_ma = self.max_current_ma - self.min_current_ma
+                    eng_value = ((avg_current - (self.min_current_ma / 1000.0)) / (current_range_ma / 1000.0)) * (max_eng - min_eng) + min_eng
+                
+                # Apply zero offset calibration
+                zero_offset = self.device_config.get_analog_channel_zero_offset(ch_name)
+                eng_value += zero_offset
                 
                 # Ensure value stays within bounds
                 scaled_data[ch_name] = max(min_eng, min(max_eng, eng_value))

@@ -66,7 +66,7 @@ class DeviceConfig:
                     'module': 'cDAQ9187-23E902CMod1',
                     'sample_rate': 100,
                     'current_range': {
-                        'min_ma': 3.9,
+                        'min_ma': 4.0,
                         'max_ma': 20.0,
                         'fault_threshold_low': 3.5,
                         'fault_threshold_high': 20.5
@@ -77,7 +77,7 @@ class DeviceConfig:
                             'name': 'Pressure Sensor 1 (Hydrogen Side)',
                             'units': 'PSI',
                             'range': [0, 15],
-                            'zero_offset': 0.0,  # 4-20mA sensors: 4mA = true zero
+                            'zero_offset': -0.035,
                             'description': 'Hydrogen side pressure measurement'
                         },
                         'pressure_2': {
@@ -85,7 +85,7 @@ class DeviceConfig:
                             'name': 'Pressure Sensor 2 (Oxygen Side)',
                             'units': 'PSI',
                             'range': [0, 15],
-                            'zero_offset': 0.0,  # 4-20mA sensors: 4mA = true zero
+                            'zero_offset': -0.066,
                             'description': 'Oxygen side pressure measurement'
                         },
                         'current': {
@@ -93,7 +93,7 @@ class DeviceConfig:
                             'name': 'Stack Current Sensor',
                             'units': 'A',
                             'range': [0, 150],
-                            'zero_offset': 0.0,  # 4-20mA sensors: 4mA = true zero
+                            'zero_offset': 0.0,
                             'description': 'Electrolyzer stack current measurement'
                         }
                     }
@@ -179,7 +179,7 @@ class DeviceConfig:
                 },
                 'calibration': {
                     'auto_zero_on_startup': True,
-                    'calibration_date': '2024-01-15',
+                    'calibration_date': '2025-06-04',
                     'calibration_technician': 'Engineering Team'
                 }
             }
@@ -223,7 +223,7 @@ class DeviceConfig:
     def get_current_range_config(self) -> Dict[str, float]:
         """Get 4-20mA current range configuration"""
         return self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('current_range', {
-            'min_ma': 3.9,
+            'min_ma': 4.0,
             'max_ma': 20.0,
             'fault_threshold_low': 3.5,
             'fault_threshold_high': 20.5

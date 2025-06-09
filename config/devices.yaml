@@ -18,7 +18,7 @@ ni_cdaq:
     
     # 4-20mA Signal Conditioning
     current_range:
-      min_ma: 3.95   # Calibrated minimum (below this = sensor fault)
+      min_ma: 4.0   # Calibrated minimum - 4mA = 0 PSI/A (updated from 3.95)
       max_ma: 20.0  # Standard maximum
       fault_threshold_low: 3.5   # Below this = DISCONNECTED
       fault_threshold_high: 20.5 # Above this = OVERRANGE
@@ -30,8 +30,8 @@ ni_cdaq:
         name: "Pressure Sensor 1 (Hydrogen Side)"
         units: "PSI"
         range: [0, 15]
-        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
-        zero_offset: 0.0  # 4mA represents true 0 PSI
+        # CALIBRATED ZERO OFFSET - Corrects sensor bias at 0 PSI
+        zero_offset: -0.035  # Corrects +0.035 PSI bias to achieve true 0 PSI
         description: "Hydrogen side pressure measurement"
         
       pressure_2:
@@ -39,8 +39,8 @@ ni_cdaq:
         name: "Pressure Sensor 2 (Oxygen Side)"
         units: "PSI"
         range: [0, 15]
-        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
-        zero_offset: 0.0  # 4mA represents true 0 PSI
+        # CALIBRATED ZERO OFFSET - Corrects sensor bias at 0 PSI  
+        zero_offset: -0.066  # Corrects +0.066 PSI bias to achieve true 0 PSI
         description: "Oxygen side pressure measurement"
         
       current:
@@ -48,8 +48,8 @@ ni_cdaq:
         name: "Stack Current Sensor"
         units: "A"
         range: [0, 150]
-        # CALIBRATED ZERO OFFSET - 4-20mA sensors should have 0 offset (4mA = true zero)
-        zero_offset: 0.0  # 4mA represents true 0 A
+        # CALIBRATED ZERO OFFSET - 4mA represents true 0 A
+        zero_offset: 0.0  # No bias correction needed for current sensor
         description: "Electrolyzer stack current measurement"
   
   # NI-9485 Digital Output Modules (Relay Control)
@@ -248,16 +248,23 @@ system:
   calibration:
     auto_zero_on_startup: true  # Automatically apply zero offsets on connection
     allow_runtime_adjustment: false  # Prevent accidental calibration changes during tests
-    calibration_date: "2024-01-15"   # Last calibration date
+    calibration_date: "2025-06-04"   # Updated calibration date
     calibration_technician: "Engineering Team"
     
     # Zero Offset Application Rules
     zero_offset_rules:
       temperature_sensors: "Apply at ambient conditions (20-25°C)"
-      pressure_sensors: "Apply at atmospheric pressure (0 psig)"
+      pressure_sensors: "Apply at atmospheric pressure (0 psig) with sensors vented to atmosphere"
       current_sensor: "Apply with no load current (0 A)"
       gas_analyzers: "Apply in nitrogen purge environment"
       voltage_sensors: "Apply with stack at rest potential"
+    
+    # Calibration Notes (2025-06-04)
+    calibration_notes:
+      current_range_update: "Changed minimum current from 3.95mA to 4.0mA for standard 4-20mA scaling"
+      pressure_sensor_1: "Zero offset -0.035 PSI applied to correct +0.035 PSI bias at 0 PSI"
+      pressure_sensor_2: "Zero offset -0.066 PSI applied to correct +0.066 PSI bias at 0 PSI"
+      calibration_method: "Sensors vented to atmosphere (0 psig) for zero point calibration"
 
 # Platform-Specific Overrides
 platform_overrides:
