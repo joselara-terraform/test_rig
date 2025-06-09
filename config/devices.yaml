@@ -18,7 +18,7 @@ ni_cdaq:
     
     # 4-20mA Signal Conditioning
     current_range:
-      min_ma: 3.9   # Calibrated minimum (below this = sensor fault)
+      min_ma: 3.95   # Calibrated minimum (below this = sensor fault)
       max_ma: 20.0  # Standard maximum
       fault_threshold_low: 3.5   # Below this = DISCONNECTED
       fault_threshold_high: 20.5 # Above this = OVERRANGE
