@@ -41,7 +41,7 @@ class BGA244Config:
     
     # Platform-specific serial port configurations
     SERIAL_PORTS = {
-        'Windows': ['COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'],
+        'Windows': ['COM4', 'COM3', 'COM5', 'COM6', 'COM7', 'COM8'],
         'Linux': ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyUSB2', '/dev/ttyACM0'],
         'Darwin': ['/dev/tty.usbserial-A1', '/dev/tty.usbserial-A2', '/dev/tty.usbserial-A3']
     }
@@ -50,16 +50,16 @@ class BGA244Config:
     BGA_UNITS = {
         'bga_1': {
             'name': 'H2 Header',
-            'description': 'BGA 1 - H2 Ratio 1: measures O2 in H2, H2 in N2 during purging',
-            'primary_gas': 'O2',     # O2 in H2 - Primary measurement
-            'secondary_gas': 'H2',   # H2 in mixture
+            'description': 'Gas analyzer on hydrogen header',
+            'primary_gas': 'H2',     # H2 in O2 mixture
+            'secondary_gas': 'O2',   # H2 in O2 mixture
             'expected_gases': ['H2', 'O2', 'N2']
         },
         'bga_2': {
             'name': 'O2 Header', 
-            'description': 'BGA 2 - O2 Ratio 1: measures H2 in O2, O2 in N2 during purging',
-            'primary_gas': 'H2',     # H2 in O2 - Primary measurement
-            'secondary_gas': 'O2',   # O2 in mixture
+            'description': 'Gas analyzer on oxygen header',
+            'primary_gas': 'O2',     # O2 in H2 mixture
+            'secondary_gas': 'H2',   # O2 in H2 mixture
             'expected_gases': ['O2', 'H2', 'N2']
         },
         'bga_3': {
@@ -85,7 +85,7 @@ class BGA244Device:
         self.purge_mode = False
         
     def connect(self) -> bool:
-        """Connect to BGA244 device with improved robustness"""
+        """Connect to BGA244 device"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
             
@@ -95,40 +95,27 @@ class BGA244Device:
                 bytesize=BGA244Config.DATA_BITS,
                 stopbits=BGA244Config.STOP_BITS,
                 parity=BGA244Config.PARITY,
-                timeout=BGA244Config.TIMEOUT,
-                xonxoff=False,    # Disable software flow control
-                rtscts=False,     # Disable hardware flow control
-                dsrdtr=False      # Disable DTR/DSR flow control
+                timeout=BGA244Config.TIMEOUT
             )
             
-            # Clear buffers and wait for device to be ready
+            # Clear buffers
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
-            time.sleep(1.0)  # Increased wait time for BGA244 to be ready
             
-            # Test communication with multiple attempts
-            max_attempts = 3
-            for attempt in range(max_attempts):
-                print(f"   → Testing communication (attempt {attempt + 1}/{max_attempts})...")
-                
-                # Clear buffers before test
-                self.serial_conn.reset_input_buffer()
-                self.serial_conn.reset_output_buffer()
-                time.sleep(0.1)
-                
-                response = self._send_command("*IDN?")
-                if response and len(response) > 0:
-                    self.device_info['identity'] = response
-                    self.is_connected = True
-                    print(f"✅ Connected: {response}")
-                    return True
-                else:
-                    print(f"   ❌ Attempt {attempt + 1} failed - no valid response")
-                    time.sleep(0.5)  # Wait before retry
+            # Wait for device to be ready
+            time.sleep(0.5)
             
-            print(f"❌ No response from device on {self.port} after {max_attempts} attempts")
-            self.disconnect()
-            return False
+            # Test communication
+            response = self._send_command("*IDN?")
+            if response:
+                self.device_info['identity'] = response
+                self.is_connected = True
+                print(f"✅ Connected: {response}")
+                return True
+            else:
+                print(f"❌ No response from device on {self.port}")
+                self.disconnect()
+                return False
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
@@ -224,9 +211,6 @@ class BGA244Device:
                     measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
-                    print(f"⚠️  Invalid primary gas response from {self.unit_config['name']}: '{ratio_response}'")
-            else:
-                print(f"⚠️  No primary gas response from {self.unit_config['name']}")
             
             # Read secondary gas concentration (if available)
             ratio2_response = self._send_command("RATO? 2")
@@ -239,9 +223,6 @@ class BGA244Device:
                         measurements['secondary_gas'] = self.unit_config['secondary_gas']
                 except ValueError:
                     measurements['secondary_gas_concentration'] = None
-                    print(f"⚠️  Invalid secondary gas response from {self.unit_config['name']}: '{ratio2_response}'")
-            else:
-                print(f"⚠️  No secondary gas response from {self.unit_config['name']}")
             
             # Calculate remaining gas concentration
             if (measurements.get('primary_gas_concentration') is not None and 
@@ -261,83 +242,35 @@ class BGA244Device:
                 else:
                     # Normal mode - remaining is typically N2
                     measurements['remaining_gas'] = 'N2'
-                
-                # Debug: Log successful readings occasionally
-                if hasattr(self, '_debug_counter'):
-                    self._debug_counter += 1
-                else:
-                    self._debug_counter = 1
-                    
-                if self._debug_counter % 50 == 0:  # Log every 50th reading
-                    print(f"📊 {self.unit_config['name']}: {measurements['primary_gas']}={primary_conc:.2f}%, {measurements['secondary_gas']}={secondary_conc:.2f}%")
             
             return measurements
             
         except Exception as e:
-            print(f"❌ Measurement reading error for {self.unit_config['name']}: {e}")
+            print(f"❌ Measurement reading error: {e}")
             return {}
     
     def _send_command(self, command: str) -> Optional[str]:
-        """Send command to BGA244 and return response with improved robustness"""
+        """Send command to BGA244 and return response"""
         if not self.serial_conn or not self.serial_conn.is_open:
             return None
         
         try:
-            # Clear buffers thoroughly before sending command
-            self.serial_conn.reset_input_buffer()
-            self.serial_conn.reset_output_buffer()
-            time.sleep(0.05)  # Small delay after buffer clear
-            
             # Send command
             command_bytes = (command + '\r\n').encode('ascii')
             self.serial_conn.write(command_bytes)
-            self.serial_conn.flush()  # Ensure command is sent
             
-            # Wait longer for response (BGA244 can be slow)
-            time.sleep(0.2)  # Increased from 0.1 to 0.2 seconds
+            # Wait for response
+            time.sleep(BGA244Config.COMMAND_DELAY)
             
-            # Read response with timeout
-            response_bytes = b''
-            start_time = time.time()
-            
-            while (time.time() - start_time) < 1.0:  # 1 second timeout
-                if self.serial_conn.in_waiting > 0:
-                    chunk = self.serial_conn.read(self.serial_conn.in_waiting)
-                    response_bytes += chunk
-                    
-                    # Check if we have a complete response (ends with \r\n)
-                    if b'\r\n' in response_bytes or b'\n' in response_bytes:
-                        break
-                        
-                time.sleep(0.02)  # Small delay between checks
-            
-            # Decode and clean response
+            # Read response
+            response_bytes = self.serial_conn.read_all()
             response = response_bytes.decode('ascii', errors='ignore').strip()
-            
-            # Remove any non-printable characters and extra whitespace
-            response = ''.join(char for char in response if char.isprintable()).strip()
-            
-            # Validate response format for numeric commands
-            if command.startswith('RATO?') or command.startswith('TCEL?') or command.startswith('PRES?') or command.startswith('NSOS?'):
-                # For numeric responses, validate format
-                if response and not self._is_valid_numeric_response(response):
-                    print(f"⚠️  Invalid response format from {self.unit_config['name']} for '{command}': '{response}'")
-                    return None
             
             return response if response else None
             
         except Exception as e:
-            print(f"⚠️  Command error for {self.unit_config['name']} ({command}): {e}")
+            print(f"⚠️  Command error ({command}): {e}")
             return None
-    
-    def _is_valid_numeric_response(self, response: str) -> bool:
-        """Check if response is a valid numeric value"""
-        try:
-            # Try to convert to float
-            float(response)
-            return True
-        except ValueError:
-            return False
 
 
 class BGA244Service:
@@ -366,13 +299,6 @@ class BGA244Service:
             'bga_1': None,
             'bga_2': None,
             'bga_3': None
-        }
-        
-        # Persistent storage for last known good gas values (prevents step functions)
-        self.last_known_values = {
-            'bga_1': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
-            'bga_2': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
-            'bga_3': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
         }
         
         # BGA244 configuration from device config
@@ -558,8 +484,6 @@ class BGA244Service:
         for unit_id, device in self.devices.items():
             device.disconnect()
             self.individual_connections[unit_id] = False
-            # Reset persistent values for disconnected devices
-            self.last_known_values[unit_id] = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
             # Keep self.bga_port_mapping[unit_id] intact for reconnection
         
         self.devices.clear()
@@ -672,15 +596,12 @@ class BGA244Service:
                 break
     
     def _read_hardware_gas_data(self) -> List[Dict[str, float]]:
-        """Read gas concentrations from real BGA244 hardware with persistent values"""
+        """Read gas concentrations from real BGA244 hardware"""
         gas_readings = []
         
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
         
         for i, unit_id in enumerate(unit_ids):
-            # Start with last known good values (persistent)
-            gas_data = self.last_known_values[unit_id].copy()
-            
             if unit_id in self.devices and self.individual_connections[unit_id]:
                 # Read from real hardware
                 try:
@@ -688,46 +609,39 @@ class BGA244Service:
                     measurements = device.read_measurements()
                     
                     if measurements:
-                        # Successfully got new measurements - update values
-                        new_gas_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                        # Convert to standard format
+                        gas_data = {}
                         
                         # Map measurements to gas concentrations
                         if measurements.get('primary_gas_concentration') is not None:
                             primary_gas = measurements['primary_gas']
-                            new_gas_data[primary_gas] = measurements['primary_gas_concentration']
+                            gas_data[primary_gas] = measurements['primary_gas_concentration']
                         
                         if measurements.get('secondary_gas_concentration') is not None:
                             secondary_gas = measurements['secondary_gas']
-                            new_gas_data[secondary_gas] = measurements['secondary_gas_concentration']
+                            gas_data[secondary_gas] = measurements['secondary_gas_concentration']
                         
                         if measurements.get('remaining_gas_concentration') is not None:
                             remaining_gas = measurements['remaining_gas']
-                            new_gas_data[remaining_gas] = measurements['remaining_gas_concentration']
+                            gas_data[remaining_gas] = measurements['remaining_gas_concentration']
                         
                         # Apply calibrated zero offsets if configured
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
-                        for gas, concentration in new_gas_data.items():
-                            if gas != 'other':  # Don't apply offsets to 'other' category
-                                offset = zero_offsets.get(gas, 0.0)
-                                new_gas_data[gas] = concentration + offset
+                        for gas, concentration in gas_data.items():
+                            offset = zero_offsets.get(gas, 0.0)
+                            gas_data[gas] = concentration + offset
                         
-                        # Update persistent storage with new valid values
-                        self.last_known_values[unit_id] = new_gas_data.copy()
-                        gas_data = new_gas_data
+                        gas_readings.append(gas_data)
+                    else:
+                        # No data from this device
+                        gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
                         
                 except Exception as e:
                     print(f"⚠️  Hardware reading error for {unit_id}: {e}")
-                    # Keep last known good values instead of resetting to zeros
-                    # gas_data already contains last known values from the copy above
+                    gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
             else:
-                # Device not connected - reset to zeros only when actually disconnected
-                if not self.individual_connections[unit_id]:
-                    zero_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
-                    self.last_known_values[unit_id] = zero_data.copy()
-                    gas_data = zero_data
-            
-            # Always append the gas data (either new, last known, or zeros for disconnected)
-            gas_readings.append(gas_data)
+                # Device not connected - return zero data (no plotting)
+                gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
         
         return gas_readings
     
@@ -783,14 +697,4 @@ class BGA244Service:
     
     def get_individual_connection_status(self) -> Dict[str, bool]:
         """Get individual connection status for each BGA unit"""
-        return self.individual_connections.copy()
-    
-    def clear_persistent_values(self):
-        """Clear persistent gas concentration values (for troubleshooting)"""
-        print("🔧 Clearing persistent gas concentration values...")
-        self.last_known_values = {
-            'bga_1': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
-            'bga_2': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
-            'bga_3': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
-        }
-        print("✅ Persistent values reset to zero") 
+        return self.individual_connections.copy() 
