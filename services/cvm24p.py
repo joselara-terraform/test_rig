@@ -129,7 +129,7 @@ class AsyncCVMManager:
             
             if not discovered_modules:
                 print(f"      → No CVM24P modules found")
-                await self.bus.disconnect()
+                # SerialBus doesn't have disconnect method - just clear reference
                 self.bus = None
                 return False
             
@@ -138,7 +138,7 @@ class AsyncCVMManager:
             
             if initialized_count == 0:
                 print(f"      → No modules successfully initialized")
-                await self.bus.disconnect()
+                # SerialBus doesn't have disconnect method - just clear reference
                 self.bus = None
                 return False
             
@@ -147,12 +147,8 @@ class AsyncCVMManager:
             
         except Exception as e:
             print(f"      → Connection error: {e}")
-            if self.bus:
-                try:
-                    await self.bus.disconnect()
-                except:
-                    pass
-                self.bus = None
+            # SerialBus doesn't have disconnect method - just clear reference
+            self.bus = None
             return False
     
     async def _discover_modules(self) -> Dict[str, Dict]:
@@ -266,12 +262,8 @@ class AsyncCVMManager:
     
     async def _disconnect(self):
         """Disconnect from hardware"""
-        if self.bus:
-            try:
-                await self.bus.disconnect()
-            except Exception as e:
-                print(f"⚠️  Bus disconnect error: {e}")
-            
+        # SerialBus doesn't have a disconnect() method
+        # Just clear references and let it clean up automatically
         self.bus = None
         self.modules.clear()
         self.initialized_devices.clear()
@@ -352,6 +344,13 @@ class CVM24PService:
             )
             self.async_thread.start()
             
+            # Clear any stale results from previous attempts
+            while not self.result_queue.empty():
+                try:
+                    self.result_queue.get_nowait()
+                except queue.Empty:
+                    break
+            
             # Try each port until one works
             for port_index, selected_port in enumerate(available_ports):
                 try:
@@ -360,16 +359,20 @@ class CVM24PService:
                     # Send connect command to async manager
                     self.command_queue.put(('connect', selected_port))
                     
-                    # Wait for result with timeout
+                    # Wait for result with longer timeout (discovery + initialization can take 30+ seconds)
                     try:
-                        result_type, result_data = self.result_queue.get(timeout=15.0)
+                        result_type, result_data = self.result_queue.get(timeout=45.0)
                         
                         if result_type == 'connect_result' and result_data:
                             print(f"   → Success on {selected_port}!")
                             self.use_mock = False
                             
+                            # Wait a moment for async manager to finish updating modules
+                            time.sleep(1.0)
+                            
                             # Get module info from async manager
-                            self.modules_info = self.async_manager.modules.copy()
+                            if self.async_manager:
+                                self.modules_info = self.async_manager.modules.copy()
                             
                             return True
                         else:
