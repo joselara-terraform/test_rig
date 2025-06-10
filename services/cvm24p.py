@@ -29,8 +29,10 @@ class CVM24PConfig:
     
     # Serial communication settings
     BAUD_RATE = 1000000  # 1MHz - found to work best in CVM_test.py
-    DISCOVERY_ATTEMPTS = 5
-    DISCOVERY_DELAY = 1.0  # seconds between discovery attempts
+    DISCOVERY_ATTEMPTS = 10  # Increased from 5 for more reliable discovery
+    DISCOVERY_DELAY = 1.5  # Increased delay for better reliability
+    MAX_DISCOVERY_TIME = 60  # Maximum time to spend on discovery (seconds)
+    EXPECTED_MODULES = 5  # Expected number of modules to find
     
     # Device specifications
     CHANNELS_PER_MODULE = 24  # 24 channels per CVM24P module
@@ -124,7 +126,7 @@ class AsyncCVMManager:
             # Add stability pause (like CVM_test.py)
             await asyncio.sleep(3)
             
-            # Discover modules
+            # Discover modules with robust retry logic
             discovered_modules = await self._discover_modules()
             
             if not discovered_modules:
@@ -132,6 +134,14 @@ class AsyncCVMManager:
                 # SerialBus doesn't have disconnect method - just clear reference
                 self.bus = None
                 return False
+            
+            # Check if we found the expected number of modules
+            expected_count = CVM24PConfig.EXPECTED_MODULES
+            found_count = len(discovered_modules)
+            
+            if found_count < expected_count:
+                print(f"      → ⚠️  Warning: Found only {found_count}/{expected_count} expected modules")
+                print(f"      → Proceeding with initialization of found modules...")
             
             # Initialize modules
             initialized_count = await self._initialize_modules(discovered_modules)
@@ -142,7 +152,13 @@ class AsyncCVMManager:
                 self.bus = None
                 return False
             
-            print(f"   → Success! {initialized_count}/{len(discovered_modules)} modules initialized")
+            # Success criteria: at least some modules initialized
+            success_rate = initialized_count / found_count if found_count > 0 else 0
+            print(f"   → Success! {initialized_count}/{found_count} modules initialized ({success_rate:.1%} success rate)")
+            
+            if found_count < expected_count:
+                print(f"   → ⚠️  Note: Only {found_count}/{expected_count} expected modules were discovered")
+            
             return True
             
         except Exception as e:
@@ -152,22 +168,43 @@ class AsyncCVMManager:
             return False
     
     async def _discover_modules(self) -> Dict[str, Dict]:
-        """Discover CVM24P modules (similar to CVM_test.py pattern)"""
+        """Discover CVM24P modules with robust retry logic to ensure all 5 modules are found"""
         found_modules = {}
+        discovery_start_time = asyncio.get_event_loop().time()
+        attempt = 0
+        consecutive_same_count = 0
+        last_module_count = 0
         
-        for attempt in range(CVM24PConfig.DISCOVERY_ATTEMPTS):
-            await asyncio.sleep(CVM24PConfig.DISCOVERY_DELAY)
+        print(f"      → Starting robust discovery process (expecting {CVM24PConfig.EXPECTED_MODULES} modules)...")
+        
+        while len(found_modules) < CVM24PConfig.EXPECTED_MODULES:
+            attempt += 1
+            
+            # Check maximum discovery time
+            elapsed_time = asyncio.get_event_loop().time() - discovery_start_time
+            if elapsed_time > CVM24PConfig.MAX_DISCOVERY_TIME:
+                print(f"      → Discovery timeout after {elapsed_time:.1f}s - found {len(found_modules)}/{CVM24PConfig.EXPECTED_MODULES} modules")
+                break
+            
+            # Vary timing slightly to avoid sync issues
+            delay_variation = 0.2 * (attempt % 3 - 1)  # -0.2, 0, +0.2 seconds variation
+            discovery_delay = CVM24PConfig.DISCOVERY_DELAY + delay_variation
+            await asyncio.sleep(discovery_delay)
             
             try:
+                print(f"      → Discovery attempt {attempt}: ", end="", flush=True)
+                
                 # Get devices via broadcast echo
                 devices = await get_broadcast_echo(bus=self.bus)
-                print(f"      → Discovery attempt {attempt+1}: Found {len(devices)} devices")
+                print(f"echo found {len(devices)} devices, ", end="", flush=True)
                 
-                # Try to get device info
+                # Try to get device info via serial broadcast
+                device_info = {}
                 try:
                     device_info = await get_serial_broadcast(bus=self.bus)
+                    print(f"serial broadcast got {len(device_info)} responses, ", end="", flush=True)
                     
-                    # Add modules by serial number
+                    # Add modules by serial number from broadcast response
                     for addr, info in device_info.items():
                         serial = info['dev_serial']
                         device_type = info['dev_type']
@@ -180,10 +217,12 @@ class AsyncCVMManager:
                                     'type': device_type,
                                     'serial': serial
                                 }
-                except Exception:
-                    pass
+                                print(f"new module {serial} at 0x{addr:X}, ", end="", flush=True)
                 
-                # Try direct identification for devices that responded to echo
+                except Exception as e:
+                    print(f"serial broadcast failed ({e}), ", end="", flush=True)
+                
+                # Try direct identification for devices that responded to echo but not serial broadcast
                 for addr in devices:
                     found = any(module['address'] == addr for module in found_modules.values())
                     
@@ -198,11 +237,41 @@ class AsyncCVMManager:
                                     'type': device_type,
                                     'serial': device_serial
                                 }
+                                print(f"direct ID found {device_serial} at 0x{addr:X}, ", end="", flush=True)
                         except Exception:
-                            pass
-                            
+                            pass  # Skip failed direct identification
+                
+                current_count = len(found_modules)
+                print(f"total: {current_count}/{CVM24PConfig.EXPECTED_MODULES} modules")
+                
+                # Track if we're making progress
+                if current_count == last_module_count:
+                    consecutive_same_count += 1
+                else:
+                    consecutive_same_count = 0
+                    last_module_count = current_count
+                
+                # If we found all expected modules, we're done
+                if current_count >= CVM24PConfig.EXPECTED_MODULES:
+                    print(f"      → ✅ Found all {CVM24PConfig.EXPECTED_MODULES} expected modules after {attempt} attempts")
+                    break
+                
+                # If we're stuck at the same count for too many attempts, try a longer delay
+                if consecutive_same_count >= 3:
+                    print(f"      → Stuck at {current_count} modules, trying extended discovery...")
+                    await asyncio.sleep(3.0)  # Longer pause to let network settle
+                    consecutive_same_count = 0
+                
             except Exception as e:
-                print(f"      → Discovery attempt {attempt+1} failed: {e}")
+                print(f"failed: {e}")
+                continue
+        
+        # Final summary
+        if len(found_modules) < CVM24PConfig.EXPECTED_MODULES:
+            print(f"      → ⚠️  Warning: Only found {len(found_modules)}/{CVM24PConfig.EXPECTED_MODULES} expected modules")
+            print(f"      → Discovered modules: {list(found_modules.keys())}")
+        else:
+            print(f"      → ✅ Successfully discovered all {len(found_modules)} modules")
         
         self.modules = found_modules
         return found_modules
