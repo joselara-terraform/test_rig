@@ -5,6 +5,7 @@ Real hardware integration for 8-channel temperature monitoring
 
 import time
 import threading
+import platform
 from typing import List, Tuple, Dict, Any
 from core.state import get_global_state
 from config.device_config import get_device_config
@@ -12,7 +13,6 @@ from config.device_config import get_device_config
 # Try to import the required Pico libraries
 try:
     import ctypes
-    import ctypes.util
     PICO_AVAILABLE = True
     print("✅ Pico TC-08 libraries available")
 except ImportError:
@@ -23,8 +23,37 @@ except ImportError:
 class PicoTC08Config:
     """Configuration constants for Pico TC-08 thermocouple logger"""
     
+    # Platform-specific DLL paths
+    DLL_PATHS = {
+        'Windows': [
+            r"C:\Program Files\Pico Technology\SDK\lib\usbtc08.dll",
+            r"C:\Program Files (x86)\Pico Technology\SDK\lib\usbtc08.dll",
+            "usbtc08.dll"  # Try system PATH
+        ],
+        'Linux': [
+            "/usr/local/lib/libusbtc08.so",
+            "/usr/lib/libusbtc08.so",
+            "libusbtc08.so"
+        ],
+        'Darwin': [  # macOS
+            "/usr/local/lib/libusbtc08.dylib",
+            "/usr/lib/libusbtc08.dylib",
+            "libusbtc08.dylib"
+        ]
+    }
+    
+    # Thermocouple configuration
     NUM_CHANNELS = 8  # 8 thermocouple channels
-    TEMP_UNITS = 0  # 0 = Celsius, 1 = Fahrenheit, 2 = Kelvin
+    TC_TYPE = 'K'  # K-type thermocouples
+    COLD_JUNCTION_TYPE = 'C'  # Cold junction compensation
+    
+    # Sampling configuration
+    SAMPLE_INTERVAL_MS = 1000  # TC-08 sampling rate
+    
+    # Temperature units (0 = Celsius, 1 = Fahrenheit, 2 = Kelvin, 3 = Rankine)
+    TEMP_UNITS = 0  # Celsius
+    
+    # Channel names for clarity (matching device config)
     CHANNEL_NAMES = [
         "Inlet Temperature",
         "Outlet Temperature", 
@@ -41,23 +70,89 @@ class PicoTC08Hardware:
     """Low-level Pico TC-08 hardware interface"""
     
     def __init__(self):
-        self.handle = None
         self.dll = None
+        self.handle = None
+        self.is_connected = False
         self.is_streaming = False
         
+    def load_dll(self) -> bool:
+        """Load the appropriate DLL for the current platform"""
+        system = platform.system()
+        
+        if system not in PicoTC08Config.DLL_PATHS:
+            print(f"❌ Unsupported platform: {system}")
+            return False
+        
+        dll_paths = PicoTC08Config.DLL_PATHS[system]
+        
+        for dll_path in dll_paths:
+            try:
+                if system == 'Windows':
+                    self.dll = ctypes.WinDLL(dll_path)
+                else:
+                    self.dll = ctypes.CDLL(dll_path)
+                
+                self._setup_function_prototypes()
+                print(f"   → TC-08 library loaded: {dll_path}")
+                return True
+                
+            except Exception:
+                continue
+        
+        print(f"   → TC-08 library not found in any of these paths:")
+        for path in dll_paths:
+            print(f"     • {path}")
+        return False
+    
+    def _setup_function_prototypes(self):
+        """Set up ctypes function prototypes for TC-08 API"""
+        
+        # usb_tc08_open_unit
+        self.dll.usb_tc08_open_unit.restype = ctypes.c_int16
+        self.dll.usb_tc08_open_unit.argtypes = []
+        
+        # usb_tc08_set_channel
+        self.dll.usb_tc08_set_channel.argtypes = [
+            ctypes.c_int16,    # handle
+            ctypes.c_int16,    # channel number
+            ctypes.c_char      # type char ('C', 'K', etc)
+        ]
+        self.dll.usb_tc08_set_channel.restype = ctypes.c_int16
+        
+        # usb_tc08_run
+        self.dll.usb_tc08_run.argtypes = [
+            ctypes.c_int16,    # handle
+            ctypes.c_int32     # sample interval (ms)
+        ]
+        self.dll.usb_tc08_run.restype = ctypes.c_int32
+        
+        # usb_tc08_get_temp
+        self.dll.usb_tc08_get_temp.argtypes = [
+            ctypes.c_int16,                     # handle
+            ctypes.POINTER(ctypes.c_float),     # temp buffer
+            ctypes.POINTER(ctypes.c_int32),     # time buffer
+            ctypes.c_int32,                     # number of readings
+            ctypes.POINTER(ctypes.c_int16),     # overflow flag
+            ctypes.c_int16,                     # channel to read
+            ctypes.c_int16,                     # units
+            ctypes.c_int16                      # trigger mode
+        ]
+        self.dll.usb_tc08_get_temp.restype = ctypes.c_int32
+        
+        # usb_tc08_stop
+        self.dll.usb_tc08_stop.argtypes = [ctypes.c_int16]
+        self.dll.usb_tc08_stop.restype = ctypes.c_int16
+        
+        # usb_tc08_close_unit
+        self.dll.usb_tc08_close_unit.argtypes = [ctypes.c_int16]
+        self.dll.usb_tc08_close_unit.restype = ctypes.c_int16
+    
     def connect(self) -> bool:
-        """Connect to Pico TC-08 hardware"""
+        """Connect to the TC-08 device"""
+        if not self.dll:
+            return False
+        
         try:
-            # Load the TC-08 library
-            if ctypes.util.find_library("usbtc08"):
-                self.dll = ctypes.cdll.LoadLibrary("usbtc08")
-            elif ctypes.util.find_library("libusbtc08"):
-                self.dll = ctypes.cdll.LoadLibrary("libusbtc08") 
-            else:
-                print("   → TC-08 library not found")
-                return False
-            
-            # Open the first available TC-08 device
             self.handle = self.dll.usb_tc08_open_unit()
             
             if self.handle <= 0:
@@ -65,16 +160,28 @@ class PicoTC08Hardware:
                 return False
             
             print(f"   → TC-08 device opened with handle: {self.handle}")
+            self.is_connected = True
+            return True
             
-            # Configure channels for K-type thermocouples
+        except Exception as e:
+            print(f"   → TC-08 connection error: {e}")
+            return False
+    
+    def configure_channels(self) -> bool:
+        """Configure cold junction and thermocouple channels"""
+        if not self.is_connected:
+            return False
+        
+        try:
+            # Configure cold junction (channel 0)
+            cold_junction_char = ctypes.c_char(PicoTC08Config.COLD_JUNCTION_TYPE.encode())
+            self.dll.usb_tc08_set_channel(self.handle, 0, cold_junction_char)
+            
+            # Configure all thermocouple channels
+            tc_type_char = ctypes.c_char(PicoTC08Config.TC_TYPE.encode())
+            
             for ch in range(1, PicoTC08Config.NUM_CHANNELS + 1):
-                # Set channel to K-type thermocouple (TypeK = 75)
-                result = self.dll.usb_tc08_set_channel(
-                    self.handle,
-                    ctypes.c_int16(ch),
-                    ctypes.c_char(b'K')  # K-type thermocouple
-                )
-                
+                result = self.dll.usb_tc08_set_channel(self.handle, ch, tc_type_char)
                 if result == 0:
                     print(f"   → Failed to configure channel {ch}")
                     return False
@@ -83,37 +190,21 @@ class PicoTC08Hardware:
             return True
             
         except Exception as e:
-            print(f"   → TC-08 connection error: {e}")
+            print(f"   → Channel configuration error: {e}")
             return False
-    
-    def disconnect(self):
-        """Disconnect from TC-08 hardware"""
-        if self.is_streaming:
-            self.stop_streaming()
-            
-        if self.handle and self.dll:
-            try:
-                self.dll.usb_tc08_close_unit(self.handle)
-                print("   → TC-08 device closed")
-            except Exception as e:
-                print(f"   → Error closing TC-08: {e}")
-            
-        self.handle = None
-        self.dll = None
     
     def start_streaming(self) -> bool:
         """Start temperature streaming"""
-        if not self.handle or not self.dll:
+        if not self.is_connected:
             return False
-            
+        
         try:
-            # Start streaming mode (interval in ms, we'll use 1000ms = 1Hz)
-            result = self.dll.usb_tc08_run(self.handle, ctypes.c_int32(1000))
+            actual_interval = self.dll.usb_tc08_run(self.handle, PicoTC08Config.SAMPLE_INTERVAL_MS)
             
-            if result == 0:
+            if actual_interval <= 0:
                 print("   → Failed to start TC-08 streaming")
                 return False
-                
+            
             self.is_streaming = True
             print("   → TC-08 streaming started at 1Hz")
             return True
@@ -169,6 +260,19 @@ class PicoTC08Hardware:
                 self.is_streaming = False
             except Exception:
                 pass
+    
+    def disconnect(self):
+        """Disconnect from the device"""
+        self.stop_streaming()
+        
+        if self.is_connected and self.handle:
+            try:
+                self.dll.usb_tc08_close_unit(self.handle)
+                self.is_connected = False
+                self.handle = None
+                print("   → TC-08 device closed")
+            except Exception as e:
+                print(f"   → Error closing TC-08: {e}")
 
 
 class PicoTC08Service:
@@ -211,24 +315,36 @@ class PicoTC08Service:
             return False
         
         try:
-            print("   → Attempting hardware connection...")
-            
-            # Try to connect to real hardware
-            if self.hardware.connect():
-                self.connected = True
-                self.state.update_connection_status('pico_tc08', True)
+            # Try to load DLL and connect to real hardware
+            print("   → Loading TC-08 DLL...")
+            if self.hardware.load_dll():
+                print("   → DLL loaded successfully")
+                print("   → Connecting to hardware...")
                 
-                print(f"   → TC-08 device connected successfully")
-                print(f"   → {self.num_channels} thermocouple channels configured:")
-                
-                for ch, config in self.channel_config.items():
-                    print(f"     • CH{ch}: {config['name']}")
-                
-                print("✅ Pico TC-08 connected successfully")
-                return True
+                if self.hardware.connect():
+                    print(f"   → Hardware connected (handle: {self.hardware.handle})")
+                    print("   → Configuring channels...")
+                    
+                    if self.hardware.configure_channels():
+                        print(f"   → Configured {self.num_channels} thermocouple channels:")
+                        
+                        for ch, config in self.channel_config.items():
+                            print(f"     • CH{ch}: {config['name']}")
+                        
+                        self.connected = True
+                        self.state.update_connection_status('pico_tc08', True)
+                        
+                        print("✅ Pico TC-08 connected successfully")
+                        return True
+                    else:
+                        print("❌ Hardware channel configuration failed")
+                        self.hardware.disconnect()
+                else:
+                    print("❌ Hardware connection failed - no TC-08 device found")
             else:
-                print("❌ Hardware connection failed")
-                return False
+                print("❌ TC-08 DLL not available")
+            
+            return False
             
         except Exception as e:
             print(f"❌ Failed to connect to Pico TC-08: {e}")
