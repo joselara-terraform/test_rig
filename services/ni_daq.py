@@ -4,18 +4,17 @@ NI DAQ service for AWE test rig
 Handles NI-9253 (4-20mA analog inputs) and NI-9485 (digital outputs)
 
 4-20mA Signal Conditioning (Enhanced):
-- 3.9mA = 0% scale (calibrated minimum)  
+- 4.0mA = 0% scale (calibrated minimum)  
 - 20mA = 100% scale (maximum)
 - <3.5mA = DISCONNECTED (sensor fault)
-- 3.5-3.9mA = LOW SIGNAL (wiring issue)
+- 3.5-4.0mA = LOW SIGNAL (wiring issue)
 - >20.5mA = HIGH SIGNAL (sensor overrange)
 """
 
 import time
 import threading
-import random
 from core.state import get_global_state
-from config.device_config import get_device_config  # Add config import
+from config.device_config import get_device_config
 
 # Try to import real NI-DAQmx library
 try:
@@ -26,15 +25,15 @@ try:
     print("✅ NI-DAQmx library available")
 except ImportError:
     NIDAQMX_AVAILABLE = False
-    print("⚠️  NI-DAQmx library not found - using mock mode")
+    print("❌ NI-DAQmx library not found - hardware connection will fail")
 
 
 class NIDAQService:
     """NI cDAQ service for analog input and digital output"""
     
-    def __init__(self, mock_mode=None):
+    def __init__(self):
         self.state = get_global_state()
-        self.device_config = get_device_config()  # Add device config
+        self.device_config = get_device_config()
         self.connected = False
         self.polling = False
         self.polling_thread = None
@@ -45,13 +44,7 @@ class NIDAQService:
         self.min_current_ma = self.current_range.get('min_ma', 4.0)
         self.max_current_ma = self.current_range.get('max_ma', 20.0)
         
-        # Determine if we should use mock mode
-        if mock_mode is None:
-            self.mock_mode = not NIDAQMX_AVAILABLE
-        else:
-            self.mock_mode = mock_mode
-        
-        # Real hardware configuration (from Task 20)
+        # Real hardware configuration
         self.ni_9253_slot = "cDAQ9187-23E902CMod1"  # Analog input module
         self.ni_9485_slot_2 = "cDAQ9187-23E902CMod2"  # Digital output module
         self.ni_9485_slot_3 = "cDAQ9187-23E902CMod3"  # Digital output module
@@ -69,7 +62,7 @@ class NIDAQService:
             'valve_2': {'module': self.ni_9485_slot_2, 'line': 1, 'name': "DI Storage"},  
             'valve_3': {'module': self.ni_9485_slot_2, 'line': 2, 'name': "Stack Drain"},
             'valve_4': {'module': self.ni_9485_slot_2, 'line': 3, 'name': "N2 Purge"},
-            'pump': {'module': self.ni_9485_slot_2, 'line': 4, 'name': "Pump"},  # Use line 4 for pump
+            'pump': {'module': self.ni_9485_slot_2, 'line': 4, 'name': "Pump"},
         }
         
         # Real NI-DAQmx tasks
@@ -77,7 +70,7 @@ class NIDAQService:
         self.do_tasks = {}
         
         # Sampling rate
-        self.sample_rate = 100  # Hz (reduced from 250 for stability)
+        self.sample_rate = 100  # Hz
     
     def connect(self):
         """Connect to NI cDAQ device"""
@@ -85,14 +78,13 @@ class NIDAQService:
             print("⚠️  NI DAQ already connected")
             return True
         
+        if not NIDAQMX_AVAILABLE:
+            print("❌ NI-DAQmx library not available - cannot connect to hardware")
+            return False
+        
         try:
             print("🔌 Connecting to NI cDAQ...")
-            
-            if self.mock_mode:
-                return self._connect_mock()
-            else:
-                return self._connect_real()
-            
+            return self._connect_real()
         except Exception as e:
             print(f"❌ NI cDAQ connection failed: {e}")
             self.connected = False
@@ -100,7 +92,7 @@ class NIDAQService:
     
     def _connect_real(self):
         """Connect to real NI cDAQ hardware"""
-        print("   → Using real NI-DAQmx hardware")
+        print("   → Connecting to NI-DAQmx hardware")
         
         # Test device detection
         system = nidaqmx.system.System.local()
@@ -161,25 +153,6 @@ class NIDAQService:
         print("✅ Real NI cDAQ connected successfully")
         return True
     
-    def _connect_mock(self):
-        """Connect using mock mode"""
-        print("   → Using mock mode (no hardware)")
-        print(f"   → Mock device: {self.ni_9253_slot}")
-        
-        print("   → Mock analog input channels:")
-        for ch_name, ch_config in self.analog_channels.items():
-            print(f"     • {ch_config['name']}: {ch_config['channel']} (4-20mA, calibrated {self.min_current_ma}-{self.max_current_ma}mA)")
-        
-        print("   → Mock digital output channels:")
-        for ch_name, ch_config in self.digital_channels.items():
-            print(f"     • {ch_config['name']}: Mock relay")
-        
-        self.connected = True
-        self.state.update_connection_status('ni_daq', True)
-        
-        print("✅ Mock NI cDAQ connected successfully")
-        return True
-    
     def disconnect(self):
         """Disconnect from NI cDAQ device"""
         if not self.connected:
@@ -194,21 +167,20 @@ class NIDAQService:
         # Set all outputs to safe state
         self._set_all_outputs_safe()
         
-        # Clean up real hardware tasks
-        if not self.mock_mode:
-            if self.ai_task:
-                try:
-                    self.ai_task.close()
-                    self.ai_task = None
-                except:
-                    pass
-            
-            for task in self.do_tasks.values():
-                try:
-                    task.close()
-                except:
-                    pass
-            self.do_tasks.clear()
+        # Clean up hardware tasks
+        if self.ai_task:
+            try:
+                self.ai_task.close()
+                self.ai_task = None
+            except:
+                pass
+        
+        for task in self.do_tasks.values():
+            try:
+                task.close()
+            except:
+                pass
+        self.do_tasks.clear()
         
         self.connected = False
         self.state.update_connection_status('ni_daq', False)
@@ -230,9 +202,6 @@ class NIDAQService:
         self._stop_event.clear()
         self.polling = True
         
-        # For FINITE acquisition, we don't start the task here
-        # Instead, we read on-demand in each polling cycle
-        
         # Start polling thread
         self.polling_thread = threading.Thread(target=self._polling_loop, daemon=True)
         self.polling_thread.start()
@@ -250,9 +219,6 @@ class NIDAQService:
         
         self._stop_event.set()
         self.polling = False
-        
-        # For FINITE acquisition, task is not continuously running
-        # No need to stop it here
         
         # Wait for thread to finish
         if self.polling_thread and self.polling_thread.is_alive():
@@ -285,15 +251,8 @@ class NIDAQService:
     
     def _read_analog_inputs(self):
         """Read and scale analog input channels"""
-        if self.mock_mode:
-            return self._read_analog_inputs_mock()
-        else:
-            return self._read_analog_inputs_real()
-    
-    def _read_analog_inputs_real(self):
-        """Read real analog inputs from NI-9253"""
         try:
-            # For FINITE acquisition, read specific number of samples (like working test files)
+            # For FINITE acquisition, read specific number of samples
             data = self.ai_task.read(number_of_samples_per_channel=10, timeout=2.0)
             
             # Handle data structure for multiple channels with FINITE acquisition
@@ -359,30 +318,9 @@ class NIDAQService:
             return scaled_data
             
         except Exception as e:
-            print(f"❌ Real analog input read error: {e}")
-            return self._read_analog_inputs_mock()  # Fallback to mock
-    
-    def _read_analog_inputs_mock(self):
-        """Generate mock analog input data"""
-        scaled_data = {}
-        
-        for ch_name, ch_config in self.analog_channels.items():
-            # Generate realistic mock data
-            if ch_name == 'pressure_1':
-                # Pressure sensor 1: 0-15 PSI, typically around 0.8 PSI
-                mock_value = random.uniform(0.7, 0.8)
-            elif ch_name == 'pressure_2':
-                # Pressure sensor 2: 0-15 PSI, typically around 0.3 PSI  
-                mock_value = random.uniform(0.3, 0.4)
-            elif ch_name == 'current':
-                # Current sensor: 0-150 A, typically around 130 A
-                mock_value = random.uniform(130, 135)
-            else:
-                mock_value = 0.0
-            
-            scaled_data[ch_name] = mock_value
-        
-        return scaled_data
+            print(f"❌ Analog input read error: {e}")
+            # Return zeros when hardware fails
+            return {ch_name: 0.0 for ch_name in self.analog_channels.keys()}
     
     def _update_digital_outputs(self):
         """Update digital outputs based on current state"""
@@ -402,10 +340,6 @@ class NIDAQService:
     def _set_digital_output(self, channel_name, state):
         """Set individual digital output channel"""
         if channel_name not in self.digital_channels:
-            return
-        
-        if self.mock_mode:
-            # Mock digital output
             return
         
         # Real digital output
@@ -434,7 +368,7 @@ class NIDAQService:
         return {
             'connected': self.connected,
             'polling': self.polling,
-            'mode': 'Mock' if self.mock_mode else 'Real Hardware',
+            'mode': 'Hardware',
             'device': self.ni_9253_slot,
             'sample_rate': f"{self.sample_rate} Hz",
             'analog_channels': len(self.analog_channels),
@@ -445,16 +379,16 @@ class NIDAQService:
 def main():
     """Test the NI DAQ service by running it directly"""
     print("=" * 60)
-    print("TASK 21 TEST: Real NI DAQ Service Integration (Enhanced)")
+    print("NI DAQ Service Hardware Test")
     print("=" * 60)
     
     service = NIDAQService()
     
-    print(f"✅ NI DAQ service created ({'Real Hardware' if not service.mock_mode else 'Mock Mode'})")
-    print("✅ Enhanced NI-9253 analog inputs (3 channels)")
-    print("✅ Real NI-9485 digital outputs (5 channels)")
-    print("✅ 4-20mA current measurement (calibrated 3.9-20mA)")
-    print("✅ Enhanced signal conditioning (fault detection)")
+    print("✅ NI DAQ service created")
+    print("✅ NI-9253 analog inputs (3 channels)")
+    print("✅ NI-9485 digital outputs (5 channels)")
+    print("✅ 4-20mA current measurement")
+    print("✅ Enhanced signal conditioning")
     print("✅ Physical relay control")
     
     print("\n🎯 TEST: Verify NI DAQ hardware integration:")
@@ -483,7 +417,7 @@ def main():
     
     # Show some data
     state = get_global_state()
-    print(f"\n5. Live sensor data (with enhanced signal conditioning):")
+    print(f"\n5. Live sensor data:")
     print(f"   Pressure 1: {state.pressure_values[0]:.2f} PSI")
     print(f"   Pressure 2: {state.pressure_values[1]:.2f} PSI")
     print(f"   Current: {state.current_value:.2f} A")
@@ -505,7 +439,7 @@ def main():
     service.stop_polling()
     service.disconnect()
     
-    print("\n✅ Enhanced NI DAQ service integration test complete!")
+    print("\n✅ NI DAQ service test complete!")
     print("=" * 60)
 
 

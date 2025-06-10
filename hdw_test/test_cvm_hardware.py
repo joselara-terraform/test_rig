@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
 """
-Simple CVM Hardware Connection Test
-Focuses specifically on testing the hardware connection logic
+Simple CVM24P Hardware Test
+Tests connection to real CVM24P hardware only - no mock functionality
 """
 
 import sys
 import os
 
-# Add project root to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add parent directory to path to import services
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.cvm24p import CVM24PService
 
-
 def test_hardware_connection():
     """Test CVM hardware connection specifically"""
-    print("🔧 CVM Hardware Connection Test")
+    print("🔋 Testing CVM24P Hardware Connection")
     print("=" * 50)
     
-    # Create service
-    print("1. Creating CVM service...")
     cvm_service = CVM24PService()
-    print(f"   → Service created: {cvm_service.device_name}")
-    print(f"   → Use mock: {cvm_service.use_mock}")
-    print(f"   → Expected modules: {cvm_service.expected_modules}")
     
-    # Test connection
-    print("\n2. Testing hardware connection...")
+    print(f"✅ CVM24P service created")
+    print(f"   → Expected modules: {cvm_service.expected_modules}")
+    print(f"   → Total channels: {cvm_service.total_channels}")
+    print(f"   → Sample rate: {cvm_service.sample_rate} Hz")
+    
     try:
         connected = cvm_service.connect()
         
@@ -76,8 +73,8 @@ def test_hardware_connection():
 
 
 if __name__ == "__main__":
-    print("🧪 Simple CVM Hardware Test")
-    print("🎯 This will try to connect to real CVM hardware on COM5")
+    print("🧪 CVM24P Hardware Connection Test")
+    print("🎯 This test requires real CVM hardware to be connected")
     print("📋 Make sure CVM_test.py is not running!")
     print()
     
@@ -86,6 +83,6 @@ if __name__ == "__main__":
     if success:
         print("\n🎉 Hardware connection works!")
     else:
-        print("\n⚠️ Hardware connection failed - check debug output above")
+        print("\n⚠️ Hardware connection failed - check that CVM hardware is connected")
     
     input("\nPress Enter to exit...") 

@@ -21,7 +21,7 @@ try:
     XC2_AVAILABLE = True
 except ImportError:
     XC2_AVAILABLE = False
-    print("⚠️  XC2 libraries not available - CVM24P will use mock mode")
+    print("❌ XC2 libraries not available - CVM24P hardware connection will fail")
 
 
 class CVM24PConfig:
@@ -347,17 +347,11 @@ class CVM24PService:
         self.state = get_global_state()
         self.device_config = get_device_config()
         
-        # Hardware communication - simplified
-        self.use_mock = not XC2_AVAILABLE
-        
         # CVM24P configuration from device config
         self.device_name = "CVM-24P"
         self.sample_rate = self.device_config.get_sample_rate('cvm24p')
         self.expected_modules = 5  # Expect 5 modules for 120 channels (5 * 24 = 120)
         self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
-        
-        # Mock data for when hardware unavailable
-        self.mock_voltages = [CVM24PConfig.NOMINAL_CELL_VOLTAGE] * self.total_channels
         
         # Async communication - simplified pattern
         self.command_queue = queue.Queue()
@@ -374,10 +368,11 @@ class CVM24PService:
         print("🔋 Connecting to CVM-24P cell voltage monitor...")
         
         if not XC2_AVAILABLE:
-            return self._connect_mock()
+            print("❌ XC2 libraries not available - cannot connect to hardware")
+            return False
         
         try:
-            # Try to connect to real hardware
+            # Try to connect to hardware
             print("   → Attempting hardware connection...")
             
             if self._connect_hardware():
@@ -386,13 +381,12 @@ class CVM24PService:
                 print(f"✅ CVM-24P connected - Hardware mode with {len(self.modules_info)} modules")
                 return True
             else:
-                print("   → Hardware connection failed, falling back to mock mode")
-                return self._connect_mock()
+                print("❌ Hardware connection failed")
+                return False
                 
         except Exception as e:
             print(f"❌ Failed to connect to CVM-24P: {e}")
-            print("   → Falling back to mock mode")
-            return self._connect_mock()
+            return False
     
     def _connect_hardware(self) -> bool:
         """Connect to real CVM24P hardware using simplified async pattern"""
@@ -434,7 +428,6 @@ class CVM24PService:
                         
                         if result_type == 'connect_result' and result_data:
                             print(f"   → Success on {selected_port}!")
-                            self.use_mock = False
                             
                             # Wait a moment for async manager to finish updating modules
                             time.sleep(1.0)
@@ -478,22 +471,6 @@ class CVM24PService:
             self.async_manager = None
             self.async_thread = None
     
-    def _connect_mock(self) -> bool:
-        """Connect in mock mode"""
-        print("   → Using mock mode (no hardware)")
-        print(f"   → Mock device: {self.device_name}")
-        print(f"   → Mock configuration:")
-        print(f"     • {self.expected_modules} modules x {CVM24PConfig.CHANNELS_PER_MODULE} channels = {self.total_channels} total")
-        print(f"     • Voltage range: {CVM24PConfig.MIN_CELL_VOLTAGE}V - {CVM24PConfig.MAX_CELL_VOLTAGE}V")
-        print(f"     • Resolution: {CVM24PConfig.VOLTAGE_RESOLUTION*1000}mV")
-        
-        self.use_mock = True
-        self.connected = True
-        self.state.update_connection_status('cvm24p', True)
-        
-        print("✅ CVM-24P connected successfully (MOCK MODE)")
-        return True
-    
     def disconnect(self):
         """Disconnect from CVM24P"""
         print("🔋 Disconnecting from CVM-24P...")
@@ -503,8 +480,7 @@ class CVM24PService:
             self.stop_polling()
         
         # Stop async manager
-        if not self.use_mock:
-            self._stop_async_manager()
+        self._stop_async_manager()
         
         # Clear state
         self.modules_info.clear()
@@ -525,8 +501,7 @@ class CVM24PService:
             print("⚠️  CVM-24P polling already running")
             return True
         
-        mode_str = "MOCK" if self.use_mock else "HARDWARE"
-        print(f"🔋 Starting CVM-24P polling at {self.sample_rate} Hz ({mode_str})...")
+        print(f"🔋 Starting CVM-24P polling at {self.sample_rate} Hz...")
         
         self.polling = True
         
@@ -551,10 +526,7 @@ class CVM24PService:
         """Simplified polling thread function"""
         while self.polling and self.connected:
             try:
-                if self.use_mock:
-                    voltage_readings = self._generate_mock_data()
-                else:
-                    voltage_readings = self._read_hardware_data()
+                voltage_readings = self._read_hardware_data()
                 
                 # Update global state
                 self.state.update_sensor_values(cell_voltages=voltage_readings)
@@ -591,47 +563,14 @@ class CVM24PService:
             print(f"⚠️  Hardware reading error: {e}")
             return self.latest_voltages
     
-    def _generate_mock_data(self) -> List[float]:
-        """Generate realistic mock voltage data"""
-        import random
-        
-        # Get current from state to simulate load effects
-        current = self.state.current_value
-        current_factor = min(current / 5.0, 1.0)  # Normalize to 5A max
-        voltage_drop = current_factor * 0.2  # Up to 200mV drop under load
-        
-        voltages = []
-        for i in range(self.total_channels):
-            # Base voltage with slight cell variation
-            base_voltage = CVM24PConfig.NOMINAL_CELL_VOLTAGE + random.uniform(-0.05, 0.05)
-            
-            # Apply load effects
-            operating_voltage = base_voltage - voltage_drop
-            
-            # Add noise
-            noise = random.uniform(-0.015, 0.015)  # ±15mV noise
-            
-            voltage = operating_voltage + noise
-            
-            # Clamp to realistic range
-            voltage = max(CVM24PConfig.MIN_CELL_VOLTAGE, 
-                         min(CVM24PConfig.MAX_CELL_VOLTAGE, voltage))
-            
-            # Round to resolution
-            voltages.append(round(voltage, 3))
-        
-        return voltages
-    
     def get_status(self) -> Dict[str, Any]:
         """Get current service status"""
-        mode = 'MOCK' if self.use_mock else 'HARDWARE'
-        
         return {
             'connected': self.connected,
             'polling': self.polling,
             'device': self.device_name,
             'sample_rate': f"{self.sample_rate} Hz",
-            'mode': mode,
+            'mode': 'Hardware',
             'modules': len(self.modules_info),
             'channels': self.total_channels,
             'resolution': f"{CVM24PConfig.VOLTAGE_RESOLUTION*1000}mV",
