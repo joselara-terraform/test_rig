@@ -118,16 +118,16 @@ class SessionManager:
         Generate base filename with timestamp for current session
         
         Args:
-            file_type: Type of file (data, config, log, etc.)
+            file_type: Type of file (data, config, log, etc.) - not used in filename
             
         Returns:
-            Base filename with timestamp
+            Base filename with timestamp only: YYYY-MM-DD_hh-mm-ss
         """
         if not self.session_start_time:
             raise RuntimeError("No active session. Call start_new_session() first.")
         
-        timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
-        return f"{timestamp}_{file_type}"
+        timestamp = self.session_start_time.strftime("%Y-%m-%d_%H-%M-%S")
+        return timestamp
     
     def register_file(self, filename: str, file_type: str, description: str = "") -> str:
         """
