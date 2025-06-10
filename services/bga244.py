@@ -51,16 +51,16 @@ class BGA244Config:
         'bga_1': {
             'name': 'H2 Header',
             'description': 'Gas analyzer on hydrogen header',
-            'primary_gas': 'H2',     # H2 in O2 mixture
-            'secondary_gas': 'O2',   # H2 in O2 mixture
-            'expected_gases': ['H2', 'O2', 'N2']
+            'primary_gas': 'O2',     # H2 in O2 mixture
+            'secondary_gas': 'H2',   # H2 in O2 mixture
+            'expected_gases': ['O2', 'H2', 'N2']
         },
         'bga_2': {
             'name': 'O2 Header', 
             'description': 'Gas analyzer on oxygen header',
-            'primary_gas': 'O2',     # O2 in H2 mixture
-            'secondary_gas': 'H2',   # O2 in H2 mixture
-            'expected_gases': ['O2', 'H2', 'N2']
+            'primary_gas': 'H2',     # O2 in H2 mixture
+            'secondary_gas': 'O2',   # O2 in H2 mixture
+            'expected_gases': ['H2', 'O2', 'N2']
         },
         'bga_3': {
             'name': 'De-oxo',
