@@ -85,7 +85,7 @@ class BGA244Device:
         self.purge_mode = False
         
     def connect(self) -> bool:
-        """Connect to BGA244 device"""
+        """Connect to BGA244 device with improved robustness"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
             
@@ -95,27 +95,40 @@ class BGA244Device:
                 bytesize=BGA244Config.DATA_BITS,
                 stopbits=BGA244Config.STOP_BITS,
                 parity=BGA244Config.PARITY,
-                timeout=BGA244Config.TIMEOUT
+                timeout=BGA244Config.TIMEOUT,
+                xonxoff=False,    # Disable software flow control
+                rtscts=False,     # Disable hardware flow control
+                dsrdtr=False      # Disable DTR/DSR flow control
             )
             
-            # Clear buffers
+            # Clear buffers and wait for device to be ready
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
+            time.sleep(1.0)  # Increased wait time for BGA244 to be ready
             
-            # Wait for device to be ready
-            time.sleep(0.5)
+            # Test communication with multiple attempts
+            max_attempts = 3
+            for attempt in range(max_attempts):
+                print(f"   → Testing communication (attempt {attempt + 1}/{max_attempts})...")
+                
+                # Clear buffers before test
+                self.serial_conn.reset_input_buffer()
+                self.serial_conn.reset_output_buffer()
+                time.sleep(0.1)
+                
+                response = self._send_command("*IDN?")
+                if response and len(response) > 0:
+                    self.device_info['identity'] = response
+                    self.is_connected = True
+                    print(f"✅ Connected: {response}")
+                    return True
+                else:
+                    print(f"   ❌ Attempt {attempt + 1} failed - no valid response")
+                    time.sleep(0.5)  # Wait before retry
             
-            # Test communication
-            response = self._send_command("*IDN?")
-            if response:
-                self.device_info['identity'] = response
-                self.is_connected = True
-                print(f"✅ Connected: {response}")
-                return True
-            else:
-                print(f"❌ No response from device on {self.port}")
-                self.disconnect()
-                return False
+            print(f"❌ No response from device on {self.port} after {max_attempts} attempts")
+            self.disconnect()
+            return False
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
@@ -265,27 +278,66 @@ class BGA244Device:
             return {}
     
     def _send_command(self, command: str) -> Optional[str]:
-        """Send command to BGA244 and return response"""
+        """Send command to BGA244 and return response with improved robustness"""
         if not self.serial_conn or not self.serial_conn.is_open:
             return None
         
         try:
+            # Clear buffers thoroughly before sending command
+            self.serial_conn.reset_input_buffer()
+            self.serial_conn.reset_output_buffer()
+            time.sleep(0.05)  # Small delay after buffer clear
+            
             # Send command
             command_bytes = (command + '\r\n').encode('ascii')
             self.serial_conn.write(command_bytes)
+            self.serial_conn.flush()  # Ensure command is sent
             
-            # Wait for response
-            time.sleep(BGA244Config.COMMAND_DELAY)
+            # Wait longer for response (BGA244 can be slow)
+            time.sleep(0.2)  # Increased from 0.1 to 0.2 seconds
             
-            # Read response
-            response_bytes = self.serial_conn.read_all()
+            # Read response with timeout
+            response_bytes = b''
+            start_time = time.time()
+            
+            while (time.time() - start_time) < 1.0:  # 1 second timeout
+                if self.serial_conn.in_waiting > 0:
+                    chunk = self.serial_conn.read(self.serial_conn.in_waiting)
+                    response_bytes += chunk
+                    
+                    # Check if we have a complete response (ends with \r\n)
+                    if b'\r\n' in response_bytes or b'\n' in response_bytes:
+                        break
+                        
+                time.sleep(0.02)  # Small delay between checks
+            
+            # Decode and clean response
             response = response_bytes.decode('ascii', errors='ignore').strip()
+            
+            # Remove any non-printable characters and extra whitespace
+            response = ''.join(char for char in response if char.isprintable()).strip()
+            
+            # Validate response format for numeric commands
+            if command.startswith('RATO?') or command.startswith('TCEL?') or command.startswith('PRES?') or command.startswith('NSOS?'):
+                # For numeric responses, validate format
+                if response and not self._is_valid_numeric_response(response):
+                    print(f"⚠️  Invalid response format from {self.unit_config['name']} for '{command}': '{response}'")
+                    return None
             
             return response if response else None
             
         except Exception as e:
-            print(f"⚠️  Command error ({command}): {e}")
+            print(f"⚠️  Command error for {self.unit_config['name']} ({command}): {e}")
             return None
+    
+    def _is_valid_numeric_response(self, response: str) -> bool:
+        """Check if response is a valid numeric value"""
+        try:
+            # Try to convert to float
+            float(response)
+            return True
+        except ValueError:
+            return False
 
 
 class BGA244Service:
