@@ -211,6 +211,9 @@ class BGA244Device:
                     measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
+                    print(f"⚠️  Invalid primary gas response from {self.unit_config['name']}: '{ratio_response}'")
+            else:
+                print(f"⚠️  No primary gas response from {self.unit_config['name']}")
             
             # Read secondary gas concentration (if available)
             ratio2_response = self._send_command("RATO? 2")
@@ -223,6 +226,9 @@ class BGA244Device:
                         measurements['secondary_gas'] = self.unit_config['secondary_gas']
                 except ValueError:
                     measurements['secondary_gas_concentration'] = None
+                    print(f"⚠️  Invalid secondary gas response from {self.unit_config['name']}: '{ratio2_response}'")
+            else:
+                print(f"⚠️  No secondary gas response from {self.unit_config['name']}")
             
             # Calculate remaining gas concentration
             if (measurements.get('primary_gas_concentration') is not None and 
@@ -242,11 +248,20 @@ class BGA244Device:
                 else:
                     # Normal mode - remaining is typically N2
                     measurements['remaining_gas'] = 'N2'
+                
+                # Debug: Log successful readings occasionally
+                if hasattr(self, '_debug_counter'):
+                    self._debug_counter += 1
+                else:
+                    self._debug_counter = 1
+                    
+                if self._debug_counter % 50 == 0:  # Log every 50th reading
+                    print(f"📊 {self.unit_config['name']}: {measurements['primary_gas']}={primary_conc:.2f}%, {measurements['secondary_gas']}={secondary_conc:.2f}%")
             
             return measurements
             
         except Exception as e:
-            print(f"❌ Measurement reading error: {e}")
+            print(f"❌ Measurement reading error for {self.unit_config['name']}: {e}")
             return {}
     
     def _send_command(self, command: str) -> Optional[str]:
@@ -299,6 +314,13 @@ class BGA244Service:
             'bga_1': None,
             'bga_2': None,
             'bga_3': None
+        }
+        
+        # Persistent storage for last known good gas values (prevents step functions)
+        self.last_known_values = {
+            'bga_1': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
+            'bga_2': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
+            'bga_3': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
         }
         
         # BGA244 configuration from device config
@@ -484,6 +506,8 @@ class BGA244Service:
         for unit_id, device in self.devices.items():
             device.disconnect()
             self.individual_connections[unit_id] = False
+            # Reset persistent values for disconnected devices
+            self.last_known_values[unit_id] = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
             # Keep self.bga_port_mapping[unit_id] intact for reconnection
         
         self.devices.clear()
@@ -596,14 +620,14 @@ class BGA244Service:
                 break
     
     def _read_hardware_gas_data(self) -> List[Dict[str, float]]:
-        """Read gas concentrations from real BGA244 hardware"""
+        """Read gas concentrations from real BGA244 hardware with persistent values"""
         gas_readings = []
         
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
         
         for i, unit_id in enumerate(unit_ids):
-            # Initialize with default structure
-            gas_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+            # Start with last known good values (persistent)
+            gas_data = self.last_known_values[unit_id].copy()
             
             if unit_id in self.devices and self.individual_connections[unit_id]:
                 # Read from real hardware
@@ -612,31 +636,45 @@ class BGA244Service:
                     measurements = device.read_measurements()
                     
                     if measurements:
+                        # Successfully got new measurements - update values
+                        new_gas_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                        
                         # Map measurements to gas concentrations
                         if measurements.get('primary_gas_concentration') is not None:
                             primary_gas = measurements['primary_gas']
-                            gas_data[primary_gas] = measurements['primary_gas_concentration']
+                            new_gas_data[primary_gas] = measurements['primary_gas_concentration']
                         
                         if measurements.get('secondary_gas_concentration') is not None:
                             secondary_gas = measurements['secondary_gas']
-                            gas_data[secondary_gas] = measurements['secondary_gas_concentration']
+                            new_gas_data[secondary_gas] = measurements['secondary_gas_concentration']
                         
                         if measurements.get('remaining_gas_concentration') is not None:
                             remaining_gas = measurements['remaining_gas']
-                            gas_data[remaining_gas] = measurements['remaining_gas_concentration']
+                            new_gas_data[remaining_gas] = measurements['remaining_gas_concentration']
                         
                         # Apply calibrated zero offsets if configured
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
-                        for gas, concentration in gas_data.items():
+                        for gas, concentration in new_gas_data.items():
                             if gas != 'other':  # Don't apply offsets to 'other' category
                                 offset = zero_offsets.get(gas, 0.0)
-                                gas_data[gas] = concentration + offset
+                                new_gas_data[gas] = concentration + offset
+                        
+                        # Update persistent storage with new valid values
+                        self.last_known_values[unit_id] = new_gas_data.copy()
+                        gas_data = new_gas_data
                         
                 except Exception as e:
                     print(f"⚠️  Hardware reading error for {unit_id}: {e}")
-                    # Keep default zero values on error
+                    # Keep last known good values instead of resetting to zeros
+                    # gas_data already contains last known values from the copy above
+            else:
+                # Device not connected - reset to zeros only when actually disconnected
+                if not self.individual_connections[unit_id]:
+                    zero_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                    self.last_known_values[unit_id] = zero_data.copy()
+                    gas_data = zero_data
             
-            # Always append a complete dictionary structure
+            # Always append the gas data (either new, last known, or zeros for disconnected)
             gas_readings.append(gas_data)
         
         return gas_readings
@@ -693,4 +731,14 @@ class BGA244Service:
     
     def get_individual_connection_status(self) -> Dict[str, bool]:
         """Get individual connection status for each BGA unit"""
-        return self.individual_connections.copy() 
+        return self.individual_connections.copy()
+    
+    def clear_persistent_values(self):
+        """Clear persistent gas concentration values (for troubleshooting)"""
+        print("🔧 Clearing persistent gas concentration values...")
+        self.last_known_values = {
+            'bga_1': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
+            'bga_2': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0},
+            'bga_3': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+        }
+        print("✅ Persistent values reset to zero") 
