@@ -81,6 +81,7 @@ class BGA244Device:
         """Connect to BGA244 device"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
+            print(f"   → DEBUG: Creating serial connection...")
             
             self.serial_conn = serial.Serial(
                 port=self.port,
@@ -91,15 +92,22 @@ class BGA244Device:
                 timeout=BGA244Config.TIMEOUT
             )
             
+            print(f"   → DEBUG: Serial connection created successfully")
+            
             # Clear buffers
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
+            print(f"   → DEBUG: Buffers cleared")
             
             # Wait for device to be ready
             time.sleep(0.5)
+            print(f"   → DEBUG: Waited 0.5s for device ready")
             
             # Test communication
+            print(f"   → DEBUG: Sending *IDN? command...")
             response = self._send_command("*IDN?")
+            print(f"   → DEBUG: *IDN? response: '{response}'")
+            
             if response:
                 self.device_info['identity'] = response
                 self.is_connected = True
@@ -112,6 +120,7 @@ class BGA244Device:
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
+            print(f"   → DEBUG: Exception details: {type(e).__name__}: {str(e)}")
             self.disconnect()
             return False
     
@@ -131,38 +140,30 @@ class BGA244Device:
             return False
         
         try:
-            print(f"⚙️  Configuring {self.unit_config['name']}...")
+            print(f"⚙️  Configuring {self.unit_config['name']}... (purge_mode={purge_mode})")
             
             # Store purge mode state for this device
             self.purge_mode = purge_mode
             
             # Set binary gas mode
+            print(f"   → DEBUG: Setting binary gas mode...")
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
-            # Configure primary gas (changes for BGA 1 and BGA 2 in purge mode)
-            if purge_mode:
-                if self.unit_id == 'bga_1':
-                    primary_gas = 'H2'  # Switch from O2 to H2 in purge mode
-                elif self.unit_id == 'bga_2':
-                    primary_gas = 'O2'  # Switch from H2 to O2 in purge mode
-                else:
-                    primary_gas = self.unit_config['primary_gas']  # No change for other BGAs
-            else:
-                primary_gas = self.unit_config['primary_gas']
+            # Configure primary gas (use normal config for now to test)
+            primary_gas = self.unit_config['primary_gas']
             
+            print(f"   → DEBUG: Primary gas will be: {primary_gas}")
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
+            print(f"   → DEBUG: Sending GASP command...")
             self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
             
-            # Configure secondary gas (changes in purge mode)
-            if purge_mode:
-                secondary_gas = 'N2'  # All secondary gases become N2 in purge mode
-                secondary_cas = BGA244Config.GAS_CAS_NUMBERS['N2']
-                print(f"   PURGE MODE: Secondary gas changed to N2")
-            else:
-                secondary_gas = self.unit_config['secondary_gas']
-                secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
+            # Configure secondary gas (use normal config for now to test)
+            secondary_gas = self.unit_config['secondary_gas']
+            secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             
+            print(f"   → DEBUG: Secondary gas will be: {secondary_gas}")
+            print(f"   → DEBUG: Sending GASS command...")
             self._send_command(f"GASS {secondary_cas}")
             print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
             
@@ -373,6 +374,8 @@ class BGA244Service:
         for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
             # Get the configured port for this unit from device config
             configured_port = self.device_config.get_bga_unit_config(unit_id).get('port')
+            
+            print(f"   → DEBUG: {unit_id} configured port: {configured_port}")
             
             if configured_port:
                 print(f"   → Trying to connect {unit_config['name']} to {configured_port}...")
