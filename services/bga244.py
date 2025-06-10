@@ -51,15 +51,15 @@ class BGA244Config:
         'bga_1': {
             'name': 'H2 Header',
             'description': 'BGA 1 - H2 Ratio 1: measures O2 in H2, H2 in N2 during purging',
-            'primary_gas': 'H2',     # H2 Ratio 1 - Primary measurement
-            'secondary_gas': 'O2',   # O2 in H2 mixture
+            'primary_gas': 'O2',     # O2 in H2 - Primary measurement
+            'secondary_gas': 'H2',   # H2 in mixture
             'expected_gases': ['H2', 'O2', 'N2']
         },
         'bga_2': {
             'name': 'O2 Header', 
             'description': 'BGA 2 - O2 Ratio 1: measures H2 in O2, O2 in N2 during purging',
-            'primary_gas': 'O2',     # O2 Ratio 1 - Primary measurement
-            'secondary_gas': 'H2',   # H2 in O2 mixture
+            'primary_gas': 'H2',     # H2 in O2 - Primary measurement
+            'secondary_gas': 'O2',   # O2 in mixture
             'expected_gases': ['O2', 'H2', 'N2']
         },
         'bga_3': {
@@ -602,6 +602,9 @@ class BGA244Service:
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
         
         for i, unit_id in enumerate(unit_ids):
+            # Initialize with default structure
+            gas_data = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+            
             if unit_id in self.devices and self.individual_connections[unit_id]:
                 # Read from real hardware
                 try:
@@ -609,9 +612,6 @@ class BGA244Service:
                     measurements = device.read_measurements()
                     
                     if measurements:
-                        # Convert to standard format
-                        gas_data = {}
-                        
                         # Map measurements to gas concentrations
                         if measurements.get('primary_gas_concentration') is not None:
                             primary_gas = measurements['primary_gas']
@@ -628,20 +628,16 @@ class BGA244Service:
                         # Apply calibrated zero offsets if configured
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
                         for gas, concentration in gas_data.items():
-                            offset = zero_offsets.get(gas, 0.0)
-                            gas_data[gas] = concentration + offset
-                        
-                        gas_readings.append(gas_data)
-                    else:
-                        # No data from this device
-                        gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                            if gas != 'other':  # Don't apply offsets to 'other' category
+                                offset = zero_offsets.get(gas, 0.0)
+                                gas_data[gas] = concentration + offset
                         
                 except Exception as e:
                     print(f"⚠️  Hardware reading error for {unit_id}: {e}")
-                    gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
-            else:
-                # Device not connected - return zero data (no plotting)
-                gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                    # Keep default zero values on error
+            
+            # Always append a complete dictionary structure
+            gas_readings.append(gas_data)
         
         return gas_readings
     

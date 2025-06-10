@@ -104,14 +104,20 @@ class PressurePlot:
         # Only 3 BGA series: H2 from hydrogen side, O2 from oxygen side, H2 from mixed
         gas_concentrations = self.state.gas_concentrations
         
-        # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
-        h2_hydrogen_side = (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0
+        # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration with safe access
+        h2_hydrogen_side = 0.0
+        if len(gas_concentrations) > 0 and isinstance(gas_concentrations[0], dict):
+            h2_hydrogen_side = (gas_concentrations[0].get('H2', 0.0) / 100.0)
         
-        # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
-        o2_oxygen_side = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
+        # Unit 2: oxygen_side (O2 outlet) - get O2 concentration with safe access
+        o2_oxygen_side = 0.0
+        if len(gas_concentrations) > 1 and isinstance(gas_concentrations[1], dict):
+            o2_oxygen_side = (gas_concentrations[1].get('O2', 0.0) / 100.0)
         
-        # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
-        h2_mixed = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
+        # Unit 3: mixed_gas (Mixed stream) - get H2 concentration with safe access
+        h2_mixed = 0.0
+        if len(gas_concentrations) > 2 and isinstance(gas_concentrations[2], dict):
+            h2_mixed = (gas_concentrations[2].get('H2', 0.0) / 100.0)
         
         # Add new data points
         self.time_data.append(relative_time)
