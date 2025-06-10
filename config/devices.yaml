@@ -276,7 +276,7 @@ platform_overrides:
         bga_2:
           port: "COM4"
         bga_3:
-          port: "COM5"
+          port: "COM9"
   
   linux:
     bga244:
