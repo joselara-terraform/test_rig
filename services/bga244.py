@@ -210,7 +210,16 @@ class BGA244Device:
             if ratio_response:
                 try:
                     measurements['primary_gas_concentration'] = float(ratio_response)
-                    measurements['primary_gas'] = self.unit_config['primary_gas']
+                    # Determine which gas is actually primary based on purge mode
+                    if self.purge_mode:
+                        if self.unit_id == 'bga_1':
+                            measurements['primary_gas'] = 'H2'
+                        elif self.unit_id == 'bga_2':
+                            measurements['primary_gas'] = 'O2'
+                        else:
+                            measurements['primary_gas'] = self.unit_config['primary_gas']
+                    else:
+                        measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
             
@@ -555,6 +564,11 @@ class BGA244Service:
                         if measurements.get('remaining_gas_concentration') is not None:
                             remaining_gas = measurements['remaining_gas']
                             gas_data[remaining_gas] = measurements['remaining_gas_concentration']
+                        
+                        # Ensure all expected gas types are present for plotting
+                        for gas_type in ['H2', 'O2', 'N2']:
+                            if gas_type not in gas_data:
+                                gas_data[gas_type] = 0.0
                         
                         # Apply calibrated zero offsets if configured
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
