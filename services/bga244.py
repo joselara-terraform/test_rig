@@ -41,7 +41,7 @@ class BGA244Config:
     
     # Platform-specific serial port configurations
     SERIAL_PORTS = {
-        'Windows': ['COM4', 'COM3', 'COM5', 'COM6', 'COM7', 'COM8'],
+        'Windows': ['COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8'],
         'Linux': ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyUSB2', '/dev/ttyACM0'],
         'Darwin': ['/dev/tty.usbserial-A1', '/dev/tty.usbserial-A2', '/dev/tty.usbserial-A3']
     }
@@ -50,16 +50,16 @@ class BGA244Config:
     BGA_UNITS = {
         'bga_1': {
             'name': 'H2 Header',
-            'description': 'Gas analyzer on hydrogen header',
-            'primary_gas': 'H2',     # H2 in O2 mixture
-            'secondary_gas': 'O2',   # H2 in O2 mixture
+            'description': 'BGA 1 - H2 Ratio 1: measures O2 in H2, H2 in N2 during purging',
+            'primary_gas': 'H2',     # H2 Ratio 1 - Primary measurement
+            'secondary_gas': 'O2',   # O2 in H2 mixture
             'expected_gases': ['H2', 'O2', 'N2']
         },
         'bga_2': {
             'name': 'O2 Header', 
-            'description': 'Gas analyzer on oxygen header',
-            'primary_gas': 'O2',     # O2 in H2 mixture
-            'secondary_gas': 'H2',   # O2 in H2 mixture
+            'description': 'BGA 2 - O2 Ratio 1: measures H2 in O2, O2 in N2 during purging',
+            'primary_gas': 'O2',     # O2 Ratio 1 - Primary measurement
+            'secondary_gas': 'H2',   # H2 in O2 mixture
             'expected_gases': ['O2', 'H2', 'N2']
         },
         'bga_3': {
