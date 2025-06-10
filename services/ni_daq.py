@@ -131,10 +131,12 @@ class NIDAQService:
                 max_val=self.max_current_ma / 1000.0   # Convert mA to A
             )
         
-        # Configure continuous sampling
+        # Configure FINITE sampling (like working test files)
+        # This avoids timing issues with continuous acquisition
         self.ai_task.timing.cfg_samp_clk_timing(
-            rate=self.sample_rate,
-            sample_mode=AcquisitionType.CONTINUOUS
+            rate=1000,  # 1kHz sample rate for finite acquisition
+            sample_mode=AcquisitionType.FINITE,
+            samps_per_chan=10  # Read 10 samples per channel each time
         )
         
         # Setup digital output tasks
@@ -228,14 +230,8 @@ class NIDAQService:
         self._stop_event.clear()
         self.polling = True
         
-        # Start analog input task for real hardware
-        if not self.mock_mode and self.ai_task:
-            try:
-                self.ai_task.start()
-            except Exception as e:
-                print(f"❌ Failed to start analog input task: {e}")
-                self.polling = False
-                return False
+        # For FINITE acquisition, we don't start the task here
+        # Instead, we read on-demand in each polling cycle
         
         # Start polling thread
         self.polling_thread = threading.Thread(target=self._polling_loop, daemon=True)
@@ -255,12 +251,8 @@ class NIDAQService:
         self._stop_event.set()
         self.polling = False
         
-        # Stop analog input task for real hardware
-        if not self.mock_mode and self.ai_task:
-            try:
-                self.ai_task.stop()
-            except:
-                pass
+        # For FINITE acquisition, task is not continuously running
+        # No need to stop it here
         
         # Wait for thread to finish
         if self.polling_thread and self.polling_thread.is_alive():
@@ -301,32 +293,28 @@ class NIDAQService:
     def _read_analog_inputs_real(self):
         """Read real analog inputs from NI-9253"""
         try:
-            # Read current data (in Amps)
-            data = self.ai_task.read(number_of_samples_per_channel=10, timeout=1.0)
+            # For FINITE acquisition, read specific number of samples (like working test files)
+            data = self.ai_task.read(number_of_samples_per_channel=10, timeout=2.0)
             
-            # Handle data structure properly for multiple channels
+            # Handle data structure for multiple channels with FINITE acquisition
             num_channels = len(self.analog_channels)
             
-            # For continuous acquisition with multiple channels, data structure varies
-            if isinstance(data, list) and len(data) > 0:
-                if num_channels == 1:
-                    # Single channel - data is a simple list
-                    all_channel_data = [data]
-                else:
-                    # Multiple channels - check if data is structured or flat
-                    if isinstance(data[0], list):
-                        # Data is already structured as list of lists
-                        all_channel_data = data
-                    else:
-                        # Data is flat - de-interleave (shouldn't happen in continuous mode normally)
-                        all_channel_data = [[] for _ in range(num_channels)]
-                        for i in range(0, len(data), num_channels):
-                            for ch in range(num_channels):
-                                if i + ch < len(data):
-                                    all_channel_data[ch].append(data[i + ch])
+            # With FINITE acquisition, data structure is predictable:
+            # - Single channel: list of samples [s1, s2, s3, ...]
+            # - Multiple channels: list of lists [[ch1_s1, ch1_s2, ...], [ch2_s1, ch2_s2, ...], ...]
+            
+            if num_channels == 1:
+                # Single channel - data is a simple list
+                all_channel_data = [data]
             else:
-                # Fallback - create empty data structure
-                all_channel_data = [[] for _ in range(num_channels)]
+                # Multiple channels - data should be list of lists
+                if isinstance(data, list) and len(data) > 0 and isinstance(data[0], list):
+                    # Data is properly structured
+                    all_channel_data = data
+                else:
+                    # Fallback - shouldn't happen with FINITE acquisition
+                    print("⚠️  Unexpected data structure from FINITE acquisition")
+                    all_channel_data = [[] for _ in range(num_channels)]
             
             # Process and convert to engineering units
             scaled_data = {}
