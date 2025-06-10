@@ -139,8 +139,17 @@ class BGA244Device:
             # Set binary gas mode
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
-            # Configure primary gas (always the same)
-            primary_gas = self.unit_config['primary_gas']
+            # Configure primary gas (changes for BGA 1 and BGA 2 in purge mode)
+            if purge_mode:
+                if self.unit_id == 'bga_1':
+                    primary_gas = 'H2'  # Switch from O2 to H2 in purge mode
+                elif self.unit_id == 'bga_2':
+                    primary_gas = 'O2'  # Switch from H2 to O2 in purge mode
+                else:
+                    primary_gas = self.unit_config['primary_gas']  # No change for other BGAs
+            else:
+                primary_gas = self.unit_config['primary_gas']
+            
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
             self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
