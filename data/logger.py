@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from core.state import get_global_state
 from data.session_manager import get_session_manager
+import os
 
 
 class CSVLogger:
@@ -70,12 +71,16 @@ class CSVLogger:
         current_session = self.session_manager.get_current_session()
         if not current_session:
             print("❌ Cannot start logging - no active test session")
+            print("   → Call session_manager.start_new_session() first")
             return False
         
         print("📊 Starting CSV data logging...")
+        print(f"   → Session: {current_session['session_id']}")
+        print(f"   → Session folder: {current_session['folder_path']}")
         
         try:
             # Initialize CSV files
+            print("   → Initializing CSV files...")
             if not self._initialize_csv_files():
                 print("❌ Failed to initialize CSV files")
                 return False
@@ -89,8 +94,9 @@ class CSVLogger:
             self.log_thread = threading.Thread(target=self._logging_worker, daemon=True)
             self.log_thread.start()
             
-            print(f"✅ CSV logging started (interval: {self.log_interval}s)")
-            print(f"   → Files: {len(self.csv_files)} CSV files created")
+            print(f"✅ CSV logging started successfully")
+            print(f"   → Log interval: {self.log_interval}s")
+            print(f"   → Files created: {len(self.csv_files)}")
             for file_type, file_path in self.csv_files.items():
                 print(f"      • {file_type}: {Path(file_path).name}")
             
@@ -98,6 +104,8 @@ class CSVLogger:
             
         except Exception as e:
             print(f"❌ Failed to start CSV logging: {e}")
+            import traceback
+            print(f"   → Error details: {traceback.format_exc()}")
             self._cleanup_files()
             return False
     
@@ -129,7 +137,9 @@ class CSVLogger:
         """Initialize CSV files with headers"""
         try:
             # Get base filename from session manager
+            print("      → Getting base filename from session manager...")
             base_filename = self.session_manager.get_base_filename("data")
+            print(f"      → Base filename: {base_filename}")
             
             # Create CSV files for different data types
             file_configs = {
@@ -139,21 +149,43 @@ class CSVLogger:
                 'actuator_states': f"{base_filename}_actuators.csv"
             }
             
+            print(f"      → Creating {len(file_configs)} CSV files...")
+            
             # Initialize each CSV file
             for file_type, filename in file_configs.items():
+                print(f"         • Creating {file_type}: {filename}")
+                
                 # Register file with session manager
                 file_path = self.session_manager.register_file(
                     filename, 
                     "csv", 
                     f"Real-time {file_type.replace('_', ' ')} data"
                 )
+                print(f"           → Full path: {file_path}")
+                
+                # Check if directory exists and is writable
+                file_path_obj = Path(file_path)
+                parent_dir = file_path_obj.parent
+                
+                if not parent_dir.exists():
+                    print(f"           → Creating directory: {parent_dir}")
+                    parent_dir.mkdir(parents=True, exist_ok=True)
+                
+                if not parent_dir.is_dir():
+                    raise Exception(f"Parent directory is not a directory: {parent_dir}")
+                
+                # Test write permissions
+                if not os.access(parent_dir, os.W_OK):
+                    raise Exception(f"No write permission to directory: {parent_dir}")
                 
                 # Open file and create CSV writer
+                print(f"           → Opening file for writing...")
                 file_handle = open(file_path, 'w', newline='', encoding='utf-8')
                 csv_writer = csv.writer(file_handle)
                 
                 # Write header row
                 headers = self.column_definitions[file_type]
+                print(f"           → Writing {len(headers)} column headers")
                 csv_writer.writerow(headers)
                 file_handle.flush()
                 
@@ -161,11 +193,16 @@ class CSVLogger:
                 self.csv_files[file_type] = file_path
                 self.file_handles[file_type] = file_handle
                 self.csv_writers[file_type] = csv_writer
+                
+                print(f"           → ✅ {file_type} file created successfully")
             
+            print(f"      → ✅ All {len(file_configs)} CSV files initialized")
             return True
             
         except Exception as e:
             print(f"❌ Error initializing CSV files: {e}")
+            import traceback
+            print(f"   → Error details: {traceback.format_exc()}")
             self._cleanup_files()
             return False
     

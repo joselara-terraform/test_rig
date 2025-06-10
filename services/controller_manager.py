@@ -143,23 +143,28 @@ class ControllerManager:
             self._save_test_configuration(config_path)
             
             # Start CSV data logging
+            print("   → Starting CSV data logging...")
             logging_started = self.csv_logger.start_logging()
-            if not logging_started:
-                print("⚠️  CSV logging failed to start - test will continue without logging")
             
             print(f"✅ Test session started: {self.current_session['session_id']}")
             print(f"   → Session folder: {self.current_session['folder_path']}")
             print(f"   → Configuration saved: {config_file}")
             print(f"   → Timer: ✅ Started")
+            
             if logging_started:
-                print(f"   → CSV logging: ✅ Started")
+                print(f"   → CSV logging: ✅ Started - Files will be created")
+                print(f"   → Log files: sensors.csv, gas_analysis.csv, cell_voltages.csv, actuators.csv")
             else:
-                print(f"   → CSV logging: ❌ Failed")
+                print(f"   → CSV logging: ❌ FAILED - No CSV files will be created")
+                print(f"   → Check session folder and file permissions")
+                print(f"   → Test will continue without data logging")
             
             return True
             
         except Exception as e:
             print(f"❌ Failed to start test session: {e}")
+            import traceback
+            print(f"   → Error details: {traceback.format_exc()}")
             self.test_running = False
             self.state.update_test_status(running=False)
             self.timer.reset()

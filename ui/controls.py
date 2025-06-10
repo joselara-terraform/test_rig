@@ -150,7 +150,14 @@ class ControlPanel:
             success = self.controller.start_test("UI_Test_Session")
             
             if success:
-                print("   ✅ Test started with real data logging")
+                # Check if CSV logging actually started by looking at the logger status
+                csv_logger_status = self.controller.csv_logger.get_status()
+                if csv_logger_status.get('logging', False):
+                    print("   ✅ Test started successfully with CSV data logging")
+                    print("   → CSV files are being created in session folder")
+                else:
+                    print("   ✅ Test started successfully but CSV logging failed")
+                    print("   → No data files will be created (check console for details)")
             else:
                 print("   ❌ Failed to start test")
         else:
@@ -161,9 +168,20 @@ class ControlPanel:
         """Stop the current test using controller manager"""
         print("   → Stopping test sequence...")
         
+        # Check if CSV logging was active before stopping
+        csv_was_logging = self.controller.csv_logger.get_status().get('logging', False)
+        
         # Use controller manager to stop test (this handles CSV logging and session finalization)
-        self.controller.stop_test("completed")
-        print("   ✅ Test stopped with real data logging")
+        final_session = self.controller.stop_test("completed")
+        
+        if csv_was_logging:
+            print("   ✅ Test stopped - CSV data logging completed")
+            if final_session:
+                file_count = len(final_session.get('files', {}))
+                print(f"   → {file_count} files saved in session folder")
+        else:
+            print("   ✅ Test stopped - no CSV data was logged")
+            print("   → Session folder created but no data files")
     
     def _on_pause_click(self):
         """Handle Pause/Resume button click"""
