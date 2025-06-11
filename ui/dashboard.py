@@ -58,6 +58,7 @@ class Dashboard:
         # Configure middle frame for side-by-side layout
         self.middle_frame.columnconfigure(0, weight=1)
         self.middle_frame.columnconfigure(1, weight=1)
+        self.middle_frame.rowconfigure(0, weight=0)  # Don't expand vertically, keep consistent height
         
         # Add hardware status indicators (left side of middle section)
         self.status_frame = ttk.Frame(self.middle_frame)
@@ -72,7 +73,7 @@ class Dashboard:
         )
         self.actuator_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(2, 0))
         self.actuator_frame.columnconfigure(0, weight=1)
-        self.actuator_frame.rowconfigure(0, weight=1)
+        self.actuator_frame.rowconfigure(0, weight=0)  # Don't expand vertically
         
         # Create actuator controls in the middle section
         self._create_actuator_controls()
@@ -223,13 +224,13 @@ class Dashboard:
         
         # Container frame to organize layout horizontally
         container_frame = ttk.Frame(self.actuator_frame)
-        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)  # Remove S to prevent vertical expansion
         container_frame.columnconfigure(0, weight=1)
         container_frame.columnconfigure(1, weight=0)  # Pump column doesn't expand
         
         # Left side: Valve controls in 2x2 grid
         valve_frame = ttk.Frame(container_frame)
-        valve_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 15))
+        valve_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=(0, 5))  # Reduced padding
         
         ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
         
@@ -265,7 +266,7 @@ class Dashboard:
         
         # Right side: Pump control
         pump_frame = ttk.Frame(container_frame)
-        pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(15, 0))
+        pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(5, 0))  # Reduced padding
         
         ttk.Label(pump_frame, text="DI Pump", font=("Arial", 10, "bold")).pack(pady=(0, 10))
         self.pump_state_label = tk.Button(
