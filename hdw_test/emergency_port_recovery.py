@@ -11,24 +11,61 @@ import os
 import sys
 
 def kill_python_processes():
-    """Kill any other Python processes that might be holding COM ports"""
+    """Kill any other Python processes that might be holding COM ports (but not this one)"""
     print("🔪 Killing any Python processes that might be holding ports...")
     
     try:
-        # Kill any python processes (except this one)
-        result = subprocess.run(['taskkill', '/F', '/IM', 'python.exe'], 
-                              capture_output=True, text=True)
-        print(f"   → taskkill result: {result.returncode}")
+        import psutil
+        current_pid = os.getpid()
+        print(f"   → Current script PID: {current_pid} (will NOT kill)")
         
-        result = subprocess.run(['taskkill', '/F', '/IM', 'pythonw.exe'], 
-                              capture_output=True, text=True)
-        print(f"   → taskkill pythonw result: {result.returncode}")
+        killed_count = 0
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                if proc.info['name'] and 'python' in proc.info['name'].lower():
+                    if proc.info['pid'] != current_pid:
+                        # Check if it's running main.py or related scripts
+                        cmdline = ' '.join(proc.info['cmdline'] or [])
+                        if 'main.py' in cmdline or 'bga' in cmdline.lower():
+                            print(f"   → Killing PID {proc.info['pid']}: {cmdline}")
+                            proc.terminate()
+                            killed_count += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
         
-        time.sleep(2.0)
-        print("   ✅ Python processes cleared")
+        if killed_count > 0:
+            print(f"   → Killed {killed_count} Python processes")
+            time.sleep(2.0)
+        else:
+            print(f"   → No other Python processes found")
         
+        print("   ✅ Python process cleanup complete")
+        
+    except ImportError:
+        print("   ⚠️  psutil not available, using basic taskkill...")
+        # Fallback: Use a batch file to kill processes after this script exits
+        create_cleanup_batch()
     except Exception as e:
-        print(f"   ⚠️  Error killing processes: {e}")
+        print(f"   ⚠️  Error with selective killing: {e}")
+        create_cleanup_batch()
+
+
+def create_cleanup_batch():
+    """Create a batch file to kill Python processes after this script exits"""
+    batch_content = '''@echo off
+echo Waiting for emergency script to finish...
+timeout /t 2 /nobreak >nul
+echo Killing Python processes...
+taskkill /F /IM python.exe >nul 2>&1
+taskkill /F /IM pythonw.exe >nul 2>&1
+echo Cleanup complete
+del "%~f0"
+'''
+    
+    with open('cleanup_python.bat', 'w') as f:
+        f.write(batch_content)
+    
+    print("   → Created cleanup batch file to run after script exits")
 
 
 def force_release_com_ports():
