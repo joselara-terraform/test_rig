@@ -221,24 +221,24 @@ class Dashboard:
     def _create_actuator_controls(self):
         """Create actuator controls in the middle section"""
         
-        # Container frame to center content and control sizing
+        # Container frame to organize layout horizontally
         container_frame = ttk.Frame(self.actuator_frame)
-        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=10, pady=10)
         container_frame.columnconfigure(0, weight=1)
-        container_frame.rowconfigure(1, weight=1)
+        container_frame.columnconfigure(1, weight=0)  # Pump column doesn't expand
         
-        # Valve states in 2x2 grid pattern: [KOH Fill, Stack Drain; DI Fill, N2 Purge]
+        # Left side: Valve controls in 2x2 grid
         valve_frame = ttk.Frame(container_frame)
-        valve_frame.grid(row=0, column=0, pady=10, sticky=(tk.W, tk.E))
+        valve_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 15))
         
-        ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 11, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
         
         # Valve layout: [KOH Fill, Stack Drain; DI Fill, N2 Purge]
         valve_config = [
-            ("KOH Fill", 0, 0, 0),      # Row 1, Col 1, Index 0
-            ("Stack Drain", 0, 1, 2),  # Row 1, Col 2, Index 2 
-            ("DI Fill", 1, 0, 1),       # Row 2, Col 1, Index 1
-            ("N2 Purge", 1, 1, 3)       # Row 2, Col 2, Index 3
+            ("KOH Fill", 1, 0, 0),      # Row 1, Col 0, Index 0
+            ("Stack Drain", 1, 1, 2),  # Row 1, Col 1, Index 2 
+            ("DI Fill", 3, 0, 1),       # Row 3, Col 0, Index 1
+            ("N2 Purge", 3, 1, 3)       # Row 3, Col 1, Index 3
         ]
         
         self.valve_labels = [None] * 4  # Initialize list with correct size
@@ -246,43 +246,40 @@ class Dashboard:
         for valve_name, row, col, valve_idx in valve_config:
             # Valve label
             valve_label = ttk.Label(valve_frame, text=valve_name, font=("Arial", 9))
-            valve_label.grid(row=1 + row*2, column=col, padx=10, pady=(0, 5), sticky="n")
+            valve_label.grid(row=row, column=col, padx=5, pady=(0, 5))
             
-            # Clickable button
+            # Clickable button (back to original size)
             valve_button = tk.Button(
                 valve_frame, 
                 text="OFF", 
                 background="red", 
                 foreground="white",
-                width=10,
-                height=2,
+                width=8,  # Back to original size
                 relief=tk.RAISED,
                 command=lambda idx=valve_idx: self._toggle_valve(idx),
                 cursor="hand2",
-                font=("Arial", 9, "bold")
+                font=("Arial", 9)
             )
-            valve_button.grid(row=2 + row*2, column=col, padx=10, pady=(0, 10))
+            valve_button.grid(row=row+1, column=col, padx=5, pady=(0, 10))
             self.valve_labels[valve_idx] = valve_button
         
-        # Pump state
+        # Right side: Pump control
         pump_frame = ttk.Frame(container_frame)
-        pump_frame.grid(row=1, column=0, pady=10, sticky=(tk.W, tk.E))
-        pump_frame.columnconfigure(0, weight=1)
+        pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(15, 0))
         
-        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 11, "bold")).pack()
+        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 10, "bold")).pack(pady=(0, 10))
         self.pump_state_label = tk.Button(
             pump_frame, 
             text="OFF", 
             background="red", 
             foreground="white",
-            width=15,
-            height=2,
+            width=8,  # Back to original size
             relief=tk.RAISED,
-            font=("Arial", 10, "bold"),
+            font=("Arial", 9, "bold"),
             command=self._toggle_pump,
             cursor="hand2"
         )
-        self.pump_state_label.pack(pady=(10, 0))
+        self.pump_state_label.pack()
     
     def _create_current_sensor_display(self):
         """Create current sensor display for bottom-right section"""
