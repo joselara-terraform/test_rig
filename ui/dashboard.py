@@ -58,22 +58,22 @@ class Dashboard:
         # Configure middle frame for side-by-side layout
         self.middle_frame.columnconfigure(0, weight=1)
         self.middle_frame.columnconfigure(1, weight=1)
-        self.middle_frame.rowconfigure(0, weight=0)  # Don't expand vertically, keep consistent height
+        self.middle_frame.rowconfigure(0, weight=1)  # Allow both sections to expand vertically
         
         # Add hardware status indicators (left side of middle section)
         self.status_frame = ttk.Frame(self.middle_frame)
         self.status_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 2))
         self.status_indicators = StatusIndicators(self.status_frame)
         
-        # Add actuator controls (right side of middle section)
+        # Add actuator controls (right side of middle section) - make it more compact
         self.actuator_frame = ttk.LabelFrame(
             self.middle_frame,
             text="Actuator Controls",
             padding="5"
         )
         self.actuator_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(2, 0))
-        self.actuator_frame.columnconfigure(0, weight=1)
-        self.actuator_frame.rowconfigure(0, weight=0)  # Don't expand vertically
+        self.actuator_frame.columnconfigure(0, weight=0)  # Don't expand horizontally - keep compact
+        self.actuator_frame.rowconfigure(0, weight=1)  # Allow vertical expansion
         
         # Create actuator controls in the middle section
         self._create_actuator_controls()
@@ -222,15 +222,13 @@ class Dashboard:
     def _create_actuator_controls(self):
         """Create actuator controls in the middle section"""
         
-        # Container frame to organize layout horizontally
+        # Container frame to organize layout horizontally - make compact
         container_frame = ttk.Frame(self.actuator_frame)
-        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=10, pady=10)  # Remove S to prevent vertical expansion
-        container_frame.columnconfigure(0, weight=1)
-        container_frame.columnconfigure(1, weight=0)  # Pump column doesn't expand
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.N), padx=5, pady=5)  # Reduced padding, removed E,S to keep compact
         
         # Left side: Valve controls in 2x2 grid
         valve_frame = ttk.Frame(container_frame)
-        valve_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N), padx=(0, 5))  # Reduced padding
+        valve_frame.grid(row=0, column=0, sticky=(tk.W, tk.N))  # No horizontal padding
         
         ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
         
@@ -264,9 +262,9 @@ class Dashboard:
             valve_button.grid(row=row+1, column=col, padx=5, pady=(0, 10))
             self.valve_labels[valve_idx] = valve_button
         
-        # Right side: Pump control - align with valve buttons
+        # Right side: Pump control - align with valve buttons, minimal spacing
         pump_frame = ttk.Frame(container_frame)
-        pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(5, 0))  # Reduced padding
+        pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(10, 0))  # Minimal horizontal spacing
         
         # Add spacing to align pump button with first valve button (KOH Fill)
         # The valve frame has: title (row 0) + label (row 1) + button (row 2)
