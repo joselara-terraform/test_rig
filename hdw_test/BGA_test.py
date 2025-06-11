@@ -7,7 +7,7 @@ def send(ser, cmd):
     return ser.read_all().decode('ascii', errors='ignore').strip()
 
 # Connect to BGA244
-ser = serial.Serial('COM3', 9600, timeout=1)
+ser = serial.Serial('COM4', 9600, timeout=1)
 ser.reset_input_buffer()
 ser.reset_output_buffer()
 

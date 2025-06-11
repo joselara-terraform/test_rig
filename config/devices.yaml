@@ -272,9 +272,9 @@ platform_overrides:
     bga244:
       units:
         bga_1:
-          port: "COM3"
-        bga_2:
           port: "COM4"
+        bga_2:
+          port: "COM5"
         bga_3:
           port: "COM9"
   
