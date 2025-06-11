@@ -46,10 +46,36 @@ class Dashboard:
         
         # Configure main container
         main_container.columnconfigure(0, weight=1)
-        main_container.rowconfigure(1, weight=1)  # Give weight to the grid section
+        main_container.rowconfigure(3, weight=1)  # Give weight to the grid section (now row 3)
         
         # Add control panel at the top
         self.control_panel = ControlPanel(main_container, plot_reset_callback=self.reset_plots)
+        
+        # Create middle section with hardware status (left) and actuator controls (right)
+        self.middle_frame = ttk.Frame(main_container, padding="5")
+        self.middle_frame.pack(fill='x', pady=(5, 0))
+        
+        # Configure middle frame for side-by-side layout
+        self.middle_frame.columnconfigure(0, weight=1)
+        self.middle_frame.columnconfigure(1, weight=1)
+        
+        # Add hardware status indicators (left side of middle section)
+        self.status_frame = ttk.Frame(self.middle_frame)
+        self.status_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 2))
+        self.status_indicators = StatusIndicators(self.status_frame)
+        
+        # Add actuator controls (right side of middle section)
+        self.actuator_frame = ttk.LabelFrame(
+            self.middle_frame,
+            text="Actuator Controls",
+            padding="5"
+        )
+        self.actuator_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(2, 0))
+        self.actuator_frame.columnconfigure(0, weight=1)
+        self.actuator_frame.rowconfigure(0, weight=1)
+        
+        # Create actuator controls in the middle section
+        self._create_actuator_controls()
         
         # Create main frame for 2x2 grid
         self.main_frame = ttk.Frame(main_container, padding="5")
@@ -166,7 +192,7 @@ class Dashboard:
         # Create voltage plot
         self.voltage_plot = VoltagePlot(self.voltage_frame)
         
-        # Bottom-left: Temperature vs Time plot
+        # Bottom-left: Temperature vs Time plot (placeholder for Task 16)
         self.temperature_frame = ttk.LabelFrame(
             self.main_frame, 
             text="Temperature vs Time", 
@@ -179,114 +205,114 @@ class Dashboard:
         # Create temperature plot
         self.temperature_plot = TemperaturePlot(self.temperature_frame)
         
-        # Bottom-right: Split between status indicators and actuator controls
-        self.bottom_right_frame = ttk.Frame(self.main_frame, padding="2")
-        self.bottom_right_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.bottom_right_frame.columnconfigure(0, weight=1)
-        self.bottom_right_frame.columnconfigure(1, weight=1)
-        self.bottom_right_frame.rowconfigure(0, weight=1)
-        
-        # Left half: Status indicators
-        self.status_frame = ttk.LabelFrame(
-            self.bottom_right_frame,
-            text="Hardware Status",
+        # Bottom-right: Current sensor reading only
+        self.current_frame = ttk.LabelFrame(
+            self.main_frame, 
+            text="Current Sensor", 
             padding="5"
         )
-        self.status_frame.grid(row=0, column=0, padx=(0, 2), pady=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.current_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.current_frame.columnconfigure(0, weight=1)
+        self.current_frame.rowconfigure(0, weight=1)
         
-        # Create status indicators in the left half
-        self.status_indicators = StatusIndicators(self.status_frame)
-        
-        # Right half: Actuator controls
-        self.actuator_frame = ttk.LabelFrame(
-            self.bottom_right_frame,
-            text="Actuator Controls",
-            padding="5"
-        )
-        self.actuator_frame.grid(row=0, column=1, padx=(2, 0), pady=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.actuator_frame.columnconfigure(0, weight=1)
-        self.actuator_frame.rowconfigure(0, weight=1)
-        
-        # Create actuator controls in the right half
-        self._create_actuator_controls()
+        # Create current sensor display
+        self._create_current_sensor_display()
     
     def _create_actuator_controls(self):
-        """Create actuator controls in the right half"""
+        """Create actuator controls in the middle section"""
         
         # Container frame to center content and control sizing
         container_frame = ttk.Frame(self.actuator_frame)
-        container_frame.pack(fill='both', expand=True, pady=5)
-        
-        # Configure container for layout
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         container_frame.columnconfigure(0, weight=1)
-        container_frame.columnconfigure(1, weight=1)
-        container_frame.rowconfigure(0, weight=0)  # Valves section
-        container_frame.rowconfigure(1, weight=0)  # Pump section
-        container_frame.rowconfigure(2, weight=1)  # Current sensor (bottom right)
+        container_frame.rowconfigure(1, weight=1)
         
-        # Valve controls in 2x2 grid: [KOH Fill, Stack Drain; DI Fill, N2 Purge]
-        valve_frame = ttk.LabelFrame(container_frame, text="Solenoid Valves", padding="5")
-        valve_frame.grid(row=0, column=0, columnspan=2, padx=5, pady=5, sticky=(tk.W, tk.E))
-        valve_frame.columnconfigure(0, weight=1)
-        valve_frame.columnconfigure(1, weight=1)
+        # Valve states in 2x2 grid pattern: [KOH Fill, Stack Drain; DI Fill, N2 Purge]
+        valve_frame = ttk.Frame(container_frame)
+        valve_frame.grid(row=0, column=0, pady=10, sticky=(tk.W, tk.E))
+        
+        ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 11, "bold")).grid(row=0, column=0, columnspan=2, pady=(0, 10))
         
         # Valve layout: [KOH Fill, Stack Drain; DI Fill, N2 Purge]
         valve_config = [
-            (0, 0, "KOH Fill", 0),      # Row 0, Col 0, valve index 0
-            (0, 1, "Stack Drain", 2),   # Row 0, Col 1, valve index 2
-            (1, 0, "DI Fill", 1),       # Row 1, Col 0, valve index 1
-            (1, 1, "N2 Purge", 3)       # Row 1, Col 1, valve index 3
+            ("KOH Fill", 0, 0, 0),      # Row 1, Col 1, Index 0
+            ("Stack Drain", 0, 1, 2),  # Row 1, Col 2, Index 2 
+            ("DI Fill", 1, 0, 1),       # Row 2, Col 1, Index 1
+            ("N2 Purge", 1, 1, 3)       # Row 2, Col 2, Index 3
         ]
         
-        self.valve_labels = [None] * 4  # Initialize array with correct size
+        self.valve_labels = [None] * 4  # Initialize list with correct size
         
-        for row, col, valve_name, valve_idx in valve_config:
-            # Create frame for each valve
-            valve_container = ttk.Frame(valve_frame)
-            valve_container.grid(row=row, column=col, padx=10, pady=5, sticky=(tk.W, tk.E))
-            
+        for valve_name, row, col, valve_idx in valve_config:
             # Valve label
-            valve_label = ttk.Label(valve_container, text=valve_name, font=("Arial", 9, "bold"))
-            valve_label.pack()
+            valve_label = ttk.Label(valve_frame, text=valve_name, font=("Arial", 9))
+            valve_label.grid(row=1 + row*2, column=col, padx=10, pady=(0, 5), sticky="n")
             
-            # Valve button
+            # Clickable button
             valve_button = tk.Button(
-                valve_container,
-                text="OFF",
-                background="red",
+                valve_frame, 
+                text="OFF", 
+                background="red", 
                 foreground="white",
                 width=10,
+                height=2,
                 relief=tk.RAISED,
                 command=lambda idx=valve_idx: self._toggle_valve(idx),
                 cursor="hand2",
-                font=("Arial", 9)
+                font=("Arial", 9, "bold")
             )
-            valve_button.pack(pady=2)
+            valve_button.grid(row=2 + row*2, column=col, padx=10, pady=(0, 10))
             self.valve_labels[valve_idx] = valve_button
         
-        # Pump control
-        pump_frame = ttk.LabelFrame(container_frame, text="DI Pump", padding="5")
-        pump_frame.grid(row=1, column=0, columnspan=2, padx=5, pady=5, sticky=(tk.W, tk.E))
+        # Pump state
+        pump_frame = ttk.Frame(container_frame)
+        pump_frame.grid(row=1, column=0, pady=10, sticky=(tk.W, tk.E))
+        pump_frame.columnconfigure(0, weight=1)
         
+        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 11, "bold")).pack()
         self.pump_state_label = tk.Button(
-            pump_frame,
-            text="OFF",
-            background="red",
+            pump_frame, 
+            text="OFF", 
+            background="red", 
             foreground="white",
             width=15,
+            height=2,
             relief=tk.RAISED,
             font=("Arial", 10, "bold"),
             command=self._toggle_pump,
             cursor="hand2"
         )
-        self.pump_state_label.pack(pady=5)
+        self.pump_state_label.pack(pady=(10, 0))
+    
+    def _create_current_sensor_display(self):
+        """Create current sensor display for bottom-right section"""
         
-        # Current sensor display (bottom right corner)
-        current_frame = ttk.LabelFrame(container_frame, text="Current Sensor", padding="5")
-        current_frame.grid(row=2, column=1, padx=5, pady=5, sticky=(tk.S, tk.E))
+        # Container frame to center content
+        container_frame = ttk.Frame(self.current_frame)
+        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        container_frame.columnconfigure(0, weight=1)
+        container_frame.rowconfigure(0, weight=1)
         
-        self.current_label = ttk.Label(current_frame, text="0.0 A", font=("Arial", 14, "bold"))
+        # Center the current reading
+        center_frame = ttk.Frame(container_frame)
+        center_frame.grid(row=0, column=0, sticky="")
+        
+        # Current sensor display
+        self.current_label = ttk.Label(
+            center_frame, 
+            text="0.0 A", 
+            font=("Arial", 24, "bold"),
+            foreground="blue"
+        )
         self.current_label.pack()
+        
+        # Units label
+        units_label = ttk.Label(
+            center_frame,
+            text="Stack Current",
+            font=("Arial", 10)
+        )
+        units_label.pack()
     
     def _toggle_valve(self, valve_index):
         """Toggle valve state when clicked"""
@@ -386,29 +412,31 @@ class Dashboard:
         
         # Update valve button states and colors
         for i, valve_button in enumerate(self.valve_labels):
-            valve_state = self.state.valve_states[i]
-            if valve_state:
-                valve_button.configure(text="ON", background="green", activebackground="lightgreen")
-            else:
-                valve_button.configure(text="OFF", background="red", activebackground="lightcoral")
-            
-            # Enable/disable based on NI DAQ connection
-            if self.state.connections.get('ni_daq', False):
-                valve_button.configure(state='normal')
-            else:
-                valve_button.configure(state='disabled')
+            if valve_button:  # Check if button exists (some might be None during initialization)
+                valve_state = self.state.valve_states[i]
+                if valve_state:
+                    valve_button.configure(text="ON", background="green", activebackground="lightgreen")
+                else:
+                    valve_button.configure(text="OFF", background="red", activebackground="lightcoral")
+                
+                # Enable/disable based on NI DAQ connection
+                if self.state.connections.get('ni_daq', False):
+                    valve_button.configure(state='normal')
+                else:
+                    valve_button.configure(state='disabled')
         
         # Update pump button state and color
-        if self.state.pump_state:
-            self.pump_state_label.configure(text="ON", background="green", activebackground="lightgreen")
-        else:
-            self.pump_state_label.configure(text="OFF", background="red", activebackground="lightcoral")
-        
-        # Enable/disable pump based on NI DAQ connection
-        if self.state.connections.get('ni_daq', False):
-            self.pump_state_label.configure(state='normal')
-        else:
-            self.pump_state_label.configure(state='disabled')
+        if hasattr(self, 'pump_state_label'):
+            if self.state.pump_state:
+                self.pump_state_label.configure(text="ON", background="green", activebackground="lightgreen")
+            else:
+                self.pump_state_label.configure(text="OFF", background="red", activebackground="lightcoral")
+            
+            # Enable/disable pump based on NI DAQ connection
+            if self.state.connections.get('ni_daq', False):
+                self.pump_state_label.configure(state='normal')
+            else:
+                self.pump_state_label.configure(state='disabled')
         
         # Update current sensor
         self.current_label.configure(text=f"{self.state.current_value:.1f} A")
