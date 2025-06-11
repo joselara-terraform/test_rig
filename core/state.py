@@ -49,6 +49,16 @@ class GlobalState:
         {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}   # BGA Unit 3
     ])
     
+    # Enhanced gas analysis data with primary/secondary gas info
+    enhanced_gas_data: List[Dict[str, Any]] = field(default_factory=lambda: [
+        {'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+         'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0},
+        {'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+         'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0},
+        {'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+         'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0}
+    ])
+    
     # Actuator states
     valve_states: List[bool] = field(default_factory=lambda: [False] * 4)  # 4 solenoid valves
     pump_state: bool = False

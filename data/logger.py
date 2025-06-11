@@ -46,9 +46,12 @@ class CSVLogger:
             ],
             'gas_analysis': [
                 'timestamp', 'elapsed_seconds',
-                'bga1_h2_pct', 'bga1_o2_pct', 'bga1_n2_pct', 'bga1_other_pct',
-                'bga2_h2_pct', 'bga2_o2_pct', 'bga2_n2_pct', 'bga2_other_pct',
-                'bga3_h2_pct', 'bga3_o2_pct', 'bga3_n2_pct', 'bga3_other_pct',
+                'bga1_primary_gas_pct', 'bga1_secondary_gas_pct', 'bga1_remaining_gas_pct', 
+                'bga1_primary_gas_type', 'bga1_secondary_gas_type', 'bga1_remaining_gas_type',
+                'bga2_primary_gas_pct', 'bga2_secondary_gas_pct', 'bga2_remaining_gas_pct',
+                'bga2_primary_gas_type', 'bga2_secondary_gas_type', 'bga2_remaining_gas_type',
+                'bga3_primary_gas_pct', 'bga3_secondary_gas_pct', 'bga3_remaining_gas_pct',
+                'bga3_primary_gas_type', 'bga3_secondary_gas_type', 'bga3_remaining_gas_type',
                 'purge_mode'
             ],
             'cell_voltages': [
@@ -266,27 +269,83 @@ class CSVLogger:
             print(f"⚠️  Error logging main sensors: {e}")
     
     def _log_gas_analysis(self, timestamp: str, elapsed: float):
-        """Log gas analysis data from BGA244 units"""
+        """Log gas analysis data from BGA244 units with primary/secondary gas format"""
         try:
-            # Get gas concentration data
-            gas_data = self.state.gas_concentrations[:3]
+            # Get enhanced gas data from state (if available)
+            enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
             purge_mode = self.state.purge_mode
             
-            # Ensure we have data for all 3 BGA units
-            while len(gas_data) < 3:
-                gas_data.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0})
+            # Create row data with primary/secondary gas format
+            row = [timestamp, round(elapsed, 3)]
             
-            # Create row data
-            row = [
-                timestamp, round(elapsed, 3),
-                round(gas_data[0].get('H2', 0.0), 3), round(gas_data[0].get('O2', 0.0), 3),
-                round(gas_data[0].get('N2', 0.0), 3), round(gas_data[0].get('other', 0.0), 3),
-                round(gas_data[1].get('H2', 0.0), 3), round(gas_data[1].get('O2', 0.0), 3),
-                round(gas_data[1].get('N2', 0.0), 3), round(gas_data[1].get('other', 0.0), 3),
-                round(gas_data[2].get('H2', 0.0), 3), round(gas_data[2].get('O2', 0.0), 3),
-                round(gas_data[2].get('N2', 0.0), 3), round(gas_data[2].get('other', 0.0), 3),
-                purge_mode
-            ]
+            # If enhanced data is available, use it
+            if enhanced_gas_data and len(enhanced_gas_data) >= 3:
+                # Process each BGA unit using enhanced data
+                for i in range(3):  # Only first 3 units
+                    gas_reading = enhanced_gas_data[i]
+                    
+                    # Extract gas assignments and concentrations
+                    primary_gas = gas_reading.get('primary_gas', 'H2')
+                    secondary_gas = gas_reading.get('secondary_gas', 'O2')
+                    remaining_gas = gas_reading.get('remaining_gas', 'N2')
+                    
+                    primary_pct = gas_reading.get('primary_gas_concentration', 0.0)
+                    secondary_pct = gas_reading.get('secondary_gas_concentration', 0.0)
+                    remaining_pct = gas_reading.get('remaining_gas_concentration', 0.0)
+                    
+                    # Add data to row
+                    row.extend([
+                        round(primary_pct, 3), round(secondary_pct, 3), round(remaining_pct, 3),
+                        primary_gas, secondary_gas, remaining_gas
+                    ])
+            else:
+                # Fallback to legacy data format
+                from services.bga244 import BGA244Config
+                gas_data = self.state.gas_concentrations[:3]
+                
+                # Ensure we have data for all 3 BGA units
+                while len(gas_data) < 3:
+                    gas_data.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0})
+                
+                # Process each BGA unit using configuration and purge mode
+                unit_ids = list(BGA244Config.BGA_UNITS.keys())
+                for i, unit_id in enumerate(unit_ids[:3]):  # Only first 3 units
+                    unit_config = BGA244Config.BGA_UNITS[unit_id]
+                    gas_readings = gas_data[i]
+                    
+                    # Determine current gas assignments based on purge mode
+                    if purge_mode:
+                        if unit_config['name'] == 'H2 Header':
+                            primary_gas = 'H2'
+                            secondary_gas = 'N2'
+                            remaining_gas = 'O2'
+                        elif unit_config['name'] == 'O2 Header':
+                            primary_gas = 'O2'
+                            secondary_gas = 'N2'
+                            remaining_gas = 'H2'
+                        else:  # De-oxo
+                            primary_gas = 'H2'
+                            secondary_gas = 'N2'
+                            remaining_gas = 'O2'
+                    else:
+                        # Normal mode
+                        primary_gas = unit_config['primary_gas']
+                        secondary_gas = unit_config['secondary_gas']
+                        remaining_gas = 'N2'  # Typically N2 in normal mode
+                    
+                    # Extract concentrations
+                    primary_pct = gas_readings.get(primary_gas, 0.0)
+                    secondary_pct = gas_readings.get(secondary_gas, 0.0)
+                    remaining_pct = gas_readings.get(remaining_gas, 0.0)
+                    
+                    # Add data to row
+                    row.extend([
+                        round(primary_pct, 3), round(secondary_pct, 3), round(remaining_pct, 3),
+                        primary_gas, secondary_gas, remaining_gas
+                    ])
+            
+            # Add purge mode flag
+            row.append(purge_mode)
             
             self.csv_writers['gas_analysis'].writerow(row)
             

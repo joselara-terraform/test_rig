@@ -142,14 +142,18 @@ class BGA244Device:
             # Configure primary gas (changes based on purge mode and BGA type)
             if purge_mode:
                 # In purge mode, adjust primary gas based on what each BGA actually measures
-                if self.unit_config['name'] == 'O2 Header':
+                if self.unit_config['name'] == 'H2 Header':
+                    # H2 Header BGA measures H2 in N2 during purge mode
+                    primary_gas = 'H2'
+                    print(f"   PURGE MODE: Primary gas changed to H2 for H2 measurement")
+                elif self.unit_config['name'] == 'O2 Header':
                     # O2 Header BGA measures O2 in N2 during purge mode
                     primary_gas = 'O2'
                     print(f"   PURGE MODE: Primary gas changed to O2 for O2 measurement")
                 else:
-                    # H2 Header and other BGAs measure H2 in N2 during purge mode
-                    primary_gas = self.unit_config['primary_gas']
-                    print(f"   PURGE MODE: Primary gas remains {primary_gas}")
+                    # De-oxo and other BGAs measure H2 in N2 during purge mode
+                    primary_gas = 'H2'
+                    print(f"   PURGE MODE: Primary gas changed to H2")
             else:
                 primary_gas = self.unit_config['primary_gas']
             
@@ -237,13 +241,16 @@ class BGA244Device:
                     
                     # Set primary gas type based on mode
                     if self.purge_mode:
-                        # In purge mode, adjust gas assignments for correct measurement
-                        if self.unit_config['name'] == 'O2 Header':
-                            # For O2 Header BGA, we want to measure O2 in N2 during purge
+                        # In purge mode, set primary gas based on what each BGA measures
+                        if self.unit_config['name'] == 'H2 Header':
+                            # H2 Header BGA measures H2 in N2 during purge mode
+                            measurements['primary_gas'] = 'H2'
+                        elif self.unit_config['name'] == 'O2 Header':
+                            # O2 Header BGA measures O2 in N2 during purge mode
                             measurements['primary_gas'] = 'O2'
                         else:
-                            # For H2 Header BGA, we want to measure H2 in N2 during purge  
-                            measurements['primary_gas'] = self.unit_config['primary_gas']
+                            # De-oxo and other BGAs measure H2 in N2 during purge mode
+                            measurements['primary_gas'] = 'H2'
                     else:
                         measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
@@ -558,11 +565,19 @@ class BGA244Service:
         """Polling thread function"""
         while self.polling and self.connected:
             try:
-                # Read from real hardware
+                # Read from real hardware (returns new format with primary/secondary gas info)
                 gas_readings = self._read_hardware_gas_data()
                 
-                # Update global state
-                self.state.update_sensor_values(gas_concentrations=gas_readings)
+                # Extract legacy format for existing state structure
+                legacy_readings = []
+                for reading in gas_readings:
+                    legacy_readings.append(reading.get('legacy', {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}))
+                
+                # Update global state with legacy format (for backward compatibility)
+                self.state.update_sensor_values(gas_concentrations=legacy_readings)
+                
+                # Store enhanced gas data in state for new logging format
+                self.state.enhanced_gas_data = gas_readings
                 
                 # Sleep for sample rate (gas analysis is slow)
                 time.sleep(1.0 / self.sample_rate)
@@ -571,8 +586,8 @@ class BGA244Service:
                 print(f"❌ BGA244 polling error: {e}")
                 break
     
-    def _read_hardware_gas_data(self) -> List[Dict[str, float]]:
-        """Read gas concentrations from real BGA244 hardware"""
+    def _read_hardware_gas_data(self) -> List[Dict[str, Any]]:
+        """Read gas concentrations from real BGA244 hardware with primary/secondary gas format"""
         gas_readings = []
         
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
@@ -585,39 +600,62 @@ class BGA244Service:
                     measurements = device.read_measurements()
                     
                     if measurements:
-                        # Convert to standard format
-                        gas_data = {}
+                        # Keep raw measurement format with primary/secondary gas info
+                        gas_data = {
+                            'primary_gas': measurements.get('primary_gas', 'H2'),
+                            'secondary_gas': measurements.get('secondary_gas', 'O2'),
+                            'remaining_gas': measurements.get('remaining_gas', 'N2'),
+                            'primary_gas_concentration': measurements.get('primary_gas_concentration', 0.0),
+                            'secondary_gas_concentration': measurements.get('secondary_gas_concentration', 0.0),
+                            'remaining_gas_concentration': measurements.get('remaining_gas_concentration', 0.0)
+                        }
                         
-                        # Map measurements to gas concentrations
-                        if measurements.get('primary_gas_concentration') is not None:
-                            primary_gas = measurements['primary_gas']
-                            gas_data[primary_gas] = measurements['primary_gas_concentration']
+                        # Also create legacy H2/O2/N2 format for backward compatibility
+                        legacy_format = {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
                         
-                        if measurements.get('secondary_gas_concentration') is not None:
-                            secondary_gas = measurements['secondary_gas']
-                            gas_data[secondary_gas] = measurements['secondary_gas_concentration']
+                        # Map concentrations to legacy format
+                        primary_gas = gas_data['primary_gas']
+                        secondary_gas = gas_data['secondary_gas']
+                        remaining_gas = gas_data['remaining_gas']
                         
-                        if measurements.get('remaining_gas_concentration') is not None:
-                            remaining_gas = measurements['remaining_gas']
-                            gas_data[remaining_gas] = measurements['remaining_gas_concentration']
+                        if primary_gas in legacy_format:
+                            legacy_format[primary_gas] = gas_data['primary_gas_concentration']
+                        if secondary_gas in legacy_format:
+                            legacy_format[secondary_gas] = gas_data['secondary_gas_concentration']
+                        if remaining_gas in legacy_format:
+                            legacy_format[remaining_gas] = gas_data['remaining_gas_concentration']
                         
-                        # Apply calibrated zero offsets if configured
+                        # Apply calibrated zero offsets to legacy format
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
-                        for gas, concentration in gas_data.items():
+                        for gas, concentration in legacy_format.items():
                             offset = zero_offsets.get(gas, 0.0)
-                            gas_data[gas] = concentration + offset
+                            legacy_format[gas] = concentration + offset
                         
+                        # Store both formats
+                        gas_data['legacy'] = legacy_format
                         gas_readings.append(gas_data)
                     else:
                         # No data from this device
-                        gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                        gas_readings.append({
+                            'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+                            'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0,
+                            'legacy': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                        })
                         
                 except Exception as e:
                     print(f"⚠️  Hardware reading error for {unit_id}: {e}")
-                    gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                    gas_readings.append({
+                        'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+                        'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0,
+                        'legacy': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                    })
             else:
-                # Device not connected - return zero data (no plotting)
-                gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
+                # Device not connected - return zero data
+                gas_readings.append({
+                    'primary_gas': 'H2', 'secondary_gas': 'O2', 'remaining_gas': 'N2',
+                    'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0,
+                    'legacy': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0, 'other': 0.0}
+                })
         
         return gas_readings
     

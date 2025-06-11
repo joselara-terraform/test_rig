@@ -28,10 +28,10 @@ class PressurePlot:
         self.pressure1_data = deque()
         self.pressure2_data = deque()
         
-        # Data storage for gas concentrations (converted to 0-1 range) - only 3 BGA series
-        self.h2_hydrogen_side_data = deque()  # H2 from Unit 1 (hydrogen side)
-        self.o2_oxygen_side_data = deque()    # O2 from Unit 2 (oxygen side)
-        self.h2_mixed_data = deque()          # H2 from Unit 3 (mixed stream)
+        # Data storage for gas concentrations (converted to 0-1 range) - primary gas from each BGA
+        self.h2_hydrogen_side_data = deque()  # Primary gas from BGA1 (H2 Header)
+        self.o2_oxygen_side_data = deque()    # Primary gas from BGA2 (O2 Header)
+        self.h2_mixed_data = deque()          # Primary gas from BGA3 (De-oxo)
         
         self.last_update_time = 0
         
@@ -49,10 +49,10 @@ class PressurePlot:
         self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='H_2 Header')
         self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O_2 Header')
         
-        # Create line objects for gas concentrations - only 3 BGA series
-        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, label='H_2 Ratio 1', alpha=0.8)
-        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, label='O_2 Ratio 1', alpha=0.8)
-        self.line_h2_mixed, = self.ax.plot([], [], 'g:', linewidth=1.5, label='H_2 Ratio 2', alpha=0.7)
+        # Create line objects for gas concentrations (primary gas from each BGA)
+        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, alpha=0.8, label='BGA1 (H2 Header) Primary')
+        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, alpha=0.8, label='BGA2 (O2 Header) Primary')  
+        self.line_h2_mixed, = self.ax.plot([], [], 'c--', linewidth=1.5, alpha=0.8, label='BGA3 (De-oxo) Primary')
         
         # Add legend with smaller font to fit entries
         self.ax.legend(loc='upper right', fontsize=10, ncol=1)
@@ -101,27 +101,40 @@ class PressurePlot:
         pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
         
         # Get gas concentration values and convert percentages to fractions (0-1 range)
-        # Only 3 BGA series: H2 from hydrogen side, O2 from oxygen side, H2 from mixed
+        # Plot primary gas concentrations instead of hardcoded H2/O2
         gas_concentrations = self.state.gas_concentrations
+        enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
         
-        # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
-        h2_hydrogen_side = (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0
-        
-        # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
-        o2_oxygen_side = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
-        
-        # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
-        h2_mixed = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
+        # If enhanced data is available, use primary gas concentrations
+        if enhanced_gas_data and len(enhanced_gas_data) >= 3:
+            # Unit 1: Use primary gas concentration (could be H2 or O2 depending on purge mode)
+            primary_1 = (enhanced_gas_data[0]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[0]['primary_gas_concentration'] else 0.0
+            
+            # Unit 2: Use primary gas concentration  
+            primary_2 = (enhanced_gas_data[1]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[1]['primary_gas_concentration'] else 0.0
+            
+            # Unit 3: Use primary gas concentration
+            primary_3 = (enhanced_gas_data[2]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[2]['primary_gas_concentration'] else 0.0
+        else:
+            # Fallback to legacy hardcoded gas types
+            # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
+            primary_1 = (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0
+            
+            # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
+            primary_2 = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
+            
+            # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
+            primary_3 = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
         
         # Add new data points
         self.time_data.append(relative_time)
         self.pressure1_data.append(pressure1)
         self.pressure2_data.append(pressure2)
         
-        # Add gas concentration data points - only 3 BGA series
-        self.h2_hydrogen_side_data.append(h2_hydrogen_side)
-        self.o2_oxygen_side_data.append(o2_oxygen_side)
-        self.h2_mixed_data.append(h2_mixed)
+        # Add gas concentration data points - plot primary gas concentrations
+        self.h2_hydrogen_side_data.append(primary_1)
+        self.o2_oxygen_side_data.append(primary_2)
+        self.h2_mixed_data.append(primary_3)
         
         # Update line data
         if len(self.time_data) > 0:
@@ -129,7 +142,7 @@ class PressurePlot:
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
             
-            # Update gas concentration lines - only 3 BGA series
+            # Update gas concentration lines - primary gas concentrations
             self.line_h2_h_side.set_data(list(self.time_data), list(self.h2_hydrogen_side_data))
             self.line_o2_o_side.set_data(list(self.time_data), list(self.o2_oxygen_side_data))
             self.line_h2_mixed.set_data(list(self.time_data), list(self.h2_mixed_data))
@@ -147,7 +160,7 @@ class PressurePlot:
         self.pressure1_data.clear()
         self.pressure2_data.clear()
         
-        # Clear gas concentration data - only 3 BGA series
+        # Clear primary gas concentration data from each BGA
         self.h2_hydrogen_side_data.clear()
         self.o2_oxygen_side_data.clear()
         self.h2_mixed_data.clear()
@@ -162,7 +175,7 @@ class PressurePlot:
         self.line1.set_data([], [])
         self.line2.set_data([], [])
         
-        # Clear gas concentration lines - only 3 BGA series
+        # Clear primary gas concentration lines
         self.line_h2_h_side.set_data([], [])
         self.line_o2_o_side.set_data([], [])
         self.line_h2_mixed.set_data([], [])
