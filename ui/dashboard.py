@@ -307,15 +307,23 @@ class Dashboard:
     
     def _update_status_indicators(self):
         """Update status indicators based on GlobalState"""
-        # Update connection status indicators
-        connection_info = {
-            'ni_daq': "250 Hz" if self.state.connections['ni_daq'] else "",
-            'pico_tc08': "1 Hz" if self.state.connections['pico_tc08'] else "",
-            'bga244_1': "0.2 Hz",
-            'bga244_2': "0.2 Hz", 
-            'bga244_3': "0.2 Hz",
-            'cvm24p': "10 Hz" if self.state.connections['cvm24p'] else ""
+        
+        # Get device configuration for real sampling rates
+        from config.device_config import get_device_config
+        device_config = get_device_config()
+        
+        # Get real sampling rates from configuration
+        real_sample_rates = {
+            'ni_daq': f"{device_config.get_sample_rate('ni_daq'):.0f} Hz" if self.state.connections['ni_daq'] else "",
+            'pico_tc08': f"{device_config.get_sample_rate('pico_tc08'):.1f} Hz" if self.state.connections['pico_tc08'] else "",
+            'bga244_1': f"{device_config.get_sample_rate('bga244'):.1f} Hz",
+            'bga244_2': f"{device_config.get_sample_rate('bga244'):.1f} Hz",
+            'bga244_3': f"{device_config.get_sample_rate('bga244'):.1f} Hz",
+            'cvm24p': f"{device_config.get_sample_rate('cvm24p'):.0f} Hz" if self.state.connections['cvm24p'] else ""
         }
+        
+        # Update connection status indicators
+        connection_info = real_sample_rates
         
         # Get individual BGA connection statuses
         from services.controller_manager import get_controller_manager

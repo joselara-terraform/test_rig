@@ -131,8 +131,6 @@ class BGA244Device:
             return False
         
         try:
-            print(f"⚙️  Configuring {self.unit_config['name']}...")
-            
             # Store purge mode state for this device
             self.purge_mode = purge_mode
             
@@ -141,43 +139,36 @@ class BGA244Device:
             
             # Configure primary gas (changes based on purge mode and BGA type)
             if purge_mode:
-                # In purge mode, adjust primary gas based on what each BGA actually measures
+                # In purge mode, adjust primary gas based on what each BGA measures
                 if self.unit_config['name'] == 'H2 Header':
                     # H2 Header BGA measures H2 in N2 during purge mode
                     primary_gas = 'H2'
-                    print(f"   PURGE MODE: Primary gas changed to H2 for H2 measurement")
                 elif self.unit_config['name'] == 'O2 Header':
                     # O2 Header BGA measures O2 in N2 during purge mode
                     primary_gas = 'O2'
-                    print(f"   PURGE MODE: Primary gas changed to O2 for O2 measurement")
                 else:
                     # De-oxo and other BGAs measure H2 in N2 during purge mode
                     primary_gas = 'H2'
-                    print(f"   PURGE MODE: Primary gas changed to H2")
             else:
+                # Normal mode - use configured primary gas
                 primary_gas = self.unit_config['primary_gas']
             
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
-            self._send_command(f"GASP {primary_cas}")
-            print(f"   Primary gas: {primary_gas} ({primary_cas})")
+            self._send_command(f"CNMR 1 {primary_cas}")
             
-            # Configure secondary gas (always N2 in purge mode)
+            # Configure secondary gas (changes in purge mode)
             if purge_mode:
                 secondary_gas = 'N2'  # All secondary gases become N2 in purge mode
                 secondary_cas = BGA244Config.GAS_CAS_NUMBERS['N2']
-                print(f"   PURGE MODE: Secondary gas changed to N2")
             else:
                 secondary_gas = self.unit_config['secondary_gas']
                 secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             
-            self._send_command(f"GASS {secondary_cas}")
-            print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
+            self._send_command(f"CNMR 2 {secondary_cas}")
             
-            print(f"✅ Gas configuration complete for {self.unit_config['name']}")
             return True
             
         except Exception as e:
-            print(f"❌ Gas configuration failed: {e}")
             return False
     
     def read_measurements(self) -> Dict[str, Any]:
@@ -235,7 +226,6 @@ class BGA244Device:
                     # Check for overflow values - treat as 0 for gas concentrations
                     if primary_val > 1e30:  # Handle 9.9E37 and similar overflow values
                         measurements['primary_gas_concentration'] = 0.0
-                        print(f"   ⚠️  {self.unit_config['name']}: Primary gas reading overflow ({ratio_response}) - treated as 0")
                     else:
                         measurements['primary_gas_concentration'] = primary_val
                     
@@ -264,7 +254,6 @@ class BGA244Device:
                     # Check for overflow values - treat as 0 for gas concentrations
                     if secondary_val > 1e30:  # Handle 9.9E37 and similar overflow values
                         measurements['secondary_gas_concentration'] = 0.0
-                        print(f"   ⚠️  {self.unit_config['name']}: Secondary gas reading overflow ({ratio2_response}) - treated as 0")
                     else:
                         measurements['secondary_gas_concentration'] = secondary_val
                     
@@ -369,39 +358,31 @@ class BGA244Service:
         
         try:
             # Try to connect to real hardware
-            print("   → Attempting hardware connection...")
             connected_count = self._connect_hardware()
             
             # Report connection results
             if connected_count > 0:
-                print(f"✅ Connected {connected_count}/{self.num_units} BGA244 devices")
+                print(f"✅ BGA244: {connected_count}/{self.num_units} devices connected")
                 
                 # Report individual connection status
                 connected_units = [unit_id for unit_id, connected in self.individual_connections.items() if connected]
-                disconnected_units = [unit_id for unit_id, connected in self.individual_connections.items() if not connected]
                 
                 if connected_units:
                     unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in connected_units]
-                    print(f"   → Hardware connected: {', '.join(unit_names)}")
-                
-                if disconnected_units:
-                    unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in disconnected_units]
-                    print(f"   → Disconnected (no data): {', '.join(unit_names)}")
+                    print(f"   → Connected: {', '.join(unit_names)}")
                 
             else:
-                print("⚠️  No BGA244 hardware detected")
-                print("   → All BGAs will show no data until connected")
+                print("⚠️  BGA244: No hardware detected")
             
             # Update overall connection status (true if any BGA connected)
             overall_connected = connected_count > 0
             self.connected = overall_connected
             self.state.update_connection_status('bga244', overall_connected)
             
-            print(f"✅ BGA244 service ready ({connected_count} devices connected)")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to connect to BGA244: {e}")
+            print(f"❌ BGA244 failed to connect: {e}")
             self.connected = False
             self.state.update_connection_status('bga244', False)
             return False
@@ -410,21 +391,16 @@ class BGA244Service:
         """Connect to real BGA244 hardware using configured ports only"""
         connected_count = 0
         
-        print("   → Connecting BGAs to configured ports...")
-        
         # Connect each BGA to its configured port
         for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
             # Get the configured port for this unit from device config
             configured_port = self.device_config.get_bga_unit_config(unit_id).get('port')
             
             if configured_port:
-                print(f"   → Trying to connect {unit_config['name']} to {configured_port}...")
-                
                 if self._try_connect_bga_to_port(unit_id, unit_config, configured_port):
                     # Assign this port to this BGA
                     self.bga_port_mapping[unit_id] = configured_port
                     connected_count += 1
-                    print(f"   ✅ {unit_config['name']} connected to {configured_port}")
                 else:
                     print(f"   ❌ {unit_config['name']} failed to connect to {configured_port}")
             else:
@@ -445,20 +421,17 @@ class BGA244Service:
                 else:
                     device.disconnect()
                     self.individual_connections[unit_id] = False
-                    print(f"      ❌ Gas configuration failed for {unit_config['name']}")
             else:
                 self.individual_connections[unit_id] = False
                 
         except Exception as e:
             self.individual_connections[unit_id] = False
-            print(f"      ❌ Device error for {unit_config['name']} on {port}: {e}")
+            print(f"      ❌ {unit_config['name']}: Connection error - {e}")
         
         return False
     
     def disconnect(self):
         """Disconnect from BGA244 analyzers but preserve port mappings"""
-        print("⚗️  Disconnecting from BGA244 analyzers...")
-        
         # Stop polling first
         if self.polling:
             self.stop_polling()
@@ -475,7 +448,7 @@ class BGA244Service:
         self.connected = False
         self.state.update_connection_status('bga244', False)
         
-        print("✅ BGA244 analyzers disconnected (port mappings preserved for reconnection)")
+        print("✅ BGA244 disconnected")
     
     def reset_port_mappings(self):
         """Reset BGA-to-port mappings (for troubleshooting)"""
@@ -490,16 +463,13 @@ class BGA244Service:
     def start_polling(self) -> bool:
         """Start polling gas analysis data"""
         if self.polling:
-            print("⚠️  BGA244 polling already running")
             return True
-        
-        print(f"⚗️  Starting BGA244 polling at {self.sample_rate} Hz...")
         
         self.polling = True
         self.poll_thread = threading.Thread(target=self._poll_data, daemon=True)
         self.poll_thread.start()
         
-        print("✅ BGA244 polling started")
+        print(f"📊 BGA244 polling started at {self.sample_rate} Hz")
         return True
     
     def stop_polling(self):
@@ -507,18 +477,16 @@ class BGA244Service:
         if not self.polling:
             return
         
-        print("⚗️  Stopping BGA244 polling...")
         self.polling = False
         
         if self.poll_thread and self.poll_thread.is_alive():
             self.poll_thread.join(timeout=3.0)
         
-        print("✅ BGA244 polling stopped")
+        print("📊 BGA244 polling stopped")
     
     def set_purge_mode(self, purge_enabled: bool):
         """Set purge mode - changes all secondary gases to N2"""
         if self.purge_mode == purge_enabled:
-            print(f"🔧 Purge mode already {'ENABLED' if purge_enabled else 'DISABLED'}")
             return  # No change needed
         
         self.purge_mode = purge_enabled
@@ -532,34 +500,13 @@ class BGA244Service:
             print("   ⚠️  No connected BGA devices to reconfigure")
             return
         
-        print(f"   → Reconfiguring {len(connected_devices)} connected BGA devices...")
-        
         # Reconfigure all connected devices
         for unit_id, device in self.devices.items():
             if device.is_connected:
-                unit_name = device.unit_config['name']
-                print(f"   → Reconfiguring {unit_name}...")
-                
                 try:
-                    success = device.configure_gases(self.purge_mode)
-                    if success:
-                        if purge_enabled:
-                            print(f"     ✅ {unit_name}: Secondary gas → N2 (Nitrogen)")
-                        else:
-                            normal_secondary = device.unit_config['secondary_gas']
-                            print(f"     ✅ {unit_name}: Secondary gas → {normal_secondary}")
-                    else:
-                        print(f"     ❌ {unit_name}: Configuration failed")
+                    device.configure_gases(self.purge_mode)
                 except Exception as e:
-                    print(f"     ❌ {unit_name}: Error during reconfiguration: {e}")
-        
-        print(f"   ✅ Purge mode reconfiguration complete")
-        
-        # Provide guidance on expected results
-        if purge_enabled:
-            print("   📊 Expected: All BGAs should now show N2 as secondary gas in readings")
-        else:
-            print("   📊 Expected: BGAs should show normal secondary gases (H2/O2) in readings")
+                    print(f"   ❌ {device.unit_config['name']}: Configuration error - {e}")
     
     def _poll_data(self):
         """Polling thread function"""
