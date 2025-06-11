@@ -264,11 +264,19 @@ class Dashboard:
             valve_button.grid(row=row+1, column=col, padx=5, pady=(0, 10))
             self.valve_labels[valve_idx] = valve_button
         
-        # Right side: Pump control
+        # Right side: Pump control - align with valve buttons
         pump_frame = ttk.Frame(container_frame)
         pump_frame.grid(row=0, column=1, sticky=(tk.N), padx=(5, 0))  # Reduced padding
         
-        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 10, "bold")).pack(pady=(0, 10))
+        # Add spacing to align pump button with first valve button (KOH Fill)
+        # The valve frame has: title (row 0) + label (row 1) + button (row 2)
+        # So we need to match that vertical position
+        ttk.Label(pump_frame, text="DI Pump", font=("Arial", 10, "bold")).grid(row=0, column=0, pady=(0, 10))
+        
+        # Add a spacer to push pump button down to align with valve buttons
+        spacer_label = ttk.Label(pump_frame, text="")  # Empty spacer
+        spacer_label.grid(row=1, column=0, pady=(0, 5))
+        
         self.pump_state_label = tk.Button(
             pump_frame, 
             text="OFF", 
@@ -280,7 +288,7 @@ class Dashboard:
             command=self._toggle_pump,
             cursor="hand2"
         )
-        self.pump_state_label.pack()
+        self.pump_state_label.grid(row=2, column=0)  # Same row level as valve buttons
     
     def _create_current_sensor_display(self):
         """Create current sensor display for bottom-right section"""
