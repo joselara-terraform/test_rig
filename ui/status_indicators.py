@@ -32,11 +32,7 @@ class StatusIndicators:
     def _create_indicators(self):
         """Create status indicator panel"""
         
-        # Main status frame
-        status_frame = ttk.LabelFrame(self.parent_frame, text="Hardware Connection Status", padding="10")
-        status_frame.pack(fill='x', pady=5)
-        
-        # Create grid for device indicators
+        # Create grid for device indicators directly in parent frame
         devices = [
             ('ni_daq', 'NI cDAQ', 'Pressure/Current sensors + Valve/Pump control'),
             ('pico_tc08', 'Pico TC-08', '8-channel thermocouple logger'),
@@ -48,29 +44,25 @@ class StatusIndicators:
         
         for i, (device_key, device_name, description) in enumerate(devices):
             # Device name label
-            name_label = ttk.Label(status_frame, text=device_name, font=("Arial", 10, "bold"))
-            name_label.grid(row=i, column=0, sticky='w', padx=5, pady=2)
+            name_label = ttk.Label(self.parent_frame, text=device_name, font=("Arial", 9, "bold"))
+            name_label.grid(row=i, column=0, sticky='w', padx=2, pady=1)
             
             # Status indicator
             status_indicator = tk.Label(
-                status_frame,
-                text="❌ Disconnected",
+                self.parent_frame,
+                text="❌",
                 background="red",
                 foreground="white",
-                width=15,
+                width=3,
                 relief=tk.RAISED,
-                font=("Arial", 9)
+                font=("Arial", 8)
             )
-            status_indicator.grid(row=i, column=1, padx=10, pady=2)
+            status_indicator.grid(row=i, column=1, padx=2, pady=1)
             self.status_indicators[device_key] = status_indicator
             
-            # Description label
-            desc_label = ttk.Label(status_frame, text=description, font=("Arial", 8), foreground="gray")
-            desc_label.grid(row=i, column=2, sticky='w', padx=5, pady=2)
-            
-            # Polling rate/error info (placeholder)
-            info_label = ttk.Label(status_frame, text="No data", font=("Arial", 8), foreground="gray")
-            info_label.grid(row=i, column=3, sticky='w', padx=5, pady=2)
+            # Polling rate/error info
+            info_label = ttk.Label(self.parent_frame, text="No data", font=("Arial", 8), foreground="gray")
+            info_label.grid(row=i, column=2, sticky='w', padx=2, pady=1)
             self.status_labels[device_key] = info_label
     
     def update_device_status(self, device: str, connected: bool, info: str = ""):
@@ -80,7 +72,7 @@ class StatusIndicators:
             
             if connected:
                 self.status_indicators[device].configure(
-                    text="✅ Connected",
+                    text="✅",
                     background="green",
                     foreground="white"
                 )
@@ -90,7 +82,7 @@ class StatusIndicators:
                     self.status_labels[device].configure(text="Active", foreground="darkgreen")
             else:
                 self.status_indicators[device].configure(
-                    text="❌ Disconnected",
+                    text="❌",
                     background="red",
                     foreground="white"
                 )
