@@ -56,6 +56,7 @@ class AsyncCVMManager:
         self.modules = {}  # Dict of serial -> device info
         self.initialized_devices = {}  # Dict of serial -> XC2Cvm24p device
         self.running = False
+        self.debug_channel_assignment_printed = False  # DEBUG: Flag to print channel assignment only once
         
     async def run(self):
         """Main async loop - handles commands and polling"""
@@ -107,6 +108,8 @@ class AsyncCVMManager:
     async def _connect_to_port(self, port: str) -> bool:
         """Connect to CVM hardware on specified port (similar to CVM_test.py)"""
         try:
+            print(f"DEBUG: ===== Starting CVM24P connection debug session =====")
+            
             bus_sn = get_serial_from_port(port)
             
             print(f"   → Connecting to {port} at {CVM24PConfig.BAUD_RATE} baud...")
@@ -273,6 +276,11 @@ class AsyncCVMManager:
         else:
             print(f"      → ✅ Successfully discovered all {len(found_modules)} modules")
         
+        # DEBUG: Show discovery order
+        print(f"      → DEBUG: Discovery order: {list(found_modules.keys())}")
+        discovery_addresses = [(serial, f"0x{info['address']:X}") for serial, info in found_modules.items()]
+        print(f"      → DEBUG: Discovery addresses: {discovery_addresses}")
+        
         self.modules = found_modules
         return found_modules
     
@@ -281,6 +289,10 @@ class AsyncCVMManager:
         initialized_count = 0
         
         print(f"   → Initializing {len(discovered_modules)} modules...")
+        
+        # DEBUG: Show initialization order
+        init_order = list(discovered_modules.keys())
+        print(f"   → DEBUG: Initialization order: {init_order}")
         
         for serial, info in discovered_modules.items():
             try:
@@ -294,6 +306,10 @@ class AsyncCVMManager:
             except Exception as e:
                 print(f"   ❌ Failed to initialize module {serial}: {e}")
         
+        # DEBUG: Show final initialized modules
+        initialized_serials = list(self.initialized_devices.keys())
+        print(f"   → DEBUG: Successfully initialized modules: {initialized_serials}")
+        
         return initialized_count
     
     async def _read_all_voltages(self) -> List[float]:
@@ -302,6 +318,16 @@ class AsyncCVMManager:
         
         # Sort by address for consistent ordering  
         sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
+        
+        # DEBUG: Show sorting and channel assignment
+        if not self.debug_channel_assignment_printed:
+            print(f"DEBUG: Voltage reading - module sorting and channel assignment:")
+            channel_start = 0
+            for i, (serial, module_info) in enumerate(sorted_modules):
+                channel_end = channel_start + CVM24PConfig.CHANNELS_PER_MODULE - 1
+                print(f"DEBUG:   Module {serial} (0x{module_info['address']:X}) → Channels {channel_start+1}-{channel_end+1}")
+                channel_start += CVM24PConfig.CHANNELS_PER_MODULE
+            self.debug_channel_assignment_printed = True
         
         for serial, module_info in sorted_modules:
             try:
