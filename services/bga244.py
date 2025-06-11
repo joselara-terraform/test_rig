@@ -81,18 +81,6 @@ class BGA244Device:
         """Connect to BGA244 device"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
-            print(f"   → Using settings: {BGA244Config.BAUD_RATE} baud, {BGA244Config.DATA_BITS} data bits, {BGA244Config.STOP_BITS} stop bits, parity {BGA244Config.PARITY}")
-            
-            # Check if port is available before attempting connection
-            try:
-                test_serial = serial.Serial()
-                test_serial.port = self.port
-                test_serial.open()
-                test_serial.close()
-                print(f"   → Port {self.port} is available")
-            except Exception as e:
-                print(f"   ❌ Port {self.port} is not available: {e}")
-                return False
             
             self.serial_conn = serial.Serial(
                 port=self.port,
@@ -103,19 +91,14 @@ class BGA244Device:
                 timeout=BGA244Config.TIMEOUT
             )
             
-            print(f"   → Serial port opened successfully")
-            
             # Clear buffers
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
-            print(f"   → Buffers cleared")
             
             # Wait for device to be ready
             time.sleep(0.5)
-            print(f"   → Waited 0.5s for device ready")
             
-            # Test communication with detailed debugging
-            print(f"   → Sending *IDN? command...")
+            # Test communication
             response = self._send_command("*IDN?")
             if response:
                 self.device_info['identity'] = response
@@ -123,62 +106,24 @@ class BGA244Device:
                 print(f"✅ Connected: {response}")
                 return True
             else:
-                print(f"   → *IDN? failed, trying BGA244 commands...")
-                
-                # Try actual BGA244 commands
-                temp_response = self._send_command("TCEL?")
-                if temp_response and temp_response.strip():
-                    self.device_info['identity'] = f"BGA244 (Temperature: {temp_response})"
-                    self.is_connected = True
-                    print(f"✅ Connected to BGA244: Temperature reading {temp_response}")
-                    return True
-                
-                pres_response = self._send_command("PRES?")
-                if pres_response and pres_response.strip():
-                    self.device_info['identity'] = f"BGA244 (Pressure: {pres_response})"
-                    self.is_connected = True
-                    print(f"✅ Connected to BGA244: Pressure reading {pres_response}")
-                    return True
-                
                 print(f"❌ No response from device on {self.port}")
-                print(f"   → This could mean:")
-                print(f"     • Wrong device connected to {self.port}")
-                print(f"     • Device not responding to BGA244 commands")
-                print(f"     • Incorrect serial settings")
-                print(f"     • Device is in use by another application")
                 self.disconnect()
                 return False
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
-            print(f"   → Exception details: {type(e).__name__}: {str(e)}")
             self.disconnect()
             return False
     
     def disconnect(self):
         """Disconnect from BGA244 device"""
-        if self.serial_conn:
+        if self.serial_conn and self.serial_conn.is_open:
             try:
-                # Flush any pending data
-                if self.serial_conn.is_open:
-                    self.serial_conn.flush()
-                    time.sleep(0.1)  # Allow data to flush
-                    
-                # Close the connection
                 self.serial_conn.close()
-                
-                # Wait a moment to ensure port is fully released
-                time.sleep(0.2)
-                
                 self.is_connected = False
                 print(f"✅ Disconnected from {self.port}")
-                
             except Exception as e:
                 print(f"⚠️  Error disconnecting from {self.port}: {e}")
-            finally:
-                # Ensure connection is marked as closed regardless
-                self.serial_conn = None
-                self.is_connected = False
     
     def configure_gases(self, purge_mode: bool = False) -> bool:
         """Configure gas analysis mode and target gases"""
@@ -194,13 +139,25 @@ class BGA244Device:
             # Set binary gas mode
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
-            # Configure primary gas (always the same)
-            primary_gas = self.unit_config['primary_gas']
+            # Configure primary gas (changes based on purge mode and BGA type)
+            if purge_mode:
+                # In purge mode, adjust primary gas based on what each BGA actually measures
+                if self.unit_config['name'] == 'O2 Header':
+                    # O2 Header BGA measures O2 in N2 during purge mode
+                    primary_gas = 'O2'
+                    print(f"   PURGE MODE: Primary gas changed to O2 for O2 measurement")
+                else:
+                    # H2 Header and other BGAs measure H2 in N2 during purge mode
+                    primary_gas = self.unit_config['primary_gas']
+                    print(f"   PURGE MODE: Primary gas remains {primary_gas}")
+            else:
+                primary_gas = self.unit_config['primary_gas']
+            
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
             self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
             
-            # Configure secondary gas (changes in purge mode)
+            # Configure secondary gas (always N2 in purge mode)
             if purge_mode:
                 secondary_gas = 'N2'  # All secondary gases become N2 in purge mode
                 secondary_cas = BGA244Config.GAS_CAS_NUMBERS['N2']
@@ -231,7 +188,12 @@ class BGA244Device:
             temp_response = self._send_command("TCEL?")
             if temp_response:
                 try:
-                    measurements['temperature'] = float(temp_response)
+                    temp_val = float(temp_response)
+                    # Check for overflow values
+                    if temp_val > 1e30:  # Handle 9.9E37 and similar overflow values
+                        measurements['temperature'] = None
+                    else:
+                        measurements['temperature'] = temp_val
                 except ValueError:
                     measurements['temperature'] = None
             
@@ -239,7 +201,12 @@ class BGA244Device:
             pres_response = self._send_command("PRES?")
             if pres_response:
                 try:
-                    measurements['pressure'] = float(pres_response)
+                    pres_val = float(pres_response)
+                    # Check for overflow values
+                    if pres_val > 1e30:  # Handle 9.9E37 and similar overflow values
+                        measurements['pressure'] = None
+                    else:
+                        measurements['pressure'] = pres_val
                 except ValueError:
                     measurements['pressure'] = None
             
@@ -247,7 +214,12 @@ class BGA244Device:
             sos_response = self._send_command("NSOS?")
             if sos_response:
                 try:
-                    measurements['speed_of_sound'] = float(sos_response)
+                    sos_val = float(sos_response)
+                    # Check for overflow values
+                    if sos_val > 1e30:  # Handle 9.9E37 and similar overflow values
+                        measurements['speed_of_sound'] = None
+                    else:
+                        measurements['speed_of_sound'] = sos_val
                 except ValueError:
                     measurements['speed_of_sound'] = None
             
@@ -255,8 +227,25 @@ class BGA244Device:
             ratio_response = self._send_command("RATO? 1")
             if ratio_response:
                 try:
-                    measurements['primary_gas_concentration'] = float(ratio_response)
-                    measurements['primary_gas'] = self.unit_config['primary_gas']
+                    primary_val = float(ratio_response)
+                    # Check for overflow values - treat as 0 for gas concentrations
+                    if primary_val > 1e30:  # Handle 9.9E37 and similar overflow values
+                        measurements['primary_gas_concentration'] = 0.0
+                        print(f"   ⚠️  {self.unit_config['name']}: Primary gas reading overflow ({ratio_response}) - treated as 0")
+                    else:
+                        measurements['primary_gas_concentration'] = primary_val
+                    
+                    # Set primary gas type based on mode
+                    if self.purge_mode:
+                        # In purge mode, adjust gas assignments for correct measurement
+                        if self.unit_config['name'] == 'O2 Header':
+                            # For O2 Header BGA, we want to measure O2 in N2 during purge
+                            measurements['primary_gas'] = 'O2'
+                        else:
+                            # For H2 Header BGA, we want to measure H2 in N2 during purge  
+                            measurements['primary_gas'] = self.unit_config['primary_gas']
+                    else:
+                        measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
             
@@ -264,7 +253,15 @@ class BGA244Device:
             ratio2_response = self._send_command("RATO? 2")
             if ratio2_response:
                 try:
-                    measurements['secondary_gas_concentration'] = float(ratio2_response)
+                    secondary_val = float(ratio2_response)
+                    # Check for overflow values - treat as 0 for gas concentrations
+                    if secondary_val > 1e30:  # Handle 9.9E37 and similar overflow values
+                        measurements['secondary_gas_concentration'] = 0.0
+                        print(f"   ⚠️  {self.unit_config['name']}: Secondary gas reading overflow ({ratio2_response}) - treated as 0")
+                    else:
+                        measurements['secondary_gas_concentration'] = secondary_val
+                    
+                    # Set secondary gas type - always N2 in purge mode
                     if self.purge_mode:
                         measurements['secondary_gas'] = 'N2'
                     else:
@@ -283,10 +280,12 @@ class BGA244Device:
                 # Determine remaining gas based on configuration and purge mode
                 if self.purge_mode:
                     # In purge mode, secondary is N2, so remaining is usually the other main gas
-                    if self.unit_config['primary_gas'] == 'H2':
+                    if measurements['primary_gas'] == 'H2':
                         measurements['remaining_gas'] = 'O2'
-                    else:
+                    elif measurements['primary_gas'] == 'O2':
                         measurements['remaining_gas'] = 'H2'
+                    else:
+                        measurements['remaining_gas'] = 'H2'  # fallback
                 else:
                     # Normal mode - remaining is typically N2
                     measurements['remaining_gas'] = 'N2'
@@ -300,13 +299,11 @@ class BGA244Device:
     def _send_command(self, command: str) -> Optional[str]:
         """Send command to BGA244 and return response"""
         if not self.serial_conn or not self.serial_conn.is_open:
-            print(f"     ❌ Serial connection not available for command: {command}")
             return None
         
         try:
             # Send command
             command_bytes = (command + '\r\n').encode('ascii')
-            print(f"     → Sending: {repr(command_bytes)}")
             self.serial_conn.write(command_bytes)
             
             # Wait for response
@@ -314,41 +311,13 @@ class BGA244Device:
             
             # Read response
             response_bytes = self.serial_conn.read_all()
-            print(f"     ← Received: {repr(response_bytes)} ({len(response_bytes)} bytes)")
             response = response_bytes.decode('ascii', errors='ignore').strip()
-            print(f"     ← Decoded: '{response}'")
             
             return response if response else None
             
         except Exception as e:
-            print(f"     ⚠️  Command error ({command}): {e}")
+            print(f"⚠️  Command error ({command}): {e}")
             return None
-
-    def force_disconnect(self):
-        """Force disconnect with additional cleanup for stuck ports"""
-        print(f"🔧 Force disconnecting from {self.port}...")
-        
-        if self.serial_conn:
-            try:
-                if hasattr(self.serial_conn, 'is_open') and self.serial_conn.is_open:
-                    self.serial_conn.cancel_read()
-                    self.serial_conn.cancel_write()
-                    self.serial_conn.flush()
-                    self.serial_conn.close()
-            except:
-                pass  # Ignore any errors during force close
-            
-            try:
-                del self.serial_conn
-            except:
-                pass
-        
-        self.serial_conn = None
-        self.is_connected = False
-        
-        # Extra delay to ensure Windows releases the port
-        time.sleep(0.5)
-        print(f"✅ Force disconnect complete for {self.port}")
 
 
 class BGA244Service:
@@ -453,9 +422,6 @@ class BGA244Service:
                     print(f"   ❌ {unit_config['name']} failed to connect to {configured_port}")
             else:
                 print(f"   ❌ No port configured for {unit_config['name']}")
-            
-            # Small delay between connection attempts to avoid port conflicts
-            time.sleep(0.3)
         
         return connected_count
     
@@ -504,34 +470,6 @@ class BGA244Service:
         
         print("✅ BGA244 analyzers disconnected (port mappings preserved for reconnection)")
     
-    def force_cleanup_all_ports(self):
-        """Force cleanup all BGA ports - use when ports are stuck"""
-        print("🔧 Force cleaning up all BGA ports...")
-        
-        # Force disconnect all devices
-        for unit_id, device in list(self.devices.items()):
-            try:
-                device.force_disconnect()
-            except Exception as e:
-                print(f"   ⚠️  Error force cleaning {unit_id}: {e}")
-        
-        # Clear all connections
-        self.devices.clear()
-        for unit_id in self.individual_connections:
-            self.individual_connections[unit_id] = False
-        
-        # Reset mappings
-        for unit_id in self.bga_port_mapping:
-            self.bga_port_mapping[unit_id] = None
-            
-        self.connected = False
-        self.state.update_connection_status('bga244', False)
-        
-        # Extra delay for Windows to release ports
-        time.sleep(1.0)
-        
-        print("✅ Force cleanup complete - all ports should be available now")
-
     def reset_port_mappings(self):
         """Reset BGA-to-port mappings (for troubleshooting)"""
         print("🔧 Resetting BGA port mappings...")
@@ -735,58 +673,4 @@ class BGA244Service:
     
     def get_individual_connection_status(self) -> Dict[str, bool]:
         """Get individual connection status for each BGA unit"""
-        return self.individual_connections.copy()
-    
-    def debug_scan_ports(self):
-        """Debug method to scan COM ports and identify connected devices"""
-        print("\n🔍 DEBUG: Scanning COM ports for connected devices...")
-        
-        # Common Windows COM ports to check
-        ports_to_check = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10']
-        
-        for port in ports_to_check:
-            try:
-                print(f"\n📡 Testing {port}...")
-                
-                # Try to open the port
-                test_serial = serial.Serial(
-                    port=port,
-                    baudrate=BGA244Config.BAUD_RATE,
-                    bytesize=BGA244Config.DATA_BITS,
-                    stopbits=BGA244Config.STOP_BITS,
-                    parity=BGA244Config.PARITY,
-                    timeout=BGA244Config.TIMEOUT
-                )
-                
-                print(f"   ✅ {port} opened successfully")
-                
-                # Clear buffers
-                test_serial.reset_input_buffer()
-                test_serial.reset_output_buffer()
-                
-                # Wait a moment
-                time.sleep(0.2)
-                
-                # Try to identify the device
-                print(f"   → Sending *IDN? to {port}...")
-                command_bytes = '*IDN?\r\n'.encode('ascii')
-                test_serial.write(command_bytes)
-                time.sleep(BGA244Config.COMMAND_DELAY)
-                
-                # Read response
-                response_bytes = test_serial.read_all()
-                response = response_bytes.decode('ascii', errors='ignore').strip()
-                
-                if response:
-                    print(f"   📋 Device on {port} responds: '{response}'")
-                else:
-                    print(f"   ❌ No response from device on {port}")
-                
-                test_serial.close()
-                
-            except serial.SerialException as e:
-                print(f"   ❌ {port} not available: {e}")
-            except Exception as e:
-                print(f"   ⚠️  Error testing {port}: {e}")
-        
-        print(f"\n✅ Port scan complete") 
+        return self.individual_connections.copy() 
