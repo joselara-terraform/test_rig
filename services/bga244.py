@@ -81,6 +81,18 @@ class BGA244Device:
         """Connect to BGA244 device"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
+            print(f"   → Using settings: {BGA244Config.BAUD_RATE} baud, {BGA244Config.DATA_BITS} data bits, {BGA244Config.STOP_BITS} stop bits, parity {BGA244Config.PARITY}")
+            
+            # Check if port is available before attempting connection
+            try:
+                test_serial = serial.Serial()
+                test_serial.port = self.port
+                test_serial.open()
+                test_serial.close()
+                print(f"   → Port {self.port} is available")
+            except Exception as e:
+                print(f"   ❌ Port {self.port} is not available: {e}")
+                return False
             
             self.serial_conn = serial.Serial(
                 port=self.port,
@@ -91,14 +103,19 @@ class BGA244Device:
                 timeout=BGA244Config.TIMEOUT
             )
             
+            print(f"   → Serial port opened successfully")
+            
             # Clear buffers
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
+            print(f"   → Buffers cleared")
             
             # Wait for device to be ready
             time.sleep(0.5)
+            print(f"   → Waited 0.5s for device ready")
             
-            # Test communication
+            # Test communication with detailed debugging
+            print(f"   → Sending *IDN? command...")
             response = self._send_command("*IDN?")
             if response:
                 self.device_info['identity'] = response
@@ -107,11 +124,17 @@ class BGA244Device:
                 return True
             else:
                 print(f"❌ No response from device on {self.port}")
+                print(f"   → This could mean:")
+                print(f"     • Wrong device connected to {self.port}")
+                print(f"     • Device not responding to *IDN? command")
+                print(f"     • Incorrect serial settings")
+                print(f"     • Device is in use by another application")
                 self.disconnect()
                 return False
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
+            print(f"   → Exception details: {type(e).__name__}: {str(e)}")
             self.disconnect()
             return False
     
@@ -245,11 +268,13 @@ class BGA244Device:
     def _send_command(self, command: str) -> Optional[str]:
         """Send command to BGA244 and return response"""
         if not self.serial_conn or not self.serial_conn.is_open:
+            print(f"     ❌ Serial connection not available for command: {command}")
             return None
         
         try:
             # Send command
             command_bytes = (command + '\r\n').encode('ascii')
+            print(f"     → Sending: {repr(command_bytes)}")
             self.serial_conn.write(command_bytes)
             
             # Wait for response
@@ -257,12 +282,14 @@ class BGA244Device:
             
             # Read response
             response_bytes = self.serial_conn.read_all()
+            print(f"     ← Received: {repr(response_bytes)} ({len(response_bytes)} bytes)")
             response = response_bytes.decode('ascii', errors='ignore').strip()
+            print(f"     ← Decoded: '{response}'")
             
             return response if response else None
             
         except Exception as e:
-            print(f"⚠️  Command error ({command}): {e}")
+            print(f"     ⚠️  Command error ({command}): {e}")
             return None
 
 
@@ -619,4 +646,58 @@ class BGA244Service:
     
     def get_individual_connection_status(self) -> Dict[str, bool]:
         """Get individual connection status for each BGA unit"""
-        return self.individual_connections.copy() 
+        return self.individual_connections.copy()
+    
+    def debug_scan_ports(self):
+        """Debug method to scan COM ports and identify connected devices"""
+        print("\n🔍 DEBUG: Scanning COM ports for connected devices...")
+        
+        # Common Windows COM ports to check
+        ports_to_check = ['COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'COM10']
+        
+        for port in ports_to_check:
+            try:
+                print(f"\n📡 Testing {port}...")
+                
+                # Try to open the port
+                test_serial = serial.Serial(
+                    port=port,
+                    baudrate=BGA244Config.BAUD_RATE,
+                    bytesize=BGA244Config.DATA_BITS,
+                    stopbits=BGA244Config.STOP_BITS,
+                    parity=BGA244Config.PARITY,
+                    timeout=BGA244Config.TIMEOUT
+                )
+                
+                print(f"   ✅ {port} opened successfully")
+                
+                # Clear buffers
+                test_serial.reset_input_buffer()
+                test_serial.reset_output_buffer()
+                
+                # Wait a moment
+                time.sleep(0.2)
+                
+                # Try to identify the device
+                print(f"   → Sending *IDN? to {port}...")
+                command_bytes = '*IDN?\r\n'.encode('ascii')
+                test_serial.write(command_bytes)
+                time.sleep(BGA244Config.COMMAND_DELAY)
+                
+                # Read response
+                response_bytes = test_serial.read_all()
+                response = response_bytes.decode('ascii', errors='ignore').strip()
+                
+                if response:
+                    print(f"   📋 Device on {port} responds: '{response}'")
+                else:
+                    print(f"   ❌ No response from device on {port}")
+                
+                test_serial.close()
+                
+            except serial.SerialException as e:
+                print(f"   ❌ {port} not available: {e}")
+            except Exception as e:
+                print(f"   ⚠️  Error testing {port}: {e}")
+        
+        print(f"\n✅ Port scan complete") 
