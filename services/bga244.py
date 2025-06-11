@@ -140,13 +140,28 @@ class BGA244Device:
     
     def disconnect(self):
         """Disconnect from BGA244 device"""
-        if self.serial_conn and self.serial_conn.is_open:
+        if self.serial_conn:
             try:
+                # Flush any pending data
+                if self.serial_conn.is_open:
+                    self.serial_conn.flush()
+                    time.sleep(0.1)  # Allow data to flush
+                    
+                # Close the connection
                 self.serial_conn.close()
+                
+                # Wait a moment to ensure port is fully released
+                time.sleep(0.2)
+                
                 self.is_connected = False
                 print(f"✅ Disconnected from {self.port}")
+                
             except Exception as e:
                 print(f"⚠️  Error disconnecting from {self.port}: {e}")
+            finally:
+                # Ensure connection is marked as closed regardless
+                self.serial_conn = None
+                self.is_connected = False
     
     def configure_gases(self, purge_mode: bool = False) -> bool:
         """Configure gas analysis mode and target gases"""
@@ -292,6 +307,32 @@ class BGA244Device:
             print(f"     ⚠️  Command error ({command}): {e}")
             return None
 
+    def force_disconnect(self):
+        """Force disconnect with additional cleanup for stuck ports"""
+        print(f"🔧 Force disconnecting from {self.port}...")
+        
+        if self.serial_conn:
+            try:
+                if hasattr(self.serial_conn, 'is_open') and self.serial_conn.is_open:
+                    self.serial_conn.cancel_read()
+                    self.serial_conn.cancel_write()
+                    self.serial_conn.flush()
+                    self.serial_conn.close()
+            except:
+                pass  # Ignore any errors during force close
+            
+            try:
+                del self.serial_conn
+            except:
+                pass
+        
+        self.serial_conn = None
+        self.is_connected = False
+        
+        # Extra delay to ensure Windows releases the port
+        time.sleep(0.5)
+        print(f"✅ Force disconnect complete for {self.port}")
+
 
 class BGA244Service:
     """Service for BGA244 gas analyzer units with real hardware integration only"""
@@ -395,6 +436,9 @@ class BGA244Service:
                     print(f"   ❌ {unit_config['name']} failed to connect to {configured_port}")
             else:
                 print(f"   ❌ No port configured for {unit_config['name']}")
+            
+            # Small delay between connection attempts to avoid port conflicts
+            time.sleep(0.3)
         
         return connected_count
     
@@ -443,6 +487,34 @@ class BGA244Service:
         
         print("✅ BGA244 analyzers disconnected (port mappings preserved for reconnection)")
     
+    def force_cleanup_all_ports(self):
+        """Force cleanup all BGA ports - use when ports are stuck"""
+        print("🔧 Force cleaning up all BGA ports...")
+        
+        # Force disconnect all devices
+        for unit_id, device in list(self.devices.items()):
+            try:
+                device.force_disconnect()
+            except Exception as e:
+                print(f"   ⚠️  Error force cleaning {unit_id}: {e}")
+        
+        # Clear all connections
+        self.devices.clear()
+        for unit_id in self.individual_connections:
+            self.individual_connections[unit_id] = False
+        
+        # Reset mappings
+        for unit_id in self.bga_port_mapping:
+            self.bga_port_mapping[unit_id] = None
+            
+        self.connected = False
+        self.state.update_connection_status('bga244', False)
+        
+        # Extra delay for Windows to release ports
+        time.sleep(1.0)
+        
+        print("✅ Force cleanup complete - all ports should be available now")
+
     def reset_port_mappings(self):
         """Reset BGA-to-port mappings (for troubleshooting)"""
         print("🔧 Resetting BGA port mappings...")
