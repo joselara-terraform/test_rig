@@ -166,7 +166,6 @@ bga244:
   communication:
     protocol: "RS-422"
     interface: "USB-to-RS422"
-    # Default settings (can be overridden per unit)
     baud_rate: 9600
     data_bits: 8
     stop_bits: 1
@@ -179,11 +178,6 @@ bga244:
       port: "/dev/ttyUSB0"  # Platform-specific
       name: "Hydrogen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      # Communication settings (uses defaults from above)
-      communication:
-        baud_rate: 9600
-        parity: "None"
-        stop_bits: 1
       # CALIBRATED ZERO OFFSETS for gas concentrations
       zero_offsets:
         H2: 0.1  # % concentration offset
@@ -195,11 +189,6 @@ bga244:
       port: "/dev/ttyUSB1"
       name: "Oxygen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      # Communication settings - may need different settings for this unit
-      communication:
-        baud_rate: 9600  # Will be updated based on diagnostic results
-        parity: "None"   # Will be updated based on diagnostic results  
-        stop_bits: 1     # Will be updated based on diagnostic results
       zero_offsets:
         H2: 0.08
         O2: 0.12
@@ -210,11 +199,6 @@ bga244:
       port: "/dev/ttyUSB2"
       name: "Mixed Stream Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      # Communication settings (uses defaults from above)
-      communication:
-        baud_rate: 9600
-        parity: "None"
-        stop_bits: 1
       zero_offsets:
         H2: 0.15
         O2: 0.08
@@ -288,23 +272,11 @@ platform_overrides:
     bga244:
       units:
         bga_1:
-          port: "COM8"
-          communication:
-            baud_rate: 9600
-            parity: "None"
-            stop_bits: 1
+          port: "COM3"
         bga_2:
-          port: "COM9"
-          communication:
-            baud_rate: 9600  # Will be updated based on diagnostic results
-            parity: "None"   # Will be updated based on diagnostic results
-            stop_bits: 1     # Will be updated based on diagnostic results
+          port: "COM4"
         bga_3:
-          port: "COM10"
-          communication:
-            baud_rate: 9600
-            parity: "None"
-            stop_bits: 1
+          port: "COM9"
   
   linux:
     bga244:

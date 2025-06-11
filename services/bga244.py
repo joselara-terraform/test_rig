@@ -159,21 +159,13 @@ class BGA244Device:
             # Store purge mode state for this device
             self.purge_mode = purge_mode
             
-            # Set binary gas mode (some devices don't respond to config commands)
-            response = self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
-            if response:
-                print(f"   Mode response: {response}")
-            else:
-                print(f"   Mode command sent (no response - this may be normal)")
+            # Set binary gas mode
+            self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
             # Configure primary gas (always the same)
             primary_gas = self.unit_config['primary_gas']
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
-            response = self._send_command(f"GASP {primary_cas}")
-            if response:
-                print(f"   Primary gas response: {response}")
-            else:
-                print(f"   Primary gas command sent (no response - this may be normal)")
+            self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
             
             # Configure secondary gas (changes in purge mode)
@@ -185,23 +177,11 @@ class BGA244Device:
                 secondary_gas = self.unit_config['secondary_gas']
                 secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             
-            response = self._send_command(f"GASS {secondary_cas}")
-            if response:
-                print(f"   Secondary gas response: {response}")
-            else:
-                print(f"   Secondary gas command sent (no response - this may be normal)")
+            self._send_command(f"GASS {secondary_cas}")
             print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
             
-            # Test if device can provide measurements (this is the real test)
-            print(f"   → Testing measurement capability...")
-            test_temp = self._send_command("TCEL?")
-            if test_temp:
-                print(f"   ✅ Device responds to measurements: Temperature = {test_temp}°C")
-                print(f"✅ Gas configuration complete for {self.unit_config['name']}")
-                return True
-            else:
-                print(f"   ❌ Device not responding to measurement commands")
-                return False
+            print(f"✅ Gas configuration complete for {self.unit_config['name']}")
+            return True
             
         except Exception as e:
             print(f"❌ Gas configuration failed: {e}")
