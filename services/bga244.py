@@ -544,12 +544,21 @@ class BGA244Service:
         
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
         
+        print(f"DEBUG: Reading gas data from {len(unit_ids)} potential units...")
+        
         for i, unit_id in enumerate(unit_ids):
+            print(f"DEBUG: Checking unit {unit_id} (index {i})...")
+            print(f"DEBUG: Connected: {unit_id in self.devices}")
+            print(f"DEBUG: Individual connection: {self.individual_connections[unit_id]}")
+            
             if unit_id in self.devices and self.individual_connections[unit_id]:
                 # Read from real hardware
                 try:
                     device = self.devices[unit_id]
+                    print(f"DEBUG: Reading from {unit_id} on port {device.port}...")
                     measurements = device.read_measurements()
+                    
+                    print(f"DEBUG: Raw measurements from {unit_id}: {measurements}")
                     
                     if measurements:
                         # Convert to standard format
@@ -559,14 +568,17 @@ class BGA244Service:
                         if measurements.get('primary_gas_concentration') is not None:
                             primary_gas = measurements['primary_gas']
                             gas_data[primary_gas] = measurements['primary_gas_concentration']
+                            print(f"DEBUG: {unit_id} primary gas {primary_gas}: {measurements['primary_gas_concentration']}")
                         
                         if measurements.get('secondary_gas_concentration') is not None:
                             secondary_gas = measurements['secondary_gas']
                             gas_data[secondary_gas] = measurements['secondary_gas_concentration']
+                            print(f"DEBUG: {unit_id} secondary gas {secondary_gas}: {measurements['secondary_gas_concentration']}")
                         
                         if measurements.get('remaining_gas_concentration') is not None:
                             remaining_gas = measurements['remaining_gas']
                             gas_data[remaining_gas] = measurements['remaining_gas_concentration']
+                            print(f"DEBUG: {unit_id} remaining gas {remaining_gas}: {measurements['remaining_gas_concentration']}")
                         
                         # Ensure all expected gas types are present for plotting
                         for gas_type in ['H2', 'O2', 'N2']:
@@ -579,9 +591,11 @@ class BGA244Service:
                             offset = zero_offsets.get(gas, 0.0)
                             gas_data[gas] = concentration + offset
                         
+                        print(f"DEBUG: Final gas_data for {unit_id}: {gas_data}")
                         gas_readings.append(gas_data)
                     else:
                         # No data from this device
+                        print(f"DEBUG: No measurements from {unit_id}, using zeros")
                         gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
                         
                 except Exception as e:
@@ -589,8 +603,10 @@ class BGA244Service:
                     gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
             else:
                 # Device not connected - return zero data (no plotting)
+                print(f"DEBUG: {unit_id} not connected, using zeros")
                 gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
         
+        print(f"DEBUG: Final gas_readings array: {gas_readings}")
         return gas_readings
     
     def get_status(self) -> Dict[str, Any]:
