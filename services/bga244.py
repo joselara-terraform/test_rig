@@ -123,10 +123,27 @@ class BGA244Device:
                 print(f"✅ Connected: {response}")
                 return True
             else:
+                print(f"   → *IDN? failed, trying BGA244 commands...")
+                
+                # Try actual BGA244 commands
+                temp_response = self._send_command("TCEL?")
+                if temp_response and temp_response.strip():
+                    self.device_info['identity'] = f"BGA244 (Temperature: {temp_response})"
+                    self.is_connected = True
+                    print(f"✅ Connected to BGA244: Temperature reading {temp_response}")
+                    return True
+                
+                pres_response = self._send_command("PRES?")
+                if pres_response and pres_response.strip():
+                    self.device_info['identity'] = f"BGA244 (Pressure: {pres_response})"
+                    self.is_connected = True
+                    print(f"✅ Connected to BGA244: Pressure reading {pres_response}")
+                    return True
+                
                 print(f"❌ No response from device on {self.port}")
                 print(f"   → This could mean:")
                 print(f"     • Wrong device connected to {self.port}")
-                print(f"     • Device not responding to *IDN? command")
+                print(f"     • Device not responding to BGA244 commands")
                 print(f"     • Incorrect serial settings")
                 print(f"     • Device is in use by another application")
                 self.disconnect()
