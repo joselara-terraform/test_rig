@@ -32,9 +32,9 @@ class StatusIndicators:
     def _create_indicators(self):
         """Create status indicator panel"""
         
-        # Main status frame - fill both horizontally and vertically
+        # Main status frame
         status_frame = ttk.LabelFrame(self.parent_frame, text="Hardware Connection Status", padding="10")
-        status_frame.pack(fill='both', expand=True, pady=5)  # Changed to fill both and expand
+        status_frame.pack(fill='x', pady=5)
         
         # Create grid for device indicators
         devices = [

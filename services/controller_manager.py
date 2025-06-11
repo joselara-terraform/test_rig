@@ -131,19 +131,6 @@ class ControllerManager:
             self.test_running = True
             self.state.update_test_status(running=True)
             
-            # Initialize BGAs to normal mode (not purge mode) for test start
-            print("   → Initializing BGAs to normal gas readings...")
-            try:
-                if self.services['bga244']['connected'] and self.bga244_service:
-                    # Ensure BGAs start in normal mode (purge_mode=False)
-                    self.bga244_service.set_purge_mode(False)
-                    self.state.purge_mode = False
-                    print("   → BGAs configured for normal gas analysis (H2 in O2, O2 in H2)")
-                else:
-                    print("   → BGAs not connected - will use normal mode when connected")
-            except Exception as e:
-                print(f"   ⚠️  Warning: Could not initialize BGA mode: {e}")
-            
             # Register configuration snapshot
             config_file = f"{self.session_manager.get_base_filename('config')}.json"
             config_path = self.session_manager.register_file(
