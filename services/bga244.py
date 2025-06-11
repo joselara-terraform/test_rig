@@ -81,7 +81,6 @@ class BGA244Device:
         """Connect to BGA244 device"""
         try:
             print(f"🔌 Connecting to {self.unit_config['name']} on {self.port}...")
-            print(f"   → DEBUG: Creating serial connection...")
             
             self.serial_conn = serial.Serial(
                 port=self.port,
@@ -92,22 +91,15 @@ class BGA244Device:
                 timeout=BGA244Config.TIMEOUT
             )
             
-            print(f"   → DEBUG: Serial connection created successfully")
-            
             # Clear buffers
             self.serial_conn.reset_input_buffer()
             self.serial_conn.reset_output_buffer()
-            print(f"   → DEBUG: Buffers cleared")
             
             # Wait for device to be ready
             time.sleep(0.5)
-            print(f"   → DEBUG: Waited 0.5s for device ready")
             
             # Test communication
-            print(f"   → DEBUG: Sending *IDN? command...")
             response = self._send_command("*IDN?")
-            print(f"   → DEBUG: *IDN? response: '{response}'")
-            
             if response:
                 self.device_info['identity'] = response
                 self.is_connected = True
@@ -120,7 +112,6 @@ class BGA244Device:
                 
         except Exception as e:
             print(f"❌ Connection failed on {self.port}: {e}")
-            print(f"   → DEBUG: Exception details: {type(e).__name__}: {str(e)}")
             self.disconnect()
             return False
     
@@ -140,30 +131,29 @@ class BGA244Device:
             return False
         
         try:
-            print(f"⚙️  Configuring {self.unit_config['name']}... (purge_mode={purge_mode})")
+            print(f"⚙️  Configuring {self.unit_config['name']}...")
             
             # Store purge mode state for this device
             self.purge_mode = purge_mode
             
             # Set binary gas mode
-            print(f"   → DEBUG: Setting binary gas mode...")
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
-            # Configure primary gas (use normal config for now to test)
+            # Configure primary gas (always the same)
             primary_gas = self.unit_config['primary_gas']
-            
-            print(f"   → DEBUG: Primary gas will be: {primary_gas}")
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
-            print(f"   → DEBUG: Sending GASP command...")
             self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
             
-            # Configure secondary gas (use normal config for now to test)
-            secondary_gas = self.unit_config['secondary_gas']
-            secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
+            # Configure secondary gas (changes in purge mode)
+            if purge_mode:
+                secondary_gas = 'N2'  # All secondary gases become N2 in purge mode
+                secondary_cas = BGA244Config.GAS_CAS_NUMBERS['N2']
+                print(f"   PURGE MODE: Secondary gas changed to N2")
+            else:
+                secondary_gas = self.unit_config['secondary_gas']
+                secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             
-            print(f"   → DEBUG: Secondary gas will be: {secondary_gas}")
-            print(f"   → DEBUG: Sending GASS command...")
             self._send_command(f"GASS {secondary_cas}")
             print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
             
@@ -211,16 +201,7 @@ class BGA244Device:
             if ratio_response:
                 try:
                     measurements['primary_gas_concentration'] = float(ratio_response)
-                    # Determine which gas is actually primary based on purge mode
-                    if self.purge_mode:
-                        if self.unit_id == 'bga_1':
-                            measurements['primary_gas'] = 'H2'
-                        elif self.unit_id == 'bga_2':
-                            measurements['primary_gas'] = 'O2'
-                        else:
-                            measurements['primary_gas'] = self.unit_config['primary_gas']
-                    else:
-                        measurements['primary_gas'] = self.unit_config['primary_gas']
+                    measurements['primary_gas'] = self.unit_config['primary_gas']
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
             
@@ -374,8 +355,6 @@ class BGA244Service:
         for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
             # Get the configured port for this unit from device config
             configured_port = self.device_config.get_bga_unit_config(unit_id).get('port')
-            
-            print(f"   → DEBUG: {unit_id} configured port: {configured_port}")
             
             if configured_port:
                 print(f"   → Trying to connect {unit_config['name']} to {configured_port}...")
@@ -544,21 +523,12 @@ class BGA244Service:
         
         unit_ids = list(BGA244Config.BGA_UNITS.keys())
         
-        print(f"DEBUG: Reading gas data from {len(unit_ids)} potential units...")
-        
         for i, unit_id in enumerate(unit_ids):
-            print(f"DEBUG: Checking unit {unit_id} (index {i})...")
-            print(f"DEBUG: Connected: {unit_id in self.devices}")
-            print(f"DEBUG: Individual connection: {self.individual_connections[unit_id]}")
-            
             if unit_id in self.devices and self.individual_connections[unit_id]:
                 # Read from real hardware
                 try:
                     device = self.devices[unit_id]
-                    print(f"DEBUG: Reading from {unit_id} on port {device.port}...")
                     measurements = device.read_measurements()
-                    
-                    print(f"DEBUG: Raw measurements from {unit_id}: {measurements}")
                     
                     if measurements:
                         # Convert to standard format
@@ -568,22 +538,14 @@ class BGA244Service:
                         if measurements.get('primary_gas_concentration') is not None:
                             primary_gas = measurements['primary_gas']
                             gas_data[primary_gas] = measurements['primary_gas_concentration']
-                            print(f"DEBUG: {unit_id} primary gas {primary_gas}: {measurements['primary_gas_concentration']}")
                         
                         if measurements.get('secondary_gas_concentration') is not None:
                             secondary_gas = measurements['secondary_gas']
                             gas_data[secondary_gas] = measurements['secondary_gas_concentration']
-                            print(f"DEBUG: {unit_id} secondary gas {secondary_gas}: {measurements['secondary_gas_concentration']}")
                         
                         if measurements.get('remaining_gas_concentration') is not None:
                             remaining_gas = measurements['remaining_gas']
                             gas_data[remaining_gas] = measurements['remaining_gas_concentration']
-                            print(f"DEBUG: {unit_id} remaining gas {remaining_gas}: {measurements['remaining_gas_concentration']}")
-                        
-                        # Ensure all expected gas types are present for plotting
-                        for gas_type in ['H2', 'O2', 'N2']:
-                            if gas_type not in gas_data:
-                                gas_data[gas_type] = 0.0
                         
                         # Apply calibrated zero offsets if configured
                         zero_offsets = self.device_config.get_bga_zero_offsets(unit_id)
@@ -591,11 +553,9 @@ class BGA244Service:
                             offset = zero_offsets.get(gas, 0.0)
                             gas_data[gas] = concentration + offset
                         
-                        print(f"DEBUG: Final gas_data for {unit_id}: {gas_data}")
                         gas_readings.append(gas_data)
                     else:
                         # No data from this device
-                        print(f"DEBUG: No measurements from {unit_id}, using zeros")
                         gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
                         
                 except Exception as e:
@@ -603,10 +563,8 @@ class BGA244Service:
                     gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
             else:
                 # Device not connected - return zero data (no plotting)
-                print(f"DEBUG: {unit_id} not connected, using zeros")
                 gas_readings.append({'H2': 0.0, 'O2': 0.0, 'N2': 0.0})
         
-        print(f"DEBUG: Final gas_readings array: {gas_readings}")
         return gas_readings
     
     def get_status(self) -> Dict[str, Any]:
