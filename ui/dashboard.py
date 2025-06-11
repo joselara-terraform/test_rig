@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from .controls import ControlPanel
 from .status_indicators import StatusIndicators
-from .plots import PressurePlot, VoltagePlot, TemperaturePlot
+from .plots import PressurePlot, VoltagePlot, TemperaturePlot, CurrentPlot
 from core.state import get_global_state
 
 
@@ -36,6 +36,7 @@ class Dashboard:
         self.pressure_plot = None
         self.voltage_plot = None
         self.temperature_plot = None
+        self.current_plot = None
         
         # Set up window close protocol
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -206,18 +207,18 @@ class Dashboard:
         # Create temperature plot
         self.temperature_plot = TemperaturePlot(self.temperature_frame)
         
-        # Bottom-right: Current sensor reading only
+        # Bottom-right: Current vs Time plot
         self.current_frame = ttk.LabelFrame(
             self.main_frame, 
-            text="Current Sensor", 
-            padding="5"
+            text="Current vs Time", 
+            padding="2"
         )
         self.current_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.current_frame.columnconfigure(0, weight=1)
         self.current_frame.rowconfigure(0, weight=1)
         
-        # Create current sensor display
-        self._create_current_sensor_display()
+        # Create current plot
+        self.current_plot = CurrentPlot(self.current_frame)
     
     def _create_actuator_controls(self):
         """Create actuator controls in the middle section"""
@@ -288,36 +289,6 @@ class Dashboard:
         )
         self.pump_state_label.grid(row=2, column=0)  # Same row level as valve buttons
     
-    def _create_current_sensor_display(self):
-        """Create current sensor display for bottom-right section"""
-        
-        # Container frame to center content
-        container_frame = ttk.Frame(self.current_frame)
-        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        container_frame.columnconfigure(0, weight=1)
-        container_frame.rowconfigure(0, weight=1)
-        
-        # Center the current reading
-        center_frame = ttk.Frame(container_frame)
-        center_frame.grid(row=0, column=0, sticky="")
-        
-        # Current sensor display
-        self.current_label = ttk.Label(
-            center_frame, 
-            text="0.0 A", 
-            font=("Arial", 24, "bold"),
-            foreground="blue"
-        )
-        self.current_label.pack()
-        
-        # Units label
-        units_label = ttk.Label(
-            center_frame,
-            text="Stack Current",
-            font=("Arial", 10)
-        )
-        units_label.pack()
-    
     def _toggle_valve(self, valve_index):
         """Toggle valve state when clicked"""
         if not self.state.connections.get('ni_daq', False):
@@ -358,6 +329,8 @@ class Dashboard:
             self.voltage_plot.reset()
         if self.temperature_plot:
             self.temperature_plot.reset()
+        if self.current_plot:
+            self.current_plot.reset()
     
     def _start_status_updates(self):
         """Start periodic status updates"""
@@ -443,7 +416,7 @@ class Dashboard:
                 self.pump_state_label.configure(state='disabled')
         
         # Update current sensor
-        self.current_label.configure(text=f"{self.state.current_value:.1f} A")
+        # Current plot updates automatically from global state, no manual update needed
         
         # Schedule next update
         self.update_job = self.root.after(100, self._update_status_indicators)
@@ -490,6 +463,13 @@ class Dashboard:
             except Exception as e:
                 print(f"   ⚠️  Error destroying temperature plot: {e}")
         
+        if self.current_plot:
+            try:
+                self.current_plot.destroy()
+                print("   → Current plot destroyed")
+            except Exception as e:
+                print(f"   ⚠️  Error destroying current plot: {e}")
+        
         # Clean up control panel
         if hasattr(self.control_panel, 'cleanup'):
             try:
@@ -512,6 +492,7 @@ def main():
     print("✅ Dashboard with live pressure & gas concentration plotting")
     print("✅ Dashboard with live cell voltage plotting (120 cells)")
     print("✅ Dashboard with live temperature plotting (8 thermocouples)")
+    print("✅ Dashboard with live current plotting (stack current)")
     print("✅ All plots update from GlobalState")
     print("✅ Static Y-axis, dynamic X-axis for all plots")
     print("✅ Interactive valve/pump controls with relay outputs")
@@ -530,11 +511,13 @@ def main():
     print("   • Blue: Inlet | Red: Outlet | Green: Stack 1 | Magenta: Stack 2")
     print("   • Cyan dashed: Ambient | Yellow dashed: Cooling")
     print("   • Orange: Gas | Brown: Case")
-    print("\nValve/Pump Controls:")
+    print("\nCurrent Plot (Y: 0-150A):")
+    print("   • Blue: Stack Current vs Time")
+    print("\nActuator Controls (Middle Section):")
     print("   • 🔴 Red buttons = OFF | 🟢 Green buttons = ON")
     print("   • Click valve/pump buttons to toggle (when NI DAQ connected)")
     print("   • Buttons disabled when NI DAQ disconnected")
-    print("   • KOH Storage, DI Storage, Stack Drain, N2 Purge + Pump")
+    print("   • KOH Fill, DI Fill, Stack Drain, N2 Purge + Pump")
     print("\n🎯 TEST: Verify all functionality:")
     print("   1. Click Connect - all services start, buttons enabled")
     print("   2. Click valve/pump buttons to control actuators")

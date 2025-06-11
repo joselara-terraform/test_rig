@@ -509,6 +509,117 @@ class TemperaturePlot:
         self.canvas.get_tk_widget().destroy()
 
 
+class CurrentPlot:
+    """Live current vs time plot"""
+    
+    def __init__(self, parent_frame, max_points: int = 300):
+        self.parent_frame = parent_frame
+        self.state = get_global_state()
+        self.max_points = max_points
+        
+        # Data storage for plotting - current data
+        self.time_data = deque()
+        self.current_data = deque()
+        
+        self.last_update_time = 0
+        
+        # Create the matplotlib figure
+        self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
+        self.ax = self.fig.add_subplot(111)
+        
+        # Configure plot appearance
+        self.ax.set_title("Stack Current vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Current (A)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+        
+        # Create line object for current
+        self.line_current, = self.ax.plot([], [], 'b-', linewidth=3, label='Stack Current', alpha=0.9)
+        
+        # Add legend
+        self.ax.legend(loc='upper right', fontsize=11)
+        
+        # Set initial axis limits - static Y (0-150A), dynamic X
+        self.ax.set_xlim(0, 120)   # Initial X limit
+        self.ax.set_ylim(0, 150)   # Static Y limit (0-150A range)
+        
+        # Create canvas and add to parent frame
+        self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+        
+        # Start animation
+        self.animation = animation.FuncAnimation(
+            self.fig, self._update_plot, interval=100, blit=False, cache_frame_data=False
+        )
+        
+        # Pack the canvas
+        self.canvas.draw()
+    
+    def _update_plot(self, frame):
+        """Update plot with new data from GlobalState"""
+        current_time = time.time()
+        
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running:
+            return (self.line_current,)
+        
+        if self.state.test_paused:
+            return (self.line_current,)
+        
+        # Update only if enough time has passed (throttle updates)
+        if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
+            return (self.line_current,)
+        
+        self.last_update_time = current_time
+        
+        # Use global timer
+        relative_time = self.state.timer_value
+        
+        # Get current stack current value
+        current_value = self.state.current_value
+        
+        # Add new data points
+        self.time_data.append(relative_time)
+        self.current_data.append(current_value)
+        
+        # Limit data points to prevent memory growth
+        if len(self.time_data) > self.max_points:
+            self.time_data.popleft()
+            self.current_data.popleft()
+        
+        # Update line data
+        if len(self.time_data) > 0:
+            self.line_current.set_data(list(self.time_data), list(self.current_data))
+            
+            # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
+            # Static Y-axis: [0, 150] (no auto-scaling)
+            self.ax.set_xlim(0, max(relative_time*1.2, 120))
+        
+        return (self.line_current,)
+
+    def reset(self):
+        """Reset plot data"""
+        self.time_data.clear()
+        self.current_data.clear()
+
+        self.last_update_time = 0
+        
+        # Reset axis limits - static Y, initial X
+        self.ax.set_xlim(0, 120)
+        self.ax.set_ylim(0, 150)
+        
+        # Clear line data
+        self.line_current.set_data([], [])
+        
+        self.canvas.draw()
+    
+    def destroy(self):
+        """Clean up resources"""
+        if hasattr(self, 'animation'):
+            self.animation.event_source.stop()
+        self.canvas.get_tk_widget().destroy()
+
+
 def test_pressure_plot():
     """Test the pressure, gas concentration, voltage, and temperature plots independently"""
     import threading
