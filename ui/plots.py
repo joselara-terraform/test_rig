@@ -246,7 +246,7 @@ class VoltagePlot:
         # self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
         
         # Add legend with smaller font for 15 channels
-        self.ax.legend(loc='upper right', fontsize=6, ncol=1)
+        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
         
         # Set initial axis limits - static Y (0-5V), dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
