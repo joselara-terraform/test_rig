@@ -1,6 +1,10 @@
 """
-Live plotting module for AWE test rig dashboard
-Provides real-time plots for pressure, voltage, and temperature data
+Real-time plotting components for AWE test rig dashboard
+Includes pressure, gas concentration, voltage, and temperature plots
+
+TEMPORARY MODIFICATION: VoltagePlot shows channels 96-110 individually
+TO REVERT: Search for "TEMPORARY CHANGE" and "ORIGINAL CODE TO RESTORE" comments
+and replace the modified sections with the original group averaging code.
 """
 
 import tkinter as tk
@@ -197,14 +201,19 @@ class VoltagePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting - voltage data (6 groups of 20 cells each)
+        # TEMPORARY CHANGE: Individual channels 96-110 instead of group averages
+        # TO REVERT: Replace this section with the original 6 group data storage
         self.time_data = deque()
-        self.group1_data = deque()  # Cells 1-20 average
-        self.group2_data = deque()  # Cells 21-40 average
-        self.group3_data = deque()  # Cells 41-60 average
-        self.group4_data = deque()  # Cells 61-80 average
-        self.group5_data = deque()  # Cells 81-100 average
-        self.group6_data = deque()  # Cells 101-120 average
+        # Data storage for channels 96-110 (indices 95-109)
+        self.channel_data = [deque() for _ in range(15)]  # 15 channels: 96-110
+        
+        # ORIGINAL CODE TO RESTORE:
+        # self.group1_data = deque()  # Cells 1-20 average
+        # self.group2_data = deque()  # Cells 21-40 average
+        # self.group3_data = deque()  # Cells 41-60 average
+        # self.group4_data = deque()  # Cells 61-80 average
+        # self.group5_data = deque()  # Cells 81-100 average
+        # self.group6_data = deque()  # Cells 101-120 average
         
         self.last_update_time = 0
         
@@ -213,21 +222,31 @@ class VoltagePlot:
         self.ax = self.fig.add_subplot(111)
         
         # Configure plot appearance
-        self.ax.set_title("Cell Voltages vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_title("Cell Voltages vs Time (Channels 96-110)", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
         self.ax.set_ylabel("Voltage (V)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         
-        # Create line objects for voltage group averages
-        self.line_group1, = self.ax.plot([], [], 'b-', linewidth=2, label='Group 1 (1-20)', alpha=0.9)
-        self.line_group2, = self.ax.plot([], [], 'g-', linewidth=2, label='Group 2 (21-40)', alpha=0.9)
-        self.line_group3, = self.ax.plot([], [], 'r-', linewidth=2, label='Group 3 (41-60)', alpha=0.9)
-        self.line_group4, = self.ax.plot([], [], 'm-', linewidth=2, label='Group 4 (61-80)', alpha=0.9)
-        self.line_group5, = self.ax.plot([], [], 'c-', linewidth=2, label='Group 5 (81-100)', alpha=0.9)
-        self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
+        # TEMPORARY CHANGE: Create line objects for individual channels 96-110
+        # TO REVERT: Replace with original 6 group lines
+        import matplotlib.cm as cm
+        colors = cm.get_cmap('tab20')(range(15))  # Get 15 distinct colors
+        self.channel_lines = []
+        for i in range(15):
+            channel_num = 96 + i
+            line, = self.ax.plot([], [], color=colors[i], linewidth=1, label=f'Ch {channel_num}', alpha=0.8)
+            self.channel_lines.append(line)
         
-        # Add legend
-        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
+        # ORIGINAL CODE TO RESTORE:
+        # self.line_group1, = self.ax.plot([], [], 'b-', linewidth=2, label='Group 1 (1-20)', alpha=0.9)
+        # self.line_group2, = self.ax.plot([], [], 'g-', linewidth=2, label='Group 2 (21-40)', alpha=0.9)
+        # self.line_group3, = self.ax.plot([], [], 'r-', linewidth=2, label='Group 3 (41-60)', alpha=0.9)
+        # self.line_group4, = self.ax.plot([], [], 'm-', linewidth=2, label='Group 4 (61-80)', alpha=0.9)
+        # self.line_group5, = self.ax.plot([], [], 'c-', linewidth=2, label='Group 5 (81-100)', alpha=0.9)
+        # self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
+        
+        # Add legend with smaller font for 15 channels
+        self.ax.legend(loc='upper right', fontsize=6, ncol=3)
         
         # Set initial axis limits - static Y (0-5V), dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
@@ -251,73 +270,82 @@ class VoltagePlot:
         
         # Check test states
         if self.state.emergency_stop or not self.state.test_running:
-            return (self.line_group1, self.line_group2, self.line_group3, 
-                   self.line_group4, self.line_group5, self.line_group6)
+            return tuple(self.channel_lines)
         
         if self.state.test_paused:
-            return (self.line_group1, self.line_group2, self.line_group3, 
-                   self.line_group4, self.line_group5, self.line_group6)
+            return tuple(self.channel_lines)
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line_group1, self.line_group2, self.line_group3, 
-                   self.line_group4, self.line_group5, self.line_group6)
+            return tuple(self.channel_lines)
         
         self.last_update_time = current_time
         
         # Use global timer
         relative_time = self.state.timer_value
         
-        # Get current cell voltage values and calculate group averages
+        # TEMPORARY CHANGE: Get individual channels 96-110 instead of group averages
+        # TO REVERT: Replace with original group average calculation
         cell_voltages = self.state.cell_voltages
-        
-        if len(cell_voltages) >= 120:
-            # Calculate group averages (20 cells per group)
-            group1_avg = sum(cell_voltages[0:20]) / 20      # Cells 1-20
-            group2_avg = sum(cell_voltages[20:40]) / 20     # Cells 21-40
-            group3_avg = sum(cell_voltages[40:60]) / 20     # Cells 41-60
-            group4_avg = sum(cell_voltages[60:80]) / 20     # Cells 61-80
-            group5_avg = sum(cell_voltages[80:100]) / 20    # Cells 81-100
-            group6_avg = sum(cell_voltages[100:120]) / 20   # Cells 101-120
-        else:
-            # No data available or insufficient data
-            group1_avg = group2_avg = group3_avg = 0.0
-            group4_avg = group5_avg = group6_avg = 0.0
         
         # Add new data points
         self.time_data.append(relative_time)
-        self.group1_data.append(group1_avg)
-        self.group2_data.append(group2_avg)
-        self.group3_data.append(group3_avg)
-        self.group4_data.append(group4_avg)
-        self.group5_data.append(group5_avg)
-        self.group6_data.append(group6_avg)
+        
+        # Extract individual channels 96-110 (indices 95-109)
+        if len(cell_voltages) >= 110:  # Ensure we have enough data
+            for i in range(15):
+                channel_idx = 95 + i  # Channel 96 = index 95
+                self.channel_data[i].append(cell_voltages[channel_idx])
+        else:
+            # Not enough data, append zeros
+            for i in range(15):
+                self.channel_data[i].append(0.0)
+        
+        # ORIGINAL CODE TO RESTORE:
+        # if len(cell_voltages) >= 120:
+        #     # Calculate group averages (20 cells per group)
+        #     group1_avg = sum(cell_voltages[0:20]) / 20      # Cells 1-20
+        #     group2_avg = sum(cell_voltages[20:40]) / 20     # Cells 21-40
+        #     group3_avg = sum(cell_voltages[40:60]) / 20     # Cells 41-60
+        #     group4_avg = sum(cell_voltages[60:80]) / 20     # Cells 61-80
+        #     group5_avg = sum(cell_voltages[80:100]) / 20    # Cells 81-100
+        #     group6_avg = sum(cell_voltages[100:120]) / 20   # Cells 101-120
+        # else:
+        #     # No data available or insufficient data
+        #     group1_avg = group2_avg = group3_avg = 0.0
+        #     group4_avg = group5_avg = group6_avg = 0.0
+        # 
+        # self.group1_data.append(group1_avg)
+        # self.group2_data.append(group2_avg)
+        # self.group3_data.append(group3_avg)
+        # self.group4_data.append(group4_avg)
+        # self.group5_data.append(group5_avg)
+        # self.group6_data.append(group6_avg)
         
         # Update line data
         if len(self.time_data) > 0:
-            self.line_group1.set_data(list(self.time_data), list(self.group1_data))
-            self.line_group2.set_data(list(self.time_data), list(self.group2_data))
-            self.line_group3.set_data(list(self.time_data), list(self.group3_data))
-            self.line_group4.set_data(list(self.time_data), list(self.group4_data))
-            self.line_group5.set_data(list(self.time_data), list(self.group5_data))
-            self.line_group6.set_data(list(self.time_data), list(self.group6_data))
+            for i in range(15):
+                self.channel_lines[i].set_data(list(self.time_data), list(self.channel_data[i]))
+            
+            # ORIGINAL CODE TO RESTORE:
+            # self.line_group1.set_data(list(self.time_data), list(self.group1_data))
+            # self.line_group2.set_data(list(self.time_data), list(self.group2_data))
+            # self.line_group3.set_data(list(self.time_data), list(self.group3_data))
+            # self.line_group4.set_data(list(self.time_data), list(self.group4_data))
+            # self.line_group5.set_data(list(self.time_data), list(self.group5_data))
+            # self.line_group6.set_data(list(self.time_data), list(self.group6_data))
             
             # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
             # Static Y-axis: [0, 5] (no auto-scaling)
             self.ax.set_xlim(0, max(relative_time*1.2, 120))
         
-        return (self.line_group1, self.line_group2, self.line_group3, 
-               self.line_group4, self.line_group5, self.line_group6)
+        return tuple(self.channel_lines)
 
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        self.group1_data.clear()
-        self.group2_data.clear()
-        self.group3_data.clear()
-        self.group4_data.clear()
-        self.group5_data.clear()
-        self.group6_data.clear()
+        for i in range(15):
+            self.channel_data[i].clear()
 
         self.last_update_time = 0
         
@@ -326,12 +354,8 @@ class VoltagePlot:
         self.ax.set_ylim(0, 5)
         
         # Clear line data
-        self.line_group1.set_data([], [])
-        self.line_group2.set_data([], [])
-        self.line_group3.set_data([], [])
-        self.line_group4.set_data([], [])
-        self.line_group5.set_data([], [])
-        self.line_group6.set_data([], [])
+        for i in range(15):
+            self.channel_lines[i].set_data([], [])
         
         self.canvas.draw()
     
