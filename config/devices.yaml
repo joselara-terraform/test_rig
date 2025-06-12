@@ -83,12 +83,24 @@ ni_cdaq:
         name: "N2 Purge Valve"
         description: "Controls nitrogen purge valve for system cleanup"
         
+      o2_purge:
+        module: "cDAQ9187-23E902CMod2"
+        line: 5
+        name: "O2 Purge Valve"
+        description: "Controls oxygen purge valve"
+        
     pump:
       main_pump:
         module: "cDAQ9187-23E902CMod2"
         line: 4
         name: "Main Circulation Pump"
         description: "Controls main electrolyte circulation pump"
+        
+      koh_pump:
+        module: "cDAQ9187-23E902CMod2"
+        line: 6
+        name: "KOH Pump"
+        description: "Controls KOH pump"
 
 # Pico TC-08 Thermocouple Logger
 pico_tc08:
