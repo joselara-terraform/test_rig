@@ -205,7 +205,7 @@ class VoltagePlot:
         # TO REVERT: Replace this section with the original 6 group data storage
         self.time_data = deque()
         # Data storage for channels 96-110 (indices 95-109)
-        self.channel_data = [deque() for _ in range(4)]  # 15 channels: 96-110
+        self.channel_data = [deque() for _ in range(15)]  # 15 channels: 96-110
         
         # ORIGINAL CODE TO RESTORE:
         # self.group1_data = deque()  # Cells 1-20 average
@@ -222,7 +222,7 @@ class VoltagePlot:
         self.ax = self.fig.add_subplot(111)
         
         # Configure plot appearance
-        self.ax.set_title("Cell Voltages vs Time (Channels 97-100)", fontsize=12, fontweight='bold')
+        self.ax.set_title("Cell Voltages vs Time (Channels 96-110)", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
         self.ax.set_ylabel("Voltage (V)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
@@ -230,10 +230,10 @@ class VoltagePlot:
         # TEMPORARY CHANGE: Create line objects for individual channels 96-110
         # TO REVERT: Replace with original 6 group lines
         import matplotlib.cm as cm
-        colors = cm.get_cmap('tab20')(range(4))  # Get 15 distinct colors
+        colors = cm.get_cmap('tab20')(range(15))  # Get 15 distinct colors
         self.channel_lines = []
-        for i in range(4):
-            channel_num = 97 + i
+        for i in range(15):
+            channel_num = 96 + i
             line, = self.ax.plot([], [], color=colors[i], linewidth=1, label=f'Ch {channel_num}', alpha=0.8)
             self.channel_lines.append(line)
         
@@ -246,7 +246,7 @@ class VoltagePlot:
         # self.line_group6, = self.ax.plot([], [], 'y-', linewidth=2, label='Group 6 (101-120)', alpha=0.9)
         
         # Add legend with smaller font for 15 channels
-        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
+        self.ax.legend(loc='upper right', fontsize=6, ncol=3)
         
         # Set initial axis limits - static Y (0-5V), dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
@@ -293,12 +293,12 @@ class VoltagePlot:
         
         # Extract individual channels 96-110 (indices 95-109)
         if len(cell_voltages) >= 110:  # Ensure we have enough data
-            for i in range(4):
-                channel_idx = 96 + i  # Channel 96 = index 95
+            for i in range(15):
+                channel_idx = 95 + i  # Channel 96 = index 95
                 self.channel_data[i].append(cell_voltages[channel_idx])
         else:
             # Not enough data, append zeros
-            for i in range(4):
+            for i in range(15):
                 self.channel_data[i].append(0.0)
         
         # ORIGINAL CODE TO RESTORE:
@@ -324,7 +324,7 @@ class VoltagePlot:
         
         # Update line data
         if len(self.time_data) > 0:
-            for i in range(4):
+            for i in range(15):
                 self.channel_lines[i].set_data(list(self.time_data), list(self.channel_data[i]))
             
             # ORIGINAL CODE TO RESTORE:
@@ -344,7 +344,7 @@ class VoltagePlot:
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        for i in range(4):
+        for i in range(15):
             self.channel_data[i].clear()
 
         self.last_update_time = 0
@@ -354,7 +354,7 @@ class VoltagePlot:
         self.ax.set_ylim(0, 5)
         
         # Clear line data
-        for i in range(4):
+        for i in range(15):
             self.channel_lines[i].set_data([], [])
         
         self.canvas.draw()

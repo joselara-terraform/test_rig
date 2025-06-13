@@ -62,9 +62,7 @@ class NIDAQService:
             'valve_2': {'module': self.ni_9485_slot_2, 'line': 1, 'name': "DI Storage"},  
             'valve_3': {'module': self.ni_9485_slot_2, 'line': 2, 'name': "Stack Drain"},
             'valve_4': {'module': self.ni_9485_slot_2, 'line': 3, 'name': "N2 Purge"},
-            'valve_5': {'module': self.ni_9485_slot_2, 'line': 5, 'name': "O2 Purge"},
             'pump': {'module': self.ni_9485_slot_2, 'line': 4, 'name': "Pump"},
-            'pump_2': {'module': self.ni_9485_slot_2, 'line': 6, 'name': "KOH Pump"},
         }
         
         # Real NI-DAQmx tasks
@@ -333,9 +331,8 @@ class NIDAQService:
                 if valve_name in self.digital_channels:
                     self._set_digital_output(valve_name, valve_state)
             
-            # Update pump states
+            # Update pump state
             self._set_digital_output('pump', self.state.pump_state)
-            self._set_digital_output('pump_2', self.state.koh_pump_state)
             
         except Exception as e:
             print(f"❌ Digital output update error: {e}")
@@ -359,7 +356,6 @@ class NIDAQService:
         # Update state to safe values
         with self.state._lock:
             self.state.pump_state = False
-            self.state.koh_pump_state = False
             for i in range(len(self.state.valve_states)):
                 self.state.valve_states[i] = False
         
@@ -390,7 +386,7 @@ def main():
     
     print("✅ NI DAQ service created")
     print("✅ NI-9253 analog inputs (3 channels)")
-    print("✅ NI-9485 digital outputs (7 channels)")
+    print("✅ NI-9485 digital outputs (5 channels)")
     print("✅ 4-20mA current measurement")
     print("✅ Enhanced signal conditioning")
     print("✅ Physical relay control")

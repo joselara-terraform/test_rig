@@ -59,8 +59,8 @@ class CSVLogger:
             ] + [f'cell_{i+1:03d}_v' for i in range(120)],  # cell_001_v to cell_120_v
             'actuator_states': [
                 'timestamp', 'elapsed_seconds',
-                'valve_koh_storage', 'valve_di_storage', 'valve_stack_drain', 'valve_n2_purge', 'valve_o2_purge',
-                'pump_main', 'pump_koh'
+                'valve_koh_storage', 'valve_di_storage', 'valve_stack_drain', 'valve_n2_purge',
+                'pump_main'
             ]
         }
     
@@ -374,19 +374,18 @@ class CSVLogger:
         """Log actuator states (valves and pump)"""
         try:
             # Get actuator states
-            valve_states = self.state.valve_states[:5]  # Now 5 valves
+            valve_states = self.state.valve_states[:4]
             pump_state = self.state.pump_state
-            koh_pump_state = self.state.koh_pump_state
             
-            # Ensure we have 5 valve states
-            while len(valve_states) < 5:
+            # Ensure we have 4 valve states
+            while len(valve_states) < 4:
                 valve_states.append(False)
             
             # Create row data (convert boolean to int for CSV)
             row = [
                 timestamp, round(elapsed, 3),
-                int(valve_states[0]), int(valve_states[1]), int(valve_states[2]), int(valve_states[3]), int(valve_states[4]),
-                int(pump_state), int(koh_pump_state)
+                int(valve_states[0]), int(valve_states[1]), int(valve_states[2]), int(valve_states[3]),
+                int(pump_state)
             ]
             
             self.csv_writers['actuator_states'].writerow(row)
