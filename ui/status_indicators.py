@@ -34,7 +34,7 @@ class StatusIndicators:
         
         # Main status frame
         status_frame = ttk.LabelFrame(self.parent_frame, text="Hardware Connection Status", padding="10")
-        status_frame.pack(fill='x', pady=5)
+        status_frame.pack(pady=5)  #(fill='x', pady=5)
         
         # Create grid for device indicators
         devices = [
