@@ -119,6 +119,11 @@ class DeviceConfig:
                             'module': 'cDAQ9187-23E902CMod2',
                             'line': 3,
                             'name': 'N2 Purge Valve'
+                        },
+                        'o2_purge': {
+                            'module': 'cDAQ9187-23E902CMod2',
+                            'line': 5,
+                            'name': 'O2 Purge Valve'
                         }
                     },
                     'pump': {
@@ -126,6 +131,11 @@ class DeviceConfig:
                             'module': 'cDAQ9187-23E902CMod2',
                             'line': 4,
                             'name': 'Main Circulation Pump'
+                        },
+                        'koh_pump': {
+                            'module': 'cDAQ9187-23E902CMod2',
+                            'line': 6,
+                            'name': 'KOH Pump'
                         }
                     }
                 }
