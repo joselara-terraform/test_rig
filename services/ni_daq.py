@@ -61,10 +61,10 @@ class NIDAQService:
             'valve_1': {'module': self.ni_9485_slot_2, 'line': 0, 'name': "KOH Storage"},
             'valve_2': {'module': self.ni_9485_slot_2, 'line': 1, 'name': "DI Storage"},  
             'valve_3': {'module': self.ni_9485_slot_2, 'line': 2, 'name': "Stack Drain"},
-            'valve_4': {'module': self.ni_9485_slot_2, 'line': 3, 'name': "H2 Purge"},
+            'valve_4': {'module': self.ni_9485_slot_2, 'line': 3, 'name': "N2 Purge"},
             'valve_5': {'module': self.ni_9485_slot_2, 'line': 5, 'name': "O2 Purge"},
-            'pump': {'module': self.ni_9485_slot_2, 'line': 4, 'name': "DI Fill Pump"},
-            'pump_2': {'module': self.ni_9485_slot_2, 'line': 6, 'name': "KOH Fill Pump"},
+            'pump': {'module': self.ni_9485_slot_2, 'line': 4, 'name': "Pump"},
+            'pump_2': {'module': self.ni_9485_slot_2, 'line': 6, 'name': "KOH Pump"},
         }
         
         # Real NI-DAQmx tasks
@@ -327,22 +327,15 @@ class NIDAQService:
     def _update_digital_outputs(self):
         """Update digital outputs based on current state"""
         try:
-            # Map actuator indices to channel names
-            actuator_to_channel_map = {
-                0: 'valve_1',     # KOH Storage Valve
-                1: 'valve_2',     # DI Storage Valve
-                2: 'valve_3',     # Stack Drain Valve
-                3: 'valve_4',     # H2 Purge Valve
-                4: 'pump',        # DI Fill Pump
-                5: 'valve_5',     # O2 Purge Valve
-                6: 'pump_2'       # KOH Fill Pump
-            }
+            # Update valve states
+            for i, valve_state in enumerate(self.state.valve_states):
+                valve_name = f'valve_{i+1}'
+                if valve_name in self.digital_channels:
+                    self._set_digital_output(valve_name, valve_state)
             
-            # Update all actuator states
-            for actuator_index, channel_name in actuator_to_channel_map.items():
-                if actuator_index < len(self.state.actuator_states):
-                    actuator_state = self.state.actuator_states[actuator_index]
-                    self._set_digital_output(channel_name, actuator_state)
+            # Update pump states
+            self._set_digital_output('pump', self.state.pump_state)
+            self._set_digital_output('pump_2', self.state.koh_pump_state)
             
         except Exception as e:
             print(f"❌ Digital output update error: {e}")
@@ -365,8 +358,10 @@ class NIDAQService:
         
         # Update state to safe values
         with self.state._lock:
-            for i in range(len(self.state.actuator_states)):
-                self.state.actuator_states[i] = False
+            self.state.pump_state = False
+            self.state.koh_pump_state = False
+            for i in range(len(self.state.valve_states)):
+                self.state.valve_states[i] = False
         
         # Set physical outputs to OFF
         for channel_name in self.digital_channels.keys():

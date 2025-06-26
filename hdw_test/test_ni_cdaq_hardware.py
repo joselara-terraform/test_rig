@@ -29,12 +29,15 @@ NI_9253_SLOT = "cDAQ9187-23E902CMod1"  # Analog input module
 NI_9485_SLOT_2 = "cDAQ9187-23E902CMod2"  # Digital output module 
 NI_9485_SLOT_3 = "cDAQ9187-23E902CMod3"  # Digital output module
 
-# Valve definitions with real hardware mapping
-VALVES = {
-    "KOH_STORAGE": {"name": "KOH Storage", "module": "cDAQ9187-23E902CMod2", "line": 0},
-    "DI_STORAGE": {"name": "DI Storage", "module": "cDAQ9187-23E902CMod2", "line": 1},
-    "STACK_DRAIN": {"name": "Stack Drain", "module": "cDAQ9187-23E902CMod2", "line": 2},
-    "H2_PURGE": {"name": "H2 Purge", "module": "cDAQ9187-23E902CMod2", "line": 3},
+# Actuator definitions with real hardware mapping
+ACTUATORS = {
+    "KOH_STORAGE": {"name": "KOH Storage Valve", "module": "cDAQ9187-23E902CMod2", "line": 0},
+    "DI_STORAGE": {"name": "DI Storage Valve", "module": "cDAQ9187-23E902CMod2", "line": 1},
+    "STACK_DRAIN": {"name": "Stack Drain Valve", "module": "cDAQ9187-23E902CMod2", "line": 2},
+    "H2_PURGE": {"name": "H2 Purge Valve", "module": "cDAQ9187-23E902CMod2", "line": 3},
+    "DI_FILL_PUMP": {"name": "DI Fill Pump", "module": "cDAQ9187-23E902CMod2", "line": 4},
+    "O2_PURGE": {"name": "O2 Purge Valve", "module": "cDAQ9187-23E902CMod2", "line": 5},
+    "KOH_FILL_PUMP": {"name": "KOH Fill Pump", "module": "cDAQ9187-23E902CMod2", "line": 6},
 }
 
 # Analog input channels (4-20mA sensors)
@@ -181,11 +184,11 @@ def test_digital_outputs():
     print("="*50)
     
     try:
-        # Test each valve relay
-        for valve_id, valve_config in VALVES.items():
-            module = valve_config["module"]
-            line = valve_config["line"]
-            name = valve_config["name"]
+        # Test each actuator relay
+        for actuator_id, actuator_config in ACTUATORS.items():
+            module = actuator_config["module"]
+            line = actuator_config["line"]
+            name = actuator_config["name"]
             
             channel = f"{module}/port0/line{line}"
             
@@ -220,46 +223,46 @@ def test_digital_outputs():
         return False
 
 
-def test_valve_sequence():
-    """Test valve sequence to verify relay operation"""
+def test_actuator_sequence():
+    """Test actuator sequence to verify relay operation"""
     print("\n" + "="*50)
-    print("VALVE SEQUENCE TEST")
+    print("ACTUATOR SEQUENCE TEST")
     print("="*50)
     
     try:
-        print("Testing valve sequence: Each valve ON for 2 seconds...")
+        print("Testing actuator sequence: Each actuator ON for 2 seconds...")
         print("Listen for relay clicks and check indicator LEDs\n")
         
-        # Create tasks for all valves
+        # Create tasks for all actuators
         tasks = {}
-        for valve_id, valve_config in VALVES.items():
-            module = valve_config["module"]
-            line = valve_config["line"]
+        for actuator_id, actuator_config in ACTUATORS.items():
+            module = actuator_config["module"]
+            line = actuator_config["line"]
             channel = f"{module}/port0/line{line}"
             
             task = Task()
             task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-            tasks[valve_id] = task
+            tasks[actuator_id] = task
         
-        # Sequence through each valve
-        for valve_id, valve_config in VALVES.items():
-            name = valve_config["name"]
+        # Sequence through each actuator
+        for actuator_id, actuator_config in ACTUATORS.items():
+            name = actuator_config["name"]
             
             print(f"🔵 {name} ON...")
-            tasks[valve_id].write(True)
+            tasks[actuator_id].write(True)
             time.sleep(2.0)
             
             print(f"🔴 {name} OFF")
-            tasks[valve_id].write(False)
+            tasks[actuator_id].write(False)
             time.sleep(0.5)
         
-        # Test all valves ON simultaneously
-        print(f"\n🔵 ALL VALVES ON...")
+        # Test all actuators ON simultaneously
+        print(f"\n🔵 ALL ACTUATORS ON...")
         for task in tasks.values():
             task.write(True)
         time.sleep(3.0)
         
-        print(f"🔴 ALL VALVES OFF")
+        print(f"🔴 ALL ACTUATORS OFF")
         for task in tasks.values():
             task.write(False)
         
@@ -267,11 +270,11 @@ def test_valve_sequence():
         for task in tasks.values():
             task.close()
         
-        print(f"\n✅ PASS: Valve sequence test complete")
+        print(f"\n✅ PASS: Actuator sequence test complete")
         return True
         
     except Exception as e:
-        print(f"\n❌ FAIL: Valve sequence test error: {e}")
+        print(f"\n❌ FAIL: Actuator sequence test error: {e}")
         # Clean up on error
         for task in tasks.values():
             try:
@@ -288,7 +291,7 @@ def test_continuous_monitoring():
     print("="*50)
     
     try:
-        print("Monitoring analog inputs for 10 seconds while cycling valves...")
+        print("Monitoring analog inputs for 10 seconds while cycling actuators...")
         print("Press Ctrl+C to stop early\n")
         
         # Setup analog input task
@@ -306,19 +309,19 @@ def test_continuous_monitoring():
         
         # Setup digital output tasks
         do_tasks = {}
-        for valve_id, valve_config in VALVES.items():
-            module = valve_config["module"]
-            line = valve_config["line"]
+        for actuator_id, actuator_config in ACTUATORS.items():
+            module = actuator_config["module"]
+            line = actuator_config["line"]
             channel = f"{module}/port0/line{line}"
             
             task = Task()
             task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-            do_tasks[valve_id] = task
+            do_tasks[actuator_id] = task
         
         start_time = time.time()
-        valve_cycle_time = 2.0  # Switch valve every 2 seconds
-        current_valve = 0
-        valve_ids = list(VALVES.keys())
+        actuator_cycle_time = 2.0  # Switch actuator every 2 seconds
+        current_actuator = 0
+        actuator_ids = list(ACTUATORS.keys())
         
         while time.time() - start_time < 10.0:  # Run for 10 seconds
             # Read analog inputs
@@ -365,22 +368,22 @@ def test_continuous_monitoring():
                     else:
                         readings.append(f"{ch_config['name']}: {current_ma:.2f}mA [NC]")
                 
-                # Check if it's time to switch valves
+                # Check if it's time to switch actuators
                 elapsed = time.time() - start_time
-                new_valve = int(elapsed / valve_cycle_time) % len(valve_ids)
+                new_actuator = int(elapsed / actuator_cycle_time) % len(actuator_ids)
                 
-                if new_valve != current_valve:
-                    # Turn off current valve
-                    if current_valve < len(valve_ids):
-                        old_valve_id = valve_ids[current_valve]
-                        do_tasks[old_valve_id].write(False)
+                if new_actuator != current_actuator:
+                    # Turn off current actuator
+                    if current_actuator < len(actuator_ids):
+                        old_actuator_id = actuator_ids[current_actuator]
+                        do_tasks[old_actuator_id].write(False)
                     
-                    # Turn on new valve
-                    current_valve = new_valve
-                    valve_id = valve_ids[current_valve]
-                    valve_name = VALVES[valve_id]["name"]
-                    do_tasks[valve_id].write(True)
-                    print(f"\n🔵 Switched to: {valve_name}")
+                    # Turn on new actuator
+                    current_actuator = new_actuator
+                    actuator_id = actuator_ids[current_actuator]
+                    actuator_name = ACTUATORS[actuator_id]["name"]
+                    do_tasks[actuator_id].write(True)
+                    print(f"\n🔵 Switched to: {actuator_name}")
                 
                 # Display readings
                 elapsed_str = f"{elapsed:.1f}s"
@@ -396,7 +399,7 @@ def test_continuous_monitoring():
         # Clean up
         print(f"\n\nStopping tasks...")
         for task in do_tasks.values():
-            task.write(False)  # Turn off all valves
+            task.write(False)  # Turn off all actuators
             task.close()
         
         ai_task.stop()
@@ -443,8 +446,8 @@ def main():
     success = test_digital_outputs()
     all_tests_passed &= success
     
-    # Test 4: Valve Sequence
-    success = test_valve_sequence()
+    # Test 4: Actuator Sequence
+    success = test_actuator_sequence()
     all_tests_passed &= success
     
     # Test 5: Continuous Monitoring (optional)
@@ -460,7 +463,7 @@ def main():
         print("✅ Device detection successful")
         print("✅ Analog input readings verified")
         print("✅ Digital output relay control verified")
-        print("✅ Valve sequencing operational")
+        print("✅ Actuator sequencing operational")
         print("\n🎯 Task 20 deliverables:")
         print("   ✅ Standalone script tests NI-9253 inputs")
         print("   ✅ Standalone script tests NI-9485 outputs")

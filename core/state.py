@@ -59,26 +59,10 @@ class GlobalState:
          'primary_gas_concentration': 0.0, 'secondary_gas_concentration': 0.0, 'remaining_gas_concentration': 0.0}
     ])
     
-    # Actuator states - 7 total (5 valves + 2 pumps)
-    # Index mapping: 0=KOH Storage, 1=DI Storage, 2=Stack Drain, 3=H2 Purge, 4=DI Fill Pump, 5=O2 Purge, 6=KOH Fill Pump
-    actuator_states: List[bool] = field(default_factory=lambda: [False] * 7)  # 7 total actuators
-    
-    # Backward compatibility properties
-    @property
-    def valve_states(self) -> List[bool]:
-        """Valve states (indices 0-4 for valves, 5 for O2 purge valve)"""
-        return [self.actuator_states[0], self.actuator_states[1], self.actuator_states[2], 
-                self.actuator_states[3], self.actuator_states[5]]  # 5 valves: 0,1,2,3,5
-    
-    @property
-    def pump_state(self) -> bool:
-        """DI Fill Pump state (index 4)"""
-        return self.actuator_states[4]
-    
-    @property
-    def koh_pump_state(self) -> bool:
-        """KOH Fill Pump state (index 6)"""
-        return self.actuator_states[6]
+    # Actuator states
+    valve_states: List[bool] = field(default_factory=lambda: [False] * 5)  # 5 solenoid valves
+    pump_state: bool = False
+    koh_pump_state: bool = False
     
     # BGA244 purge mode (changes all secondary gases to N2)
     purge_mode: bool = False
@@ -117,22 +101,13 @@ class GlobalState:
     def set_actuator_state(self, actuator: str, state: bool, index: int = None):
         """Thread-safe update of actuator states"""
         with self._lock:
-            if actuator == 'actuator' and index is not None:
-                # Direct actuator index (0-6)
-                if 0 <= index < len(self.actuator_states):
-                    self.actuator_states[index] = state
-            elif actuator == 'pump':
-                # Backward compatibility - DI Fill Pump (index 4)
-                self.actuator_states[4] = state
+            if actuator == 'pump':
+                self.pump_state = state
             elif actuator == 'koh_pump':
-                # Backward compatibility - KOH Fill Pump (index 6)
-                self.actuator_states[6] = state
+                self.koh_pump_state = state
             elif actuator == 'valve' and index is not None:
-                # Backward compatibility - map valve index to actuator index
-                valve_to_actuator_map = {0: 0, 1: 1, 2: 2, 3: 3, 4: 5}  # valve index -> actuator index
-                if index in valve_to_actuator_map:
-                    actuator_index = valve_to_actuator_map[index]
-                    self.actuator_states[actuator_index] = state
+                if 0 <= index < len(self.valve_states):
+                    self.valve_states[index] = state
     
     def set_emergency_stop(self, stop: bool = True):
         """Thread-safe emergency stop activation"""
