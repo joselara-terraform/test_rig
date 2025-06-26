@@ -2,12 +2,14 @@
 """
 Dashboard window with 2x2 grid layout for AWE test rig
 
-Valve mapping (matches NI cDAQ hardware configuration):
-- Valve 1: KOH Storage    (cDAQ9187-23E902CMod2/port0/line0)
-- Valve 2: DI Storage     (cDAQ9187-23E902CMod2/port0/line1)  
-- Valve 3: Stack Drain    (cDAQ9187-23E902CMod2/port0/line2)
-- Valve 4: N2 Purge       (cDAQ9187-23E902CMod2/port0/line3)
-- Pump:    Pump           (cDAQ9187-23E902CMod2/port0/line4)
+Actuator mapping (matches NI cDAQ hardware configuration):
+- Line 0: KOH Storage Valve    (cDAQ9187-23E902CMod2/port0/line0)
+- Line 1: DI Storage Valve     (cDAQ9187-23E902CMod2/port0/line1)  
+- Line 2: Stack Drain Valve    (cDAQ9187-23E902CMod2/port0/line2)
+- Line 3: H2 Purge Valve       (cDAQ9187-23E902CMod2/port0/line3)
+- Line 4: DI Fill Pump         (cDAQ9187-23E902CMod2/port0/line4)
+- Line 5: O2 Purge Valve       (cDAQ9187-23E902CMod2/port0/line5)
+- Line 6: KOH Fill Pump        (cDAQ9187-23E902CMod2/port0/line6)
 """
 
 import tkinter as tk
@@ -210,71 +212,43 @@ class Dashboard:
         valve_frame = ttk.Frame(container_frame)
         valve_frame.pack(pady=5)
         
-        ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=5, pady=5)
+        ttk.Label(valve_frame, text="Valves & Pumps:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=4, pady=5)
         
-        # Real valve names matching cDAQ configuration - now 5 valves
-        valve_names = ["KOH Fill", "DI Fill", "Stack Drain", "N2 Purge", "O2 Purge"]
+        # All actuator names in the new structure - 7 total
+        actuator_names = [
+            "KOH Storage Valve",    # Index 0
+            "DI Storage Valve",     # Index 1  
+            "Stack Drain Valve",    # Index 2
+            "H2 Purge Valve",       # Index 3
+            "DI Fill Pump",         # Index 4
+            "O2 Purge Valve",       # Index 5
+            "KOH Fill Pump"         # Index 6
+        ]
         
-        self.valve_labels = []
-        for i, valve_name in enumerate(valve_names):
-            valve_label = ttk.Label(valve_frame, text=f"{valve_name}")
-            valve_label.grid(row=1, column=i, padx=5, pady=2)
+        self.actuator_labels = []
+        
+        # Create a grid layout for all 7 actuators (2 rows)
+        for i, actuator_name in enumerate(actuator_names):
+            row = 1 if i < 4 else 3  # First 4 in row 1, rest in row 3
+            col = i if i < 4 else i - 4  # Column position
             
-            # Clickable button instead of label
-            valve_button = tk.Button(
+            # Label
+            actuator_label = ttk.Label(valve_frame, text=f"{actuator_name}")
+            actuator_label.grid(row=row, column=col, padx=3, pady=2)
+            
+            # Clickable button
+            actuator_button = tk.Button(
                 valve_frame, 
                 text="OFF", 
                 background="red", 
                 foreground="white",
-                width=8,  # Slightly wider for longer names
+                width=10,  # Wider for longer names
                 relief=tk.RAISED,
-                command=lambda valve_idx=i: self._toggle_valve(valve_idx),
+                command=lambda idx=i: self._toggle_actuator(idx),
                 cursor="hand2"
             )
-            valve_button.grid(row=2, column=i, padx=5, pady=2)
-            self.valve_labels.append(valve_button)
-        
-        # Pump states - DI Pump and KOH Pump
-        pump_frame = ttk.Frame(container_frame)
-        pump_frame.pack(pady=10)
-        
-        ttk.Label(pump_frame, text="Pumps", font=("Arial", 10, "bold")).pack()
-        
-        # DI Pump
-        di_pump_frame = ttk.Frame(pump_frame)
-        di_pump_frame.pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(di_pump_frame, text="DI Pump", font=("Arial", 9)).pack()
-        self.pump_state_label = tk.Button(
-            di_pump_frame, 
-            text="OFF", 
-            background="red", 
-            foreground="white",
-            width=8,
-            relief=tk.RAISED,
-            font=("Arial", 10, "bold"),
-            command=self._toggle_pump,
-            cursor="hand2"
-        )
-        self.pump_state_label.pack(pady=5)
-        
-        # KOH Pump
-        koh_pump_frame = ttk.Frame(pump_frame)
-        koh_pump_frame.pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(koh_pump_frame, text="KOH Pump", font=("Arial", 9)).pack()
-        self.koh_pump_state_label = tk.Button(
-            koh_pump_frame, 
-            text="OFF", 
-            background="red", 
-            foreground="white",
-            width=8,
-            relief=tk.RAISED,
-            font=("Arial", 10, "bold"),
-            command=self._toggle_koh_pump,
-            cursor="hand2"
-        )
-        self.koh_pump_state_label.pack(pady=5)
+            actuator_button.grid(row=row+1, column=col, padx=3, pady=2)
+            self.actuator_labels.append(actuator_button)
         
         # Current sensor display (read-only)
         current_frame = ttk.Frame(container_frame)
@@ -284,52 +258,44 @@ class Dashboard:
         self.current_label = ttk.Label(current_frame, text="0.0 A", font=("Arial", 12))
         self.current_label.pack()
     
-    def _toggle_valve(self, valve_index):
-        """Toggle valve state when clicked"""
+    def _toggle_actuator(self, actuator_index):
+        """Toggle actuator state when clicked"""
         if not self.state.connections.get('ni_daq', False):
-            valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "N2 Purge", "O2 Purge"]
-            print(f"⚠️  Cannot control {valve_names[valve_index]} - NI DAQ not connected")
+            actuator_names = [
+                "KOH Storage Valve", "DI Storage Valve", "Stack Drain Valve", 
+                "H2 Purge Valve", "DI Fill Pump", "O2 Purge Valve", "KOH Fill Pump"
+            ]
+            print(f"⚠️  Cannot control {actuator_names[actuator_index]} - NI DAQ not connected")
             return
         
         # Get current state and toggle it
-        current_state = self.state.valve_states[valve_index]
+        current_state = self.state.actuator_states[actuator_index]
         new_state = not current_state
         
         # Update state (NI DAQ service will automatically update hardware)
-        self.state.set_actuator_state('valve', new_state, valve_index)
+        self.state.set_actuator_state('actuator', new_state, actuator_index)
         
-        valve_names = ["KOH Fill", "DI Fill", "Stack Drain", "N2 Purge", "O2 Purge"]
-        print(f"🔧 {valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
+        actuator_names = [
+            "KOH Storage Valve", "DI Storage Valve", "Stack Drain Valve", 
+            "H2 Purge Valve", "DI Fill Pump", "O2 Purge Valve", "KOH Fill Pump"
+        ]
+        print(f"🔧 {actuator_names[actuator_index]} {'ON' if new_state else 'OFF'}")
+    
+    def _toggle_valve(self, valve_index):
+        """Toggle valve state when clicked (backward compatibility)"""
+        # Map old valve indices to new actuator indices
+        valve_to_actuator_map = {0: 0, 1: 1, 2: 2, 3: 3, 4: 5}
+        if valve_index in valve_to_actuator_map:
+            actuator_index = valve_to_actuator_map[valve_index]
+            self._toggle_actuator(actuator_index)
     
     def _toggle_pump(self):
-        """Toggle pump state when clicked"""
-        if not self.state.connections.get('ni_daq', False):
-            print("⚠️  Cannot control Pump - NI DAQ not connected")
-            return
-        
-        # Get current state and toggle it
-        current_state = self.state.pump_state
-        new_state = not current_state
-        
-        # Update state (NI DAQ service will automatically update hardware)
-        self.state.set_actuator_state('pump', new_state)
-        
-        print(f"🔧 Pump {'ON' if new_state else 'OFF'}")
+        """Toggle DI Fill Pump state when clicked (backward compatibility)"""
+        self._toggle_actuator(4)  # DI Fill Pump is at index 4
     
     def _toggle_koh_pump(self):
-        """Toggle KOH pump state when clicked"""
-        if not self.state.connections.get('ni_daq', False):
-            print("⚠️  Cannot control KOH Pump - NI DAQ not connected")
-            return
-        
-        # Get current state and toggle it
-        current_state = self.state.koh_pump_state
-        new_state = not current_state
-        
-        # Update state (NI DAQ service will automatically update hardware)
-        self.state.set_actuator_state('koh_pump', new_state)
-        
-        print(f"🔧 KOH Pump {'ON' if new_state else 'OFF'}")
+        """Toggle KOH Fill Pump state when clicked (backward compatibility)"""
+        self._toggle_actuator(6)  # KOH Fill Pump is at index 6
     
     def reset_plots(self):
         """Reset all plots when starting a new test"""
@@ -387,43 +353,19 @@ class Dashboard:
             connected = self.state.connections[device]
             self.status_indicators.update_device_status(device, connected, connection_info[device])
         
-        # Update valve button states and colors
-        for i, valve_button in enumerate(self.valve_labels):
-            valve_state = self.state.valve_states[i]
-            if valve_state:
-                valve_button.configure(text="ON", background="green", activebackground="lightgreen")
+        # Update actuator button states and colors (all 7 actuators)
+        for i, actuator_button in enumerate(self.actuator_labels):
+            actuator_state = self.state.actuator_states[i]
+            if actuator_state:
+                actuator_button.configure(text="ON", background="green", activebackground="lightgreen")
             else:
-                valve_button.configure(text="OFF", background="red", activebackground="lightcoral")
+                actuator_button.configure(text="OFF", background="red", activebackground="lightcoral")
             
             # Enable/disable based on NI DAQ connection
             if self.state.connections.get('ni_daq', False):
-                valve_button.configure(state='normal')
+                actuator_button.configure(state='normal')
             else:
-                valve_button.configure(state='disabled')
-        
-        # Update pump button states and colors
-        if self.state.pump_state:
-            self.pump_state_label.configure(text="ON", background="green", activebackground="lightgreen")
-        else:
-            self.pump_state_label.configure(text="OFF", background="red", activebackground="lightcoral")
-        
-        # Enable/disable pump based on NI DAQ connection
-        if self.state.connections.get('ni_daq', False):
-            self.pump_state_label.configure(state='normal')
-        else:
-            self.pump_state_label.configure(state='disabled')
-        
-        # Update KOH pump button state and color
-        if self.state.koh_pump_state:
-            self.koh_pump_state_label.configure(text="ON", background="green", activebackground="lightgreen")
-        else:
-            self.koh_pump_state_label.configure(text="OFF", background="red", activebackground="lightcoral")
-        
-        # Enable/disable KOH pump based on NI DAQ connection
-        if self.state.connections.get('ni_daq', False):
-            self.koh_pump_state_label.configure(state='normal')
-        else:
-            self.koh_pump_state_label.configure(state='disabled')
+                actuator_button.configure(state='disabled')
         
         # Update current sensor
         self.current_label.configure(text=f"{self.state.current_value:.1f} A")
@@ -517,7 +459,7 @@ def main():
     print("   • 🔴 Red buttons = OFF | 🟢 Green buttons = ON")
     print("   • Click valve/pump buttons to toggle (when NI DAQ connected)")
     print("   • Buttons disabled when NI DAQ disconnected")
-    print("   • KOH Storage, DI Storage, Stack Drain, N2 Purge, O2 Purge + Pumps")
+    print("   • KOH Storage, DI Storage, Stack Drain, H2 Purge, DI Fill Pump, O2 Purge, KOH Fill Pump")
     print("\n🎯 TEST: Verify all functionality:")
     print("   1. Click Connect - all services start, buttons enabled")
     print("   2. Click valve/pump buttons to control actuators")

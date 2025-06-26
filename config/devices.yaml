@@ -77,18 +77,30 @@ ni_cdaq:
         name: "Stack Drain Valve"
         description: "Controls electrolyzer stack drain valve"
         
-      n2_purge:
+      h2_purge:
         module: "cDAQ9187-23E902CMod2"
         line: 3
-        name: "N2 Purge Valve"
-        description: "Controls nitrogen purge valve for system cleanup"
+        name: "H2 Purge Valve"
+        description: "Controls hydrogen purge valve for system cleanup"
+        
+      o2_purge:
+        module: "cDAQ9187-23E902CMod2"
+        line: 5
+        name: "O2 Purge Valve"
+        description: "Controls oxygen purge valve for system cleanup"
         
     pump:
-      main_pump:
+      di_fill_pump:
         module: "cDAQ9187-23E902CMod2"
         line: 4
-        name: "Main Circulation Pump"
-        description: "Controls main electrolyte circulation pump"
+        name: "DI Fill Pump"
+        description: "Controls deionized water fill pump"
+        
+      koh_fill_pump:
+        module: "cDAQ9187-23E902CMod2"
+        line: 6
+        name: "KOH Fill Pump"
+        description: "Controls KOH electrolyte fill pump"
 
 # Pico TC-08 Thermocouple Logger
 pico_tc08:

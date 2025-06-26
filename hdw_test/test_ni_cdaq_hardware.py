@@ -34,7 +34,7 @@ VALVES = {
     "KOH_STORAGE": {"name": "KOH Storage", "module": "cDAQ9187-23E902CMod2", "line": 0},
     "DI_STORAGE": {"name": "DI Storage", "module": "cDAQ9187-23E902CMod2", "line": 1},
     "STACK_DRAIN": {"name": "Stack Drain", "module": "cDAQ9187-23E902CMod2", "line": 2},
-    "N2_PURGE": {"name": "N2 Purge", "module": "cDAQ9187-23E902CMod2", "line": 3},
+    "H2_PURGE": {"name": "H2 Purge", "module": "cDAQ9187-23E902CMod2", "line": 3},
 }
 
 # Analog input channels (4-20mA sensors)

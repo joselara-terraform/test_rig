@@ -115,10 +115,10 @@ class DeviceConfig:
                             'line': 2,
                             'name': 'Stack Drain Valve'
                         },
-                        'n2_purge': {
+                        'h2_purge': {
                             'module': 'cDAQ9187-23E902CMod2',
                             'line': 3,
-                            'name': 'N2 Purge Valve'
+                            'name': 'H2 Purge Valve'
                         },
                         'o2_purge': {
                             'module': 'cDAQ9187-23E902CMod2',
@@ -127,15 +127,15 @@ class DeviceConfig:
                         }
                     },
                     'pump': {
-                        'main_pump': {
+                        'di_fill_pump': {
                             'module': 'cDAQ9187-23E902CMod2',
                             'line': 4,
-                            'name': 'Main Circulation Pump'
+                            'name': 'DI Fill Pump'
                         },
-                        'koh_pump': {
+                        'koh_fill_pump': {
                             'module': 'cDAQ9187-23E902CMod2',
                             'line': 6,
-                            'name': 'KOH Pump'
+                            'name': 'KOH Fill Pump'
                         }
                     }
                 }
