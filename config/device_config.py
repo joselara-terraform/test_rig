@@ -6,15 +6,7 @@ Loads devices.yaml and provides access to hardware settings including calibrated
 
 import os
 from typing import Dict, Any, Optional, List
-
-# Try to import YAML parser, provide fallback if not available
-try:
-    import yaml
-    YAML_AVAILABLE = True
-except ImportError:
-    YAML_AVAILABLE = False
-    print("⚠️  PyYAML not available - using hardcoded configuration fallback")
-    print("   To install: pip install PyYAML")
+import yaml
 
 
 class DeviceConfig:
@@ -28,220 +20,46 @@ class DeviceConfig:
         self.config_file = config_file
         self.config = {}
         
-        if YAML_AVAILABLE:
-            self.load_config()
-        else:
-            self.load_fallback_config()
+        self.load_config()
     
     def load_config(self):
         """Load configuration from YAML file"""
         try:
+            print(f"🔍 Loading configuration from: {self.config_file}")
+            
+            if not os.path.exists(self.config_file):
+                raise FileNotFoundError(f"Configuration file not found: {self.config_file}")
+            
             with open(self.config_file, 'r') as file:
                 self.config = yaml.safe_load(file)
+            
+            if not self.config:
+                raise ValueError("Configuration file is empty or invalid")
             
             print(f"✅ Device configuration loaded from {self.config_file}")
             print(f"   Calibration date: {self.get_calibration_date()}")
             
-        except FileNotFoundError:
+            # Debug: Show which BGAs were loaded
+            bga_units = self.config.get('bga244', {}).get('units', {})
+            print(f"   🔍 Loaded BGA units: {list(bga_units.keys())}")
+            for unit_id, unit_config in bga_units.items():
+                normal_mode = unit_config.get('normal_mode', {})
+                primary = normal_mode.get('primary_gas', 'Unknown')
+                secondary = normal_mode.get('secondary_gas', 'Unknown')
+                port = unit_config.get('port', 'Unknown')
+                print(f"     {unit_id} ({port}): {primary}/{secondary}")
+            
+        except FileNotFoundError as e:
             print(f"❌ Configuration file not found: {self.config_file}")
-            print("   Using fallback configuration...")
-            self.load_fallback_config()
-        except Exception as e:
+            print("   Please ensure devices.yaml exists in the config directory")
+            raise e
+        except yaml.YAMLError as e:
             print(f"❌ Error parsing YAML configuration: {e}")
-            print("   Using fallback configuration...")
-            self.load_fallback_config()
-    
-    def load_fallback_config(self):
-        """Load hardcoded fallback configuration when YAML is not available"""
-        self.config = {
-            'ni_cdaq': {
-                'chassis': 'cDAQ9187-23E902C',
-                'analog_inputs': {
-                    'module': 'cDAQ9187-23E902CMod1',
-                    'sample_rate': 100,
-                    'current_range': {
-                        'min_ma': 4.0,
-                        'max_ma': 20.0,
-                        'fault_threshold_low': 3.5,
-                        'fault_threshold_high': 20.5
-                    },
-                    'channels': {
-                        'pressure_1': {
-                            'channel': 'ai0',
-                            'name': 'Pressure Sensor 1 (Hydrogen Side)',
-                            'units': 'PSI',
-                            'range': [0, 15],
-                            'zero_offset': -0.035,
-                            'description': 'Hydrogen side pressure measurement'
-                        },
-                        'pressure_2': {
-                            'channel': 'ai1',
-                            'name': 'Pressure Sensor 2 (Oxygen Side)',
-                            'units': 'PSI',
-                            'range': [0, 15],
-                            'zero_offset': -0.066,
-                            'description': 'Oxygen side pressure measurement'
-                        },
-                        'current': {
-                            'channel': 'ai2',
-                            'name': 'Stack Current Sensor',
-                            'units': 'A',
-                            'range': [0, 150],
-                            'zero_offset': 0.0,
-                            'description': 'Electrolyzer stack current measurement'
-                        },
-                        'pressure_post_ms': {
-                            'channel': 'ai4',
-                            'name': 'Post MS Pressure',
-                            'units': 'PSI',
-                            'range': [0, 1.012],
-                            'zero_offset': 0.0,
-                            'description': 'Post mass spectrometer pressure measurement'
-                        },
-                        'pressure_pre_ms': {
-                            'channel': 'ai5',
-                            'name': 'Pre MS Pressure',
-                            'units': 'PSI',
-                            'range': [0, 1.012],
-                            'zero_offset': 0.0,
-                            'description': 'Pre mass spectrometer pressure measurement'
-                        },
-                        'pressure_h2_bp': {
-                            'channel': 'ai6',
-                            'name': 'H2 Back Pressure',
-                            'units': 'PSI',
-                            'range': [0, 1.012],
-                            'zero_offset': 0.0,
-                            'description': 'Hydrogen back pressure measurement'
-                        }
-                    }
-                },
-                'digital_outputs': {
-                    'valves': {
-                        'koh_storage': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 0,
-                            'name': 'KOH Storage Valve'
-                        },
-                        'di_storage': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 1,
-                            'name': 'DI Storage Valve'
-                        },
-                        'stack_drain': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 2,
-                            'name': 'Stack Drain Valve'
-                        },
-                        'h2_purge': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 3,
-                            'name': 'H2 Purge Valve'
-                        },
-                        'o2_purge': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 5,
-                            'name': 'O2 Purge Valve'
-                        }
-                    },
-                    'pump': {
-                        'di_fill_pump': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 4,
-                            'name': 'DI Fill Pump'
-                        },
-                        'koh_fill_pump': {
-                            'module': 'cDAQ9187-23E902CMod2',
-                            'line': 6,
-                            'name': 'KOH Fill Pump'
-                        }
-                    }
-                }
-            },
-            'pico_tc08': {
-                'channels': {
-                    'channel_0': {'name': 'Inlet Temperature'},
-                    'channel_1': {'name': 'Outlet Temperature'},
-                    'channel_2': {'name': 'Stack Temperature 1'},
-                    'channel_3': {'name': 'Stack Temperature 2'},
-                    'channel_4': {'name': 'Ambient Temperature'},
-                    'channel_5': {'name': 'Cooling System Temperature'},
-                    'channel_6': {'name': 'Gas Temperature'},
-                    'channel_7': {'name': 'Case Temperature'}
-                }
-            },
-            'bga244': {
-                'units': {
-                    'bga_1': {
-                        'port': 'COM8',
-                        'name': 'H2 Header',
-                        'normal_mode': {
-                            'primary_gas': 'O2',
-                            'secondary_gas': 'H2',
-                            'remaining_gas': 'N2'
-                        },
-                        'purge_mode': {
-                            'primary_gas': 'H2',
-                            'secondary_gas': 'N2',
-                            'remaining_gas': 'O2'
-                        }
-                    },
-                    'bga_2': {
-                        'port': 'COM9',
-                        'name': 'O2 Header',
-                        'normal_mode': {
-                            'primary_gas': 'H2',
-                            'secondary_gas': 'O2',
-                            'remaining_gas': 'N2'
-                        },
-                        'purge_mode': {
-                            'primary_gas': 'O2',
-                            'secondary_gas': 'N2',
-                            'remaining_gas': 'H2'
-                        }
-                    },
-                    'bga_3': {
-                        'port': 'COM3',
-                        'name': 'De-oxo',
-                        'normal_mode': {
-                            'primary_gas': 'H2',
-                            'secondary_gas': 'O2',
-                            'remaining_gas': 'N2'
-                        },
-                        'purge_mode': {
-                            'primary_gas': 'H2',
-                            'secondary_gas': 'N2',
-                            'remaining_gas': 'O2'
-                        }
-                    }
-                }
-            },
-            'cvm24p': {
-                'cells': {
-                    'total_cells': 120,
-                    'groups': 6,
-                    'voltage_range': [0, 5]
-                }
-            },
-            'system': {
-                'sample_rates': {
-                    'ni_daq': 100,
-                    'pico_tc08': 1,
-                    'bga244': 0.2,
-                    'cvm24p': 10
-                },
-                'calibration': {
-                    'auto_zero_on_startup': True,
-                    'calibration_date': '2025-06-04',
-                    'calibration_technician': 'Engineering Team'
-                }
-            }
-        }
-        
-        print("✅ Fallback device configuration loaded")
-        print(f"   Calibration date: {self.get_calibration_date()}")
-    
-
+            print("   Please check devices.yaml for syntax errors")
+            raise e
+        except Exception as e:
+            print(f"❌ Error loading configuration: {e}")
+            raise e
     
     # NI cDAQ Configuration Methods
     def get_ni_cdaq_config(self) -> Dict[str, Any]:
@@ -443,50 +261,73 @@ def get_device_config() -> DeviceConfig:
 def main():
     """Test the device configuration parser"""
     print("=" * 60)
-    print("TASK 30 TEST: Device Configuration Parser")
+    print("AWE Test Rig Device Configuration Parser")
     print("=" * 60)
     
-    config = DeviceConfig()
+    try:
+        config = DeviceConfig()
+        
+        print("✅ Device configuration parser created")
+        
+        # Test configuration validation
+        print("\n🎯 TEST: Configuration validation:")
+        is_valid = config.validate_config()
+        print(f"   Result: {'✅ Valid' if is_valid else '❌ Invalid'}")
+        
+        # Test zero offset retrieval
+        print("\n🎯 TEST: Calibrated zero offset retrieval:")
+        
+        # Analog input zero offsets
+        pressure_1_offset = config.get_analog_channel_zero_offset('pressure_1')
+        pressure_2_offset = config.get_analog_channel_zero_offset('pressure_2')
+        current_offset = config.get_analog_channel_zero_offset('current')
+        
+        print(f"   Pressure 1 zero offset: {pressure_1_offset} PSI")
+        print(f"   Pressure 2 zero offset: {pressure_2_offset} PSI")
+        print(f"   Current zero offset: {current_offset} A")
+        
+        # Temperature zero offsets
+        inlet_temp_offset = config.get_temperature_zero_offset('channel_0')
+        print(f"   Inlet temperature zero offset: {inlet_temp_offset} °C")
+        
+        print("   BGA and CVM zero offsets: Disabled (not needed)")
+        
+        # Test sample rates
+        print("\n🎯 TEST: Sample rate configuration:")
+        sample_rates = config.get_sample_rates()
+        for device, rate in sample_rates.items():
+            print(f"   {device}: {rate} Hz")
+        
+        # Test calibration info
+        print("\n🎯 TEST: Calibration information:")
+        print(f"   Calibration date: {config.get_calibration_date()}")
+        print(f"   Auto-zero enabled: {config.is_auto_zero_enabled()}")
+        
+        # Test BGA gas configurations
+        print("\n🎯 TEST: BGA Gas configurations:")
+        bga_units = config.get_bga244_config().get('units', {})
+        for unit_id, unit_config in bga_units.items():
+            name = unit_config.get('name', 'Unknown')
+            port = unit_config.get('port', 'Unknown')
+            
+            normal_primary = config.get_bga_primary_gas(unit_id, purge_mode=False)
+            normal_secondary = config.get_bga_secondary_gas(unit_id, purge_mode=False)
+            purge_primary = config.get_bga_primary_gas(unit_id, purge_mode=True)
+            purge_secondary = config.get_bga_secondary_gas(unit_id, purge_mode=True)
+            
+            print(f"   {unit_id} - {name} ({port}):")
+            print(f"     Normal: {normal_primary}/{normal_secondary}")
+            print(f"     Purge:  {purge_primary}/{purge_secondary}")
+        
+        print("\n✅ Device configuration parser test complete!")
+        
+    except Exception as e:
+        print(f"\n❌ Configuration test failed: {e}")
+        print("   Please ensure:")
+        print("   1. devices.yaml exists in the config directory")
+        print("   2. PyYAML is installed (pip install PyYAML)")
+        print("   3. devices.yaml has valid YAML syntax")
     
-    print("✅ Device configuration parser created")
-    print("✅ YAML configuration loaded")
-    print("✅ Calibrated zero offsets available for pressure/current sensors")
-    
-    # Test configuration validation
-    print("\n🎯 TEST: Configuration validation:")
-    is_valid = config.validate_config()
-    print(f"   Result: {'✅ Valid' if is_valid else '❌ Invalid'}")
-    
-    # Test zero offset retrieval
-    print("\n🎯 TEST: Calibrated zero offset retrieval:")
-    
-    # Analog input zero offsets
-    pressure_1_offset = config.get_analog_channel_zero_offset('pressure_1')
-    pressure_2_offset = config.get_analog_channel_zero_offset('pressure_2')
-    current_offset = config.get_analog_channel_zero_offset('current')
-    
-    print(f"   Pressure 1 zero offset: {pressure_1_offset} PSI")
-    print(f"   Pressure 2 zero offset: {pressure_2_offset} PSI")
-    print(f"   Current zero offset: {current_offset} A")
-    
-    # Temperature zero offsets
-    inlet_temp_offset = config.get_temperature_zero_offset('channel_0')
-    print(f"   Inlet temperature zero offset: {inlet_temp_offset} °C")
-    
-    print("   BGA and CVM zero offsets: Disabled (not needed)")
-    
-    # Test sample rates
-    print("\n🎯 TEST: Sample rate configuration:")
-    sample_rates = config.get_sample_rates()
-    for device, rate in sample_rates.items():
-        print(f"   {device}: {rate} Hz")
-    
-    # Test calibration info
-    print("\n🎯 TEST: Calibration information:")
-    print(f"   Calibration date: {config.get_calibration_date()}")
-    print(f"   Auto-zero enabled: {config.is_auto_zero_enabled()}")
-    
-    print("\n✅ Device configuration parser test complete!")
     print("=" * 60)
 
 

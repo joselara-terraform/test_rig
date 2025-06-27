@@ -1,0 +1,4 @@
+# AWE Test Rig Requirements
+# Core dependencies for device configuration loading
+
+PyYAML>=6.0 
