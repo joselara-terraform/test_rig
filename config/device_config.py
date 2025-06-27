@@ -173,32 +173,24 @@ class DeviceConfig:
             'bga244': {
                 'units': {
                     'bga_1': {
-                        'port': 'COM9',
-                        'name': 'Hydrogen Side Analyzer',
-                        'zero_offsets': {'H2': 0.1, 'O2': 0.05, 'N2': 0.02}
+                        'port': 'COM8',
+                        'name': 'Hydrogen Side Analyzer'
                     },
                     'bga_2': {
-                        'port': 'COM8',
-                        'name': 'Oxygen Side Analyzer', 
-                        'zero_offsets': {'H2': 0.08, 'O2': 0.12, 'N2': 0.03}
+                        'port': 'COM9',
+                        'name': 'Oxygen Side Analyzer'
                     },
                     'bga_3': {
-                        'port': 'COM4',
-                        'name': 'Mixed Stream Analyzer',
-                        'zero_offsets': {'H2': 0.15, 'O2': 0.08, 'N2': 0.05}
+                        'port': 'COM3',
+                        'name': 'Mixed Stream Analyzer'
                     }
                 }
             },
             'cvm24p': {
                 'cells': {
-                    'zero_offsets': {
-                        'group_1_offset': 12.5,
-                        'group_2_offset': 8.3,
-                        'group_3_offset': 15.1,
-                        'group_4_offset': 6.7,
-                        'group_5_offset': 11.2,
-                        'group_6_offset': 9.8
-                    }
+                    'total_cells': 120,
+                    'groups': 6,
+                    'voltage_range': [0, 5]
                 }
             },
             'system': {
@@ -283,9 +275,8 @@ class DeviceConfig:
         return units.get(unit_name, {})
     
     def get_bga_zero_offsets(self, unit_name: str) -> Dict[str, float]:
-        """Get calibrated zero offsets for BGA gas concentrations"""
-        unit_config = self.get_bga_unit_config(unit_name)
-        return unit_config.get('zero_offsets', {})
+        """Get calibrated zero offsets for BGA gas concentrations (disabled)"""
+        return {}
     
     # CVM-24P Configuration Methods
     def get_cvm24p_config(self) -> Dict[str, Any]:
@@ -293,15 +284,12 @@ class DeviceConfig:
         return self.config.get('cvm24p', {})
     
     def get_voltage_zero_offsets(self) -> Dict[str, float]:
-        """Get calibrated zero offsets for voltage measurements"""
-        cells_config = self.config.get('cvm24p', {}).get('cells', {})
-        return cells_config.get('zero_offsets', {})
+        """Get calibrated zero offsets for voltage measurements (disabled)"""
+        return {}
     
     def get_voltage_group_offset(self, group_number: int) -> float:
-        """Get calibrated zero offset for specific voltage group (1-6)"""
-        zero_offsets = self.get_voltage_zero_offsets()
-        offset_key = f'group_{group_number}_offset'
-        return zero_offsets.get(offset_key, 0.0)
+        """Get calibrated zero offset for specific voltage group (disabled)"""
+        return 0.0
     
     # System Configuration Methods
     def get_sample_rates(self) -> Dict[str, float]:
@@ -403,8 +391,7 @@ def main():
     
     print("✅ Device configuration parser created")
     print("✅ YAML configuration loaded")
-    print("✅ Platform-specific overrides applied")
-    print("✅ Calibrated zero offsets available for all sensors")
+    print("✅ Calibrated zero offsets available for pressure/current sensors")
     
     # Test configuration validation
     print("\n🎯 TEST: Configuration validation:")
@@ -427,13 +414,7 @@ def main():
     inlet_temp_offset = config.get_temperature_zero_offset('channel_0')
     print(f"   Inlet temperature zero offset: {inlet_temp_offset} °C")
     
-    # BGA zero offsets
-    bga1_offsets = config.get_bga_zero_offsets('bga_1')
-    print(f"   BGA-1 H2 zero offset: {bga1_offsets.get('H2', 0.0)} %")
-    
-    # Voltage zero offsets
-    group_1_offset = config.get_voltage_group_offset(1)
-    print(f"   Voltage group 1 zero offset: {group_1_offset} mV")
+    print("   BGA and CVM zero offsets: Disabled (not needed)")
     
     # Test sample rates
     print("\n🎯 TEST: Sample rate configuration:")

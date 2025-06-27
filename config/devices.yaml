@@ -5,7 +5,7 @@
 # - NI cDAQ channel mappings and calibration
 # - Serial port configurations  
 # - Device communication settings
-# - CALIBRATED ZERO OFFSETS for each sensor
+# - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
 # NI cDAQ Configuration
 ni_cdaq:
@@ -208,37 +208,24 @@ bga244:
     parity: "None"
     timeout: 2.0  # seconds
   
-  # Three BGA244 Units with Calibrated Zero Offsets (Windows COM ports)
+  # Three BGA244 Units (Windows COM ports)
   units:
     bga_1:
-      port: "COM9"
+      port: "COM8"
       name: "Hydrogen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      # CALIBRATED ZERO OFFSETS for gas concentrations
-      zero_offsets:
-        H2: 0.1  # % concentration offset
-        O2: 0.05 # % concentration offset  
-        N2: 0.02 # % concentration offset
       description: "Gas analyzer on hydrogen product stream"
       
     bga_2:
-      port: "COM8"
+      port: "COM9"
       name: "Oxygen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      zero_offsets:
-        H2: 0.08
-        O2: 0.12
-        N2: 0.03
       description: "Gas analyzer on oxygen product stream"
       
     bga_3:
-      port: "COM4"
+      port: "COM3"
       name: "Mixed Stream Analyzer"
       gas_types: ["H2", "O2", "N2"]
-      zero_offsets:
-        H2: 0.15
-        O2: 0.08
-        N2: 0.05
       description: "Gas analyzer on mixed product stream"
 
 # CVM-24P Cell Voltage Monitor
@@ -252,17 +239,6 @@ cvm24p:
     total_cells: 120
     groups: 6  # Group into 6 groups of 20 cells each
     voltage_range: [0, 5]  # Volts
-    
-    # CALIBRATED ZERO OFFSETS for voltage measurements
-    # Individual cell calibration offsets (in mV)
-    zero_offsets:
-      # Group 1 (Cells 1-20)
-      group_1_offset: 12.5  # mV offset for cells 1-20
-      group_2_offset: 8.3   # mV offset for cells 21-40
-      group_3_offset: 15.1  # mV offset for cells 41-60
-      group_4_offset: 6.7   # mV offset for cells 61-80
-      group_5_offset: 11.2  # mV offset for cells 81-100
-      group_6_offset: 9.8   # mV offset for cells 101-120
       
   communication:
     baud_rate: 115200

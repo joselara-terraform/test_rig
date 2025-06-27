@@ -104,44 +104,27 @@ def example_temperature_integration():
 def example_gas_analyzer_integration():
     """Example: How BGA244 service would use device configuration"""
     print("\n" + "=" * 60)
-    print("EXAMPLE: BGA244 Service with Gas Concentration Calibration")
+    print("EXAMPLE: BGA244 Service (No Zero Offsets Needed)")
     print("=" * 60)
     
     config = get_device_config()
     
-    # Simulate raw gas concentration readings (would be close to 0% without calibration)
+    # Simulate raw gas concentration readings (direct measurements, no calibration needed)
     raw_concentrations = {
         'bga_1': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0},
         'bga_2': {'H2': 0.0, 'O2': 0.0, 'N2': 0.0}
     }
     
-    print("💨 Raw gas concentration readings (before calibration):")
+    print("💨 Gas concentration readings (direct measurement):")
     for unit, gases in raw_concentrations.items():
         unit_config = config.get_bga_unit_config(unit)
         print(f"   {unit_config.get('name', unit)}:")
         for gas, concentration in gases.items():
-            print(f"     {gas}: {concentration}%")
+            print(f"     {gas}: {concentration}% (no calibration needed)")
     
-    # Apply gas concentration calibration  
-    print("\n🎯 Applying gas concentration zero offsets:")
-    calibrated_concentrations = {}
+    print("\n🎯 BGA zero offsets: Disabled (direct measurement sensors)")
     
-    for unit, gases in raw_concentrations.items():
-        zero_offsets = config.get_bga_zero_offsets(unit)
-        unit_config = config.get_bga_unit_config(unit)
-        unit_name = unit_config.get('name', unit)
-        
-        print(f"   {unit_name}:")
-        calibrated_concentrations[unit] = {}
-        
-        for gas, raw_conc in gases.items():
-            zero_offset = zero_offsets.get(gas, 0.0)
-            calibrated_conc = raw_conc + zero_offset
-            calibrated_concentrations[unit][gas] = calibrated_conc
-            
-            print(f"     {gas}: {raw_conc}% + {zero_offset}% = {calibrated_conc}%")
-    
-    return calibrated_concentrations
+    return raw_concentrations
 
 
 def main():
@@ -163,19 +146,21 @@ def main():
     print("✅ TASK 30 COMPLETE: Calibrated Zero Offsets Implemented")
     print("=" * 60)
     print("📋 BENEFITS:")
-    print("   ✅ 4-20mA sensors: Zero offset (4mA = true zero)")
-    print("   ✅ Other sensors: Individual calibrated zero offsets")
+    print("   ✅ 4-20mA sensors: Zero offset calibration for pressure/current")
+    print("   ✅ Temperature sensors: Individual calibrated zero offsets")
+    print("   ✅ BGA/CVM sensors: No zero offsets (direct measurement)")
     print("   ✅ Configuration-driven calibration (no hardcoded values)")
     print("   ✅ Windows-specific configuration")
     print("   ✅ Fallback configuration when YAML not available")
     print("   ✅ Calibration date tracking and validation")
     print("   ✅ Auto-zero application on service startup")
     print("\n📊 CALIBRATED READINGS READY FOR DASHBOARD:")
-    print(f"   Pressure H2: {pressure_values['pressure_1']:.2f} PSI (4-20mA: 0 offset)")
-    print(f"   Pressure O2: {pressure_values['pressure_2']:.2f} PSI (4-20mA: 0 offset)")
-    print(f"   Current: {pressure_values['current']:.1f} A (4-20mA: 0 offset)")
+    print(f"   Pressure H2: {pressure_values['pressure_1']:.2f} PSI (with zero offset)")
+    print(f"   Pressure O2: {pressure_values['pressure_2']:.2f} PSI (with zero offset)")
+    print(f"   Current: {pressure_values['current']:.1f} A (with zero offset)")
     print(f"   Temperatures: {len(temp_values)} channels calibrated (with offsets)")
-    print(f"   Gas analyzers: {len(gas_values)} units calibrated (with offsets)")
+    print(f"   Gas analyzers: {len(gas_values)} units (direct measurement)")
+    print("   CVM voltages: Direct measurement (no offsets needed)")
     print("\n🎯 Next: Integrate config into all service classes!")
     print("=" * 60)
 
