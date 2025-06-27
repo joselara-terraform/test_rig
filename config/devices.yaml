@@ -208,10 +208,10 @@ bga244:
     parity: "None"
     timeout: 2.0  # seconds
   
-  # Three BGA244 Units with Calibrated Zero Offsets
+  # Three BGA244 Units with Calibrated Zero Offsets (Windows COM ports)
   units:
     bga_1:
-      port: "/dev/ttyUSB0"  # Platform-specific
+      port: "COM9"
       name: "Hydrogen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
       # CALIBRATED ZERO OFFSETS for gas concentrations
@@ -222,7 +222,7 @@ bga244:
       description: "Gas analyzer on hydrogen product stream"
       
     bga_2:
-      port: "/dev/ttyUSB1"
+      port: "COM8"
       name: "Oxygen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
       zero_offsets:
@@ -232,7 +232,7 @@ bga244:
       description: "Gas analyzer on oxygen product stream"
       
     bga_3:
-      port: "/dev/ttyUSB2"
+      port: "COM4"
       name: "Mixed Stream Analyzer"
       gas_types: ["H2", "O2", "N2"]
       zero_offsets:
@@ -302,34 +302,4 @@ system:
       pressure_sensor_2: "Zero offset -0.066 PSI applied to correct +0.066 PSI bias at 0 PSI"
       calibration_method: "Sensors vented to atmosphere (0 psig) for zero point calibration"
 
-# Platform-Specific Overrides
-platform_overrides:
-  windows:
-    bga244:
-      units:
-        bga_1:
-          port: "COM9"
-        bga_2:
-          port: "COM8"
-        bga_3:
-          port: "COM4"
-  
-  linux:
-    bga244:
-      units:
-        bga_1:
-          port: "/dev/ttyUSB0"
-        bga_2:
-          port: "/dev/ttyUSB1"
-        bga_3:
-          port: "/dev/ttyUSB2"
-  
-  darwin:  # macOS
-    bga244:
-      units:
-        bga_1:
-          port: "/dev/tty.usbserial-A1"
-        bga_2:
-          port: "/dev/tty.usbserial-A2"  
-        bga_3:
-          port: "/dev/tty.usbserial-A3" 
+ 

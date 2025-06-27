@@ -6,7 +6,7 @@ Real hardware integration with 3 BGA244 units for gas concentration monitoring
 import serial
 import time
 import threading
-import platform
+
 from typing import Dict, Any, List, Optional
 from core.state import get_global_state
 from config.device_config import get_device_config
@@ -360,8 +360,7 @@ class BGA244Service:
         self.sample_rate = self.device_config.get_sample_rate('bga244')
         self.num_units = len(BGA244Config.BGA_UNITS)
         
-        # Platform detection for port selection
-        self.system = platform.system()
+
         
     def connect(self) -> bool:
         """Connect to BGA244 gas analyzers"""

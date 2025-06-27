@@ -166,7 +166,7 @@ def main():
     print("   ✅ 4-20mA sensors: Zero offset (4mA = true zero)")
     print("   ✅ Other sensors: Individual calibrated zero offsets")
     print("   ✅ Configuration-driven calibration (no hardcoded values)")
-    print("   ✅ Platform-specific overrides supported")
+    print("   ✅ Windows-specific configuration")
     print("   ✅ Fallback configuration when YAML not available")
     print("   ✅ Calibration date tracking and validation")
     print("   ✅ Auto-zero application on service startup")

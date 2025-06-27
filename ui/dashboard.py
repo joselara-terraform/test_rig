@@ -74,31 +74,11 @@ class Dashboard:
         self._start_status_updates()
     
     def _maximize_window(self):
-        """Maximize the window - cross-platform approach"""
+        """Maximize the window on Windows"""
         try:
-            # Try platform-specific maximization methods
-            import platform
-            system = platform.system()
-            
-            if system == "Windows":
-                # Windows-specific maximization
-                self.root.state('zoomed')
-            elif system == "Linux":
-                # Linux-specific maximization  
-                self.root.attributes('-zoomed', True)
-            else:
-                # macOS and other platforms - use screen dimensions
-                # Get screen dimensions
-                screen_width = self.root.winfo_screenwidth()
-                screen_height = self.root.winfo_screenheight()
-                
-                # Set window to full screen size
-                self.root.geometry(f"{screen_width}x{screen_height}+0+0")
-                
-                # Try to remove window decorations for true full screen (optional)
-                # self.root.overrideredirect(True)  # Uncomment for borderless
-                
-            print(f"✅ Dashboard window maximized ({platform.system()})")
+            # Windows maximization
+            self.root.state('zoomed')
+            print("✅ Dashboard window maximized")
             
         except Exception as e:
             # Fallback to large window if maximization fails

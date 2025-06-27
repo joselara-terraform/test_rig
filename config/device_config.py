@@ -5,7 +5,6 @@ Loads devices.yaml and provides access to hardware settings including calibrated
 """
 
 import os
-import platform
 from typing import Dict, Any, Optional
 
 # Try to import YAML parser, provide fallback if not available
@@ -28,7 +27,6 @@ class DeviceConfig:
         
         self.config_file = config_file
         self.config = {}
-        self.platform = platform.system().lower()  # windows, linux, darwin
         
         if YAML_AVAILABLE:
             self.load_config()
@@ -41,11 +39,7 @@ class DeviceConfig:
             with open(self.config_file, 'r') as file:
                 self.config = yaml.safe_load(file)
             
-            # Apply platform-specific overrides
-            self._apply_platform_overrides()
-            
             print(f"✅ Device configuration loaded from {self.config_file}")
-            print(f"   Platform: {self.platform}")
             print(f"   Calibration date: {self.get_calibration_date()}")
             
         except FileNotFoundError:
@@ -179,14 +173,17 @@ class DeviceConfig:
             'bga244': {
                 'units': {
                     'bga_1': {
+                        'port': 'COM9',
                         'name': 'Hydrogen Side Analyzer',
                         'zero_offsets': {'H2': 0.1, 'O2': 0.05, 'N2': 0.02}
                     },
                     'bga_2': {
+                        'port': 'COM8',
                         'name': 'Oxygen Side Analyzer', 
                         'zero_offsets': {'H2': 0.08, 'O2': 0.12, 'N2': 0.03}
                     },
                     'bga_3': {
+                        'port': 'COM4',
                         'name': 'Mixed Stream Analyzer',
                         'zero_offsets': {'H2': 0.15, 'O2': 0.08, 'N2': 0.05}
                     }
@@ -220,24 +217,9 @@ class DeviceConfig:
         }
         
         print("✅ Fallback device configuration loaded")
-        print(f"   Platform: {self.platform}")
         print(f"   Calibration date: {self.get_calibration_date()}")
     
-    def _apply_platform_overrides(self):
-        """Apply platform-specific configuration overrides"""
-        if 'platform_overrides' in self.config and self.platform in self.config['platform_overrides']:
-            overrides = self.config['platform_overrides'][self.platform]
-            
-            # Deep merge overrides into main config
-            self._deep_merge(self.config, overrides)
-    
-    def _deep_merge(self, base_dict: Dict, override_dict: Dict):
-        """Deep merge override dictionary into base dictionary"""
-        for key, value in override_dict.items():
-            if key in base_dict and isinstance(base_dict[key], dict) and isinstance(value, dict):
-                self._deep_merge(base_dict[key], value)
-            else:
-                base_dict[key] = value
+
     
     # NI cDAQ Configuration Methods
     def get_ni_cdaq_config(self) -> Dict[str, Any]:

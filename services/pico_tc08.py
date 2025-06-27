@@ -5,7 +5,7 @@ Real hardware integration for 8-channel temperature monitoring
 
 import time
 import threading
-import platform
+
 from typing import List, Tuple, Dict, Any
 from core.state import get_global_state
 from config.device_config import get_device_config
@@ -23,24 +23,12 @@ except ImportError:
 class PicoTC08Config:
     """Configuration constants for Pico TC-08 thermocouple logger"""
     
-    # Platform-specific DLL paths
-    DLL_PATHS = {
-        'Windows': [
-            r"C:\Program Files\Pico Technology\SDK\lib\usbtc08.dll",
-            r"C:\Program Files (x86)\Pico Technology\SDK\lib\usbtc08.dll",
-            "usbtc08.dll"  # Try system PATH
-        ],
-        'Linux': [
-            "/usr/local/lib/libusbtc08.so",
-            "/usr/lib/libusbtc08.so",
-            "libusbtc08.so"
-        ],
-        'Darwin': [  # macOS
-            "/usr/local/lib/libusbtc08.dylib",
-            "/usr/lib/libusbtc08.dylib",
-            "libusbtc08.dylib"
-        ]
-    }
+    # Windows DLL paths
+    DLL_PATHS = [
+        r"C:\Program Files\Pico Technology\SDK\lib\usbtc08.dll",
+        r"C:\Program Files (x86)\Pico Technology\SDK\lib\usbtc08.dll",
+        "usbtc08.dll"  # Try system PATH
+    ]
     
     # Thermocouple configuration
     NUM_CHANNELS = 8  # 8 thermocouple channels
@@ -76,22 +64,10 @@ class PicoTC08Hardware:
         self.is_streaming = False
         
     def load_dll(self) -> bool:
-        """Load the appropriate DLL for the current platform"""
-        system = platform.system()
-        
-        if system not in PicoTC08Config.DLL_PATHS:
-            print(f"❌ Unsupported platform: {system}")
-            return False
-        
-        dll_paths = PicoTC08Config.DLL_PATHS[system]
-        
-        for dll_path in dll_paths:
+        """Load the Windows TC-08 DLL"""        
+        for dll_path in PicoTC08Config.DLL_PATHS:
             try:
-                if system == 'Windows':
-                    self.dll = ctypes.WinDLL(dll_path)
-                else:
-                    self.dll = ctypes.CDLL(dll_path)
-                
+                self.dll = ctypes.WinDLL(dll_path)
                 self._setup_function_prototypes()
                 print(f"   → TC-08 library loaded: {dll_path}")
                 return True
@@ -100,7 +76,7 @@ class PicoTC08Hardware:
                 continue
         
         print(f"   → TC-08 library not found in any of these paths:")
-        for path in dll_paths:
+        for path in PicoTC08Config.DLL_PATHS:
             print(f"     • {path}")
         return False
     

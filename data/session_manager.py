@@ -83,7 +83,7 @@ class SessionManager:
             "metadata": {
                 "test_rig_version": "1.0",
                 "operator": os.getenv("USERNAME", "unknown"),
-                "platform": os.name
+                "platform": "Windows"
             }
         }
         

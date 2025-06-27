@@ -7,7 +7,7 @@ Based on original BGA_test.py but significantly enhanced for production use.
 
 import serial
 import time
-import platform
+
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
@@ -40,12 +40,8 @@ class BGA244Config:
         'CO2': '124-38-9'     # Carbon Dioxide
     }
     
-    # Platform-specific serial port configurations
-    SERIAL_PORTS = {
-        'Windows': ['COM4', 'COM3', 'COM5', 'COM6', 'COM7', 'COM8'],
-        'Linux': ['/dev/ttyUSB0', '/dev/ttyUSB1', '/dev/ttyUSB2', '/dev/ttyACM0'],
-        'Darwin': ['/dev/tty.usbserial-A1', '/dev/tty.usbserial-A2', '/dev/tty.usbserial-A3']
-    }
+    # Windows COM port configurations
+    SERIAL_PORTS = ['COM4', 'COM3', 'COM5', 'COM6', 'COM7', 'COM8']
     
     # BGA Unit configurations for AWE test rig
     BGA_UNITS = {
@@ -255,24 +251,20 @@ class BGA244System:
     
     def __init__(self):
         self.devices = {}
-        self.system = platform.system()
         self.available_ports = []
         
     def scan_ports(self) -> List[str]:
-        """Scan for available serial ports"""
+        """Scan for available Windows COM ports"""
         available_ports = []
         
-        if self.system in BGA244Config.SERIAL_PORTS:
-            ports_to_try = BGA244Config.SERIAL_PORTS[self.system]
-            
-            for port in ports_to_try:
-                try:
-                    test_serial = serial.Serial(port, timeout=0.1)
-                    test_serial.close()
-                    available_ports.append(port)
-                    print(f"✅ Found available port: {port}")
-                except Exception:
-                    continue
+        for port in BGA244Config.SERIAL_PORTS:
+            try:
+                test_serial = serial.Serial(port, timeout=0.1)
+                test_serial.close()
+                available_ports.append(port)
+                print(f"✅ Found available port: {port}")
+            except Exception:
+                continue
         
         self.available_ports = available_ports
         return available_ports
@@ -419,7 +411,7 @@ if __name__ == "__main__":
         print("✅ ENHANCED BGA244 TEST SCRIPT COMPLETE")
         print("\n📋 ENHANCEMENTS:")
         print("   ✅ Multi-device support (3 gas analyzers)")
-        print("   ✅ Cross-platform serial port handling")
+        print("   ✅ Windows COM port handling")
         print("   ✅ Robust error handling and cleanup")
         print("   ✅ Comprehensive gas analysis commands")
         print("   ✅ Individual device management")
