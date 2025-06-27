@@ -52,29 +52,29 @@ ni_cdaq:
         zero_offset: 0.0  # No bias correction needed for current sensor
         description: "Electrolyzer stack current measurement"
         
-      pressure_3:
+      pressure_post_ms:
         channel: "ai4"
         name: "Post MS Pressure"
         units: "PSI"
-        range: [0, 1.012]  # 28 inWC = 1.012 PSI (28 * 0.03613)
-        zero_offset: 0.0  # TBD - requires calibration
+        range: [0, 1.012]  # 0-28 inWC converted to PSI (28 * 0.036127 = 1.012)
+        zero_offset: 0.0
         description: "Post mass spectrometer pressure measurement"
         
-      pressure_4:
+      pressure_pre_ms:
         channel: "ai5"
-        name: "Pre MS Pressure"
+        name: "Pre MS Pressure"  
         units: "PSI"
-        range: [0, 1.012]  # 28 inWC = 1.012 PSI (28 * 0.03613)
-        zero_offset: 0.0  # TBD - requires calibration
+        range: [0, 1.012]  # 0-28 inWC converted to PSI
+        zero_offset: 0.0
         description: "Pre mass spectrometer pressure measurement"
         
-      pressure_5:
+      pressure_h2_bp:
         channel: "ai6"
         name: "H2 Back Pressure"
         units: "PSI"
-        range: [0, 1.012]  # 28 inWC = 1.012 PSI (28 * 0.03613)
-        zero_offset: 0.0  # TBD - requires calibration
-        description: "H2 back pressure measurement"
+        range: [0, 1.012]  # 0-28 inWC converted to PSI
+        zero_offset: 0.0
+        description: "Hydrogen back pressure measurement"
   
   # NI-9485 Digital Output Modules (Relay Control)
   digital_outputs:
