@@ -1,0 +1,16 @@
+{
+  "session_id": "2025-06-27_16-42-54_Path_Test_Session",
+  "start_time": "2025-06-27T16:42:54.038973",
+  "session_name": "Path_Test_Session",
+  "folder_path": "/Users/terraformer/Library/CloudStorage/GoogleDrive-jose.lara@terraformindustries.com/Shared drives/Terraform Industries/Technical/Electrolyzer/Test Rigs/Gen 3 AWE Test Rig/Codebase/test_rig/data/sessions/2025-06-27_16-42-54_Path_Test_Session",
+  "status": "test_completed",
+  "files": {},
+  "metadata": {
+    "test_rig_version": "1.0",
+    "operator": "unknown",
+    "platform": "Windows"
+  },
+  "end_time": "2025-06-27T16:42:54.039745",
+  "duration_seconds": 0.000772,
+  "duration_formatted": "0:00:00"
+}

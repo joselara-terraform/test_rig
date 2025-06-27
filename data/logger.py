@@ -81,6 +81,10 @@ class CSVLogger:
         print(f"   → Session: {current_session['session_id']}")
         print(f"   → Session folder: {current_session['folder_path']}")
         
+        # Show absolute path for debugging
+        session_path = Path(current_session['folder_path'])
+        print(f"   → Absolute path: {session_path.resolve()}")
+        
         try:
             # Initialize CSV files
             print("   → Initializing CSV files...")
@@ -101,7 +105,8 @@ class CSVLogger:
             print(f"   → Log interval: {self.log_interval}s")
             print(f"   → Files created: {len(self.csv_files)}")
             for file_type, file_path in self.csv_files.items():
-                print(f"      • {file_type}: {Path(file_path).name}")
+                abs_path = Path(file_path).resolve()
+                print(f"      • {file_type}: {abs_path}")
             
             return True
             

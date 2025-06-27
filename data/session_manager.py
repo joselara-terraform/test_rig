@@ -14,8 +14,20 @@ from core.state import get_global_state
 class SessionManager:
     """Manages test session folders and file organization"""
     
-    def __init__(self, base_data_dir: str = "data"):
-        self.base_data_dir = Path(base_data_dir)
+    def __init__(self, base_data_dir: str = None):
+        # If no base_data_dir provided, use project root + data
+        if base_data_dir is None:
+            # Get project root (parent of this file's directory)
+            project_root = Path(__file__).parent.parent
+            self.base_data_dir = project_root / "data"
+        else:
+            # Allow custom data directory (can be absolute or relative to project root)
+            if Path(base_data_dir).is_absolute():
+                self.base_data_dir = Path(base_data_dir)
+            else:
+                project_root = Path(__file__).parent.parent
+                self.base_data_dir = project_root / base_data_dir
+        
         self.sessions_dir = self.base_data_dir / "sessions"
         self.current_session = None
         self.current_session_path = None
@@ -26,12 +38,18 @@ class SessionManager:
     
     def _ensure_directories(self):
         """Create necessary directory structure"""
+        print(f"📁 Initializing session directories:")
+        print(f"   → Base data directory: {self.base_data_dir}")
+        print(f"   → Sessions directory: {self.sessions_dir}")
+        
         self.base_data_dir.mkdir(exist_ok=True)
         self.sessions_dir.mkdir(exist_ok=True)
         
         # Create archive folder for old sessions
         archive_dir = self.sessions_dir / "archive"
         archive_dir.mkdir(exist_ok=True)
+        
+        print(f"   → ✅ Directory structure ready")
     
     def start_new_session(self, session_name: Optional[str] = None) -> Dict[str, Any]:
         """
