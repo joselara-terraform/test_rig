@@ -217,7 +217,7 @@ bga244:
       description: "Gas analyzer on hydrogen product stream"
       
     bga_2:
-      port: "COM9"
+      port: "COM6"
       name: "Oxygen Side Analyzer"
       gas_types: ["H2", "O2", "N2"]
       description: "Gas analyzer on oxygen product stream"
