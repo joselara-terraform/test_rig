@@ -39,39 +39,18 @@ class BGA244Config:
         'CO2': '124-38-9'     # Carbon Dioxide
     }
     
-    # BGA Unit configurations for AWE test rig (as specified by user)
-    BGA_UNITS = {
-        'bga_1': {
-            'name': 'H2 Header',
-            'description': 'Gas analyzer on hydrogen header',
-            'primary_gas': 'O2',     # H2 in O2 mixture
-            'secondary_gas': 'H2',   # H2 in O2 mixture
-            'expected_gases': ['O2', 'H2', 'N2']
-        },
-        'bga_2': {
-            'name': 'O2 Header', 
-            'description': 'Gas analyzer on oxygen header',
-            'primary_gas': 'H2',     # O2 in H2 mixture
-            'secondary_gas': 'O2',   # O2 in H2 mixture
-            'expected_gases': ['H2', 'O2', 'N2']
-        },
-        'bga_3': {
-            'name': 'De-oxo',
-            'description': 'Gas analyzer on de-oxo unit',
-            'primary_gas': 'H2',     # H2 in O2 mixture
-            'secondary_gas': 'O2',   # H2 in O2 mixture
-            'expected_gases': ['H2', 'O2', 'N2']
-        }
-    }
+    # BGA Unit configurations now loaded from devices.yaml
+    # Gas pairs for normal and purge modes are defined in the configuration file
 
 
 class BGA244Device:
     """Individual BGA244 Gas Analyzer Interface"""
     
-    def __init__(self, port: str, unit_config: Dict[str, Any], unit_id: str):
+    def __init__(self, port: str, unit_id: str, device_config):
         self.port = port
-        self.unit_config = unit_config
         self.unit_id = unit_id
+        self.device_config = device_config
+        self.unit_config = device_config.get_bga_unit_config(unit_id)
         self.serial_conn = None
         self.is_connected = False
         self.device_info = {}
@@ -139,39 +118,20 @@ class BGA244Device:
             # Set binary gas mode
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
-            # Configure primary gas (changes based on purge mode and BGA type)
-            if purge_mode:
-                # In purge mode, adjust primary gas based on what each BGA actually measures
-                if self.unit_config['name'] == 'H2 Header':
-                    # H2 Header BGA measures H2 in N2 during purge mode
-                    primary_gas = 'H2'
-                    print(f"   PURGE MODE: Primary gas changed to H2 for H2 measurement")
-                elif self.unit_config['name'] == 'O2 Header':
-                    # O2 Header BGA measures O2 in N2 during purge mode
-                    primary_gas = 'O2'
-                    print(f"   PURGE MODE: Primary gas changed to O2 for O2 measurement")
-                else:
-                    # De-oxo and other BGAs measure H2 in N2 during purge mode
-                    primary_gas = 'H2'
-                    print(f"   PURGE MODE: Primary gas changed to H2")
-            else:
-                primary_gas = self.unit_config['primary_gas']
+            # Get gas configuration from device config based on mode
+            primary_gas = self.device_config.get_bga_primary_gas(self.unit_id, purge_mode)
+            secondary_gas = self.device_config.get_bga_secondary_gas(self.unit_id, purge_mode)
             
+            # Configure primary gas
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
             self._send_command(f"GASP {primary_cas}")
-            print(f"   Primary gas: {primary_gas} ({primary_cas})")
+            mode_str = "PURGE MODE" if purge_mode else "NORMAL MODE"
+            print(f"   {mode_str}: Primary gas: {primary_gas} ({primary_cas})")
             
-            # Configure secondary gas (always N2 in purge mode)
-            if purge_mode:
-                secondary_gas = 'N2'  # All secondary gases become N2 in purge mode
-                secondary_cas = BGA244Config.GAS_CAS_NUMBERS['N2']
-                print(f"   PURGE MODE: Secondary gas changed to N2")
-            else:
-                secondary_gas = self.unit_config['secondary_gas']
-                secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
-            
+            # Configure secondary gas
+            secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             self._send_command(f"GASS {secondary_cas}")
-            print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
+            print(f"   {mode_str}: Secondary gas: {secondary_gas} ({secondary_cas})")
             
             print(f"✅ Gas configuration complete for {self.unit_config['name']}")
             return True
@@ -239,20 +199,8 @@ class BGA244Device:
                     else:
                         measurements['primary_gas_concentration'] = primary_val
                     
-                    # Set primary gas type based on mode
-                    if self.purge_mode:
-                        # In purge mode, set primary gas based on what each BGA measures
-                        if self.unit_config['name'] == 'H2 Header':
-                            # H2 Header BGA measures H2 in N2 during purge mode
-                            measurements['primary_gas'] = 'H2'
-                        elif self.unit_config['name'] == 'O2 Header':
-                            # O2 Header BGA measures O2 in N2 during purge mode
-                            measurements['primary_gas'] = 'O2'
-                        else:
-                            # De-oxo and other BGAs measure H2 in N2 during purge mode
-                            measurements['primary_gas'] = 'H2'
-                    else:
-                        measurements['primary_gas'] = self.unit_config['primary_gas']
+                    # Set primary gas type from device config based on mode
+                    measurements['primary_gas'] = self.device_config.get_bga_primary_gas(self.unit_id, self.purge_mode)
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
             
@@ -268,11 +216,8 @@ class BGA244Device:
                     else:
                         measurements['secondary_gas_concentration'] = secondary_val
                     
-                    # Set secondary gas type - always N2 in purge mode
-                    if self.purge_mode:
-                        measurements['secondary_gas'] = 'N2'
-                    else:
-                        measurements['secondary_gas'] = self.unit_config['secondary_gas']
+                    # Set secondary gas type from device config based on mode
+                    measurements['secondary_gas'] = self.device_config.get_bga_secondary_gas(self.unit_id, self.purge_mode)
                 except ValueError:
                     measurements['secondary_gas_concentration'] = None
             
@@ -284,18 +229,8 @@ class BGA244Device:
                 remaining_conc = 100.0 - primary_conc - secondary_conc
                 measurements['remaining_gas_concentration'] = max(0.0, remaining_conc)
                 
-                # Determine remaining gas based on configuration and purge mode
-                if self.purge_mode:
-                    # In purge mode, secondary is N2, so remaining is usually the other main gas
-                    if measurements['primary_gas'] == 'H2':
-                        measurements['remaining_gas'] = 'O2'
-                    elif measurements['primary_gas'] == 'O2':
-                        measurements['remaining_gas'] = 'H2'
-                    else:
-                        measurements['remaining_gas'] = 'H2'  # fallback
-                else:
-                    # Normal mode - remaining is typically N2
-                    measurements['remaining_gas'] = 'N2'
+                # Get remaining gas from device config based on mode
+                measurements['remaining_gas'] = self.device_config.get_bga_remaining_gas(self.unit_id, self.purge_mode)
             
             return measurements
             
@@ -358,7 +293,7 @@ class BGA244Service:
         # BGA244 configuration from device config
         self.device_name = "BGA244"
         self.sample_rate = self.device_config.get_sample_rate('bga244')
-        self.num_units = len(BGA244Config.BGA_UNITS)
+        self.num_units = len(self.device_config.get_bga244_config().get('units', {}))
         
 
         
@@ -380,11 +315,11 @@ class BGA244Service:
                 disconnected_units = [unit_id for unit_id, connected in self.individual_connections.items() if not connected]
                 
                 if connected_units:
-                    unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in connected_units]
+                    unit_names = [self.device_config.get_bga_unit_config(uid).get('name', uid) for uid in connected_units]
                     print(f"   → Hardware connected: {', '.join(unit_names)}")
                 
                 if disconnected_units:
-                    unit_names = [BGA244Config.BGA_UNITS[uid]['name'] for uid in disconnected_units]
+                    unit_names = [self.device_config.get_bga_unit_config(uid).get('name', uid) for uid in disconnected_units]
                     print(f"   → Disconnected (no data): {', '.join(unit_names)}")
                 
             else:
@@ -412,14 +347,15 @@ class BGA244Service:
         print("   → Connecting BGAs to configured ports...")
         
         # Connect each BGA to its configured port
-        for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
+        bga_units = self.device_config.get_bga244_config().get('units', {})
+        for unit_id, unit_config in bga_units.items():
             # Get the configured port for this unit from device config
-            configured_port = self.device_config.get_bga_unit_config(unit_id).get('port')
+            configured_port = unit_config.get('port')
             
             if configured_port:
                 print(f"   → Trying to connect {unit_config['name']} to {configured_port}...")
                 
-                if self._try_connect_bga_to_port(unit_id, unit_config, configured_port):
+                if self._try_connect_bga_to_port(unit_id, configured_port):
                     # Assign this port to this BGA
                     self.bga_port_mapping[unit_id] = configured_port
                     connected_count += 1
@@ -431,10 +367,10 @@ class BGA244Service:
         
         return connected_count
     
-    def _try_connect_bga_to_port(self, unit_id: str, unit_config: Dict[str, Any], port: str) -> bool:
+    def _try_connect_bga_to_port(self, unit_id: str, port: str) -> bool:
         """Try to connect a specific BGA to a specific port"""
         try:
-            device = BGA244Device(port, unit_config, unit_id)
+            device = BGA244Device(port, unit_id, self.device_config)
             
             if device.connect():
                 if device.configure_gases(self.purge_mode):
@@ -444,13 +380,14 @@ class BGA244Service:
                 else:
                     device.disconnect()
                     self.individual_connections[unit_id] = False
-                    print(f"      ❌ Gas configuration failed for {unit_config['name']}")
+                    print(f"      ❌ Gas configuration failed for {device.unit_config['name']}")
             else:
                 self.individual_connections[unit_id] = False
                 
         except Exception as e:
             self.individual_connections[unit_id] = False
-            print(f"      ❌ Device error for {unit_config['name']} on {port}: {e}")
+            unit_name = self.device_config.get_bga_unit_config(unit_id).get('name', unit_id)
+            print(f"      ❌ Device error for {unit_name} on {port}: {e}")
         
         return False
     
@@ -589,7 +526,7 @@ class BGA244Service:
         """Read gas concentrations from real BGA244 hardware with primary/secondary gas format"""
         gas_readings = []
         
-        unit_ids = list(BGA244Config.BGA_UNITS.keys())
+        unit_ids = list(self.device_config.get_bga244_config().get('units', {}).keys())
         
         for i, unit_id in enumerate(unit_ids):
             if unit_id in self.devices and self.individual_connections[unit_id]:
@@ -688,7 +625,7 @@ class BGA244Service:
         """Get current BGA-to-port assignments for debugging"""
         assignments = {}
         for unit_id, port in self.bga_port_mapping.items():
-            unit_name = BGA244Config.BGA_UNITS[unit_id]['name']
+            unit_name = self.device_config.get_bga_unit_config(unit_id).get('name', unit_id)
             assignments[unit_name] = port if port else "Not assigned"
         return assignments
     
@@ -697,13 +634,12 @@ class BGA244Service:
         readings = {}
         concentrations = self.state.gas_concentrations
         
-        unit_ids = list(BGA244Config.BGA_UNITS.keys())
+        unit_ids = list(self.device_config.get_bga244_config().get('units', {}).keys())
         
         for i, gas_data in enumerate(concentrations):
             if i < len(unit_ids):
                 unit_id = unit_ids[i]
-                unit_config = BGA244Config.BGA_UNITS[unit_id]
-                unit_name = unit_config['name']
+                unit_name = self.device_config.get_bga_unit_config(unit_id).get('name', unit_id)
                 readings[unit_name] = gas_data.copy()
         
         return readings

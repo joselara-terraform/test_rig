@@ -5,7 +5,7 @@ Loads devices.yaml and provides access to hardware settings including calibrated
 """
 
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 # Try to import YAML parser, provide fallback if not available
 try:
@@ -174,15 +174,45 @@ class DeviceConfig:
                 'units': {
                     'bga_1': {
                         'port': 'COM8',
-                        'name': 'Hydrogen Side Analyzer'
+                        'name': 'H2 Header',
+                        'normal_mode': {
+                            'primary_gas': 'O2',
+                            'secondary_gas': 'H2',
+                            'remaining_gas': 'N2'
+                        },
+                        'purge_mode': {
+                            'primary_gas': 'H2',
+                            'secondary_gas': 'N2',
+                            'remaining_gas': 'O2'
+                        }
                     },
                     'bga_2': {
                         'port': 'COM9',
-                        'name': 'Oxygen Side Analyzer'
+                        'name': 'O2 Header',
+                        'normal_mode': {
+                            'primary_gas': 'H2',
+                            'secondary_gas': 'O2',
+                            'remaining_gas': 'N2'
+                        },
+                        'purge_mode': {
+                            'primary_gas': 'O2',
+                            'secondary_gas': 'N2',
+                            'remaining_gas': 'H2'
+                        }
                     },
                     'bga_3': {
                         'port': 'COM3',
-                        'name': 'Mixed Stream Analyzer'
+                        'name': 'De-oxo',
+                        'normal_mode': {
+                            'primary_gas': 'H2',
+                            'secondary_gas': 'O2',
+                            'remaining_gas': 'N2'
+                        },
+                        'purge_mode': {
+                            'primary_gas': 'H2',
+                            'secondary_gas': 'N2',
+                            'remaining_gas': 'O2'
+                        }
                     }
                 }
             },
@@ -273,6 +303,35 @@ class DeviceConfig:
         """Get configuration for specific BGA unit including zero offsets"""
         units = self.config.get('bga244', {}).get('units', {})
         return units.get(unit_name, {})
+    
+    def get_bga_gas_config(self, unit_name: str, purge_mode: bool = False) -> Dict[str, Any]:
+        """Get gas analysis configuration for specific BGA unit and mode"""
+        unit_config = self.get_bga_unit_config(unit_name)
+        
+        if purge_mode:
+            return unit_config.get('purge_mode', {})
+        else:
+            return unit_config.get('normal_mode', {})
+    
+    def get_bga_primary_gas(self, unit_name: str, purge_mode: bool = False) -> str:
+        """Get primary gas for specific BGA unit and mode"""
+        gas_config = self.get_bga_gas_config(unit_name, purge_mode)
+        return gas_config.get('primary_gas', 'H2')
+    
+    def get_bga_secondary_gas(self, unit_name: str, purge_mode: bool = False) -> str:
+        """Get secondary gas for specific BGA unit and mode"""
+        gas_config = self.get_bga_gas_config(unit_name, purge_mode)
+        return gas_config.get('secondary_gas', 'O2')
+    
+    def get_bga_remaining_gas(self, unit_name: str, purge_mode: bool = False) -> str:
+        """Get remaining gas for specific BGA unit and mode"""
+        gas_config = self.get_bga_gas_config(unit_name, purge_mode)
+        return gas_config.get('remaining_gas', 'N2')
+    
+    def get_bga_expected_gases(self, unit_name: str, purge_mode: bool = False) -> List[str]:
+        """Get expected gases list for specific BGA unit and mode"""
+        gas_config = self.get_bga_gas_config(unit_name, purge_mode)
+        return gas_config.get('expected_gases', ['H2', 'O2', 'N2'])
     
     def get_bga_zero_offsets(self, unit_name: str) -> Dict[str, float]:
         """Get calibrated zero offsets for BGA gas concentrations (disabled)"""

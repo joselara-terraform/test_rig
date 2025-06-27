@@ -10,6 +10,12 @@ import time
 
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
+import sys
+import os
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config.device_config import get_device_config
 
 
 @dataclass
@@ -40,41 +46,20 @@ class BGA244Config:
         'CO2': '124-38-9'     # Carbon Dioxide
     }
     
-    # Windows COM port configurations
-    SERIAL_PORTS = ['COM4', 'COM3', 'COM5', 'COM6', 'COM7', 'COM8']
+    # Windows COM port configurations (actual hardware ports)
+    SERIAL_PORTS = ['COM3', 'COM8', 'COM9']  # Actual BGA ports: COM8 (H2), COM9 (O2), COM3 (De-oxo)
     
-    # BGA Unit configurations for AWE test rig
-    BGA_UNITS = {
-        'bga_1': {
-            'name': 'Hydrogen Side Analyzer',
-            'description': 'Gas analyzer on hydrogen product stream',
-            'primary_gas': 'O2',    # O2 in N2 mixture
-            'secondary_gas': 'N2',  # O2 in N2 mixture
-            'expected_gases': ['O2', 'N2', 'H2']
-        },
-        'bga_2': {
-            'name': 'Oxygen Side Analyzer', 
-            'description': 'Gas analyzer on oxygen product stream',
-            'primary_gas': 'O2',    # O2 in N2 mixture
-            'secondary_gas': 'N2',  # O2 in N2 mixture
-            'expected_gases': ['O2', 'N2', 'H2']
-        },
-        'bga_3': {
-            'name': 'Mixed Stream Analyzer',
-            'description': 'Gas analyzer on mixed product stream',
-            'primary_gas': 'O2',    # O2 in N2 mixture
-            'secondary_gas': 'N2',  # O2 in N2 mixture
-            'expected_gases': ['O2', 'N2', 'H2']
-        }
-    }
+    # BGA Unit configurations now loaded from devices.yaml
 
 
 class BGA244Device:
     """Individual BGA244 Gas Analyzer Interface"""
     
-    def __init__(self, port: str, unit_config: Dict[str, Any]):
+    def __init__(self, port: str, unit_id: str, device_config):
         self.port = port
-        self.unit_config = unit_config
+        self.unit_id = unit_id
+        self.device_config = device_config
+        self.unit_config = device_config.get_bga_unit_config(unit_id)
         self.serial_conn = None
         self.is_connected = False
         self.device_info = {}
@@ -138,14 +123,16 @@ class BGA244Device:
             # Set binary gas mode
             self._send_command(f"MSMD {BGA244Config.GAS_MODE_BINARY}")
             
+            # Get gas configuration from device config (use normal mode for test)
+            primary_gas = self.device_config.get_bga_primary_gas(self.unit_id, purge_mode=False)
+            secondary_gas = self.device_config.get_bga_secondary_gas(self.unit_id, purge_mode=False)
+            
             # Configure primary gas
-            primary_gas = self.unit_config['primary_gas']
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
             self._send_command(f"GASP {primary_cas}")
             print(f"   Primary gas: {primary_gas} ({primary_cas})")
             
             # Configure secondary gas
-            secondary_gas = self.unit_config['secondary_gas']
             secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             self._send_command(f"GASS {secondary_cas}")
             print(f"   Secondary gas: {secondary_gas} ({secondary_cas})")
@@ -194,7 +181,7 @@ class BGA244Device:
             if ratio_response:
                 try:
                     measurements['primary_gas_concentration'] = float(ratio_response)
-                    measurements['primary_gas'] = self.unit_config['primary_gas']
+                    measurements['primary_gas'] = self.device_config.get_bga_primary_gas(self.unit_id, purge_mode=False)
                 except ValueError:
                     measurements['primary_gas_concentration'] = None
             
@@ -203,7 +190,7 @@ class BGA244Device:
             if ratio2_response:
                 try:
                     measurements['secondary_gas_concentration'] = float(ratio2_response)
-                    measurements['secondary_gas'] = self.unit_config['secondary_gas']
+                    measurements['secondary_gas'] = self.device_config.get_bga_secondary_gas(self.unit_id, purge_mode=False)
                 except ValueError:
                     measurements['secondary_gas_concentration'] = None
             
@@ -252,6 +239,7 @@ class BGA244System:
     def __init__(self):
         self.devices = {}
         self.available_ports = []
+        self.device_config = get_device_config()
         
     def scan_ports(self) -> List[str]:
         """Scan for available Windows COM ports"""
@@ -282,11 +270,12 @@ class BGA244System:
         
         connected_count = 0
         
-        for unit_id, unit_config in BGA244Config.BGA_UNITS.items():
+        bga_units = self.device_config.get_bga244_config().get('units', {})
+        for unit_id, unit_config in bga_units.items():
             if connected_count < len(ports_to_try):
                 port = ports_to_try[connected_count] if target_port else ports_to_try[connected_count]
                 
-                device = BGA244Device(port, unit_config)
+                device = BGA244Device(port, unit_id, self.device_config)
                 
                 if device.connect():
                     if device.configure_gases():
@@ -299,7 +288,7 @@ class BGA244System:
                 else:
                     print(f"❌ Connection failed for {unit_config['name']} on {port}")
         
-        print(f"📊 Connected {connected_count}/{len(BGA244Config.BGA_UNITS)} BGA244 devices")
+        print(f"📊 Connected {connected_count}/{len(bga_units)} BGA244 devices")
         return connected_count
     
     def read_all_measurements(self) -> Dict[str, Dict[str, Any]]:
@@ -335,15 +324,15 @@ def main():
     bga_system = BGA244System()
     
     try:
-        # Connect to devices (use COM4 as specified)
+        # Connect to devices (scan all available ports)
         print("\n🔌 STEP 1: Connecting to BGA244 devices...")
-        connected_count = bga_system.connect_devices(target_port="COM4")
+        connected_count = bga_system.connect_devices()  # Scan all ports
         
         if connected_count == 0:
             print("❌ No BGA244 devices connected")
             print("\n🔧 TROUBLESHOOTING:")
             print("   • Check BGA244 serial connections")
-            print("   • Verify correct COM port (currently set to COM4)")
+            print("   • Verify BGA ports: COM8 (H2 Header), COM9 (O2 Header), COM3 (De-oxo)")
             print("   • Ensure devices are powered on")
             print("   • Check serial cable connections")
             return False
@@ -418,6 +407,6 @@ if __name__ == "__main__":
         print("   ✅ Ready for service integration")
     else:
         print("ℹ️  Script test completed (hardware not available)")
-        print("   Ready for use with real BGA244 devices on COM4")
+        print("   Ready for use with real BGA244 devices on COM8, COM9, COM3")
     
     print("=" * 70) 
