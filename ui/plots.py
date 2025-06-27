@@ -27,15 +27,13 @@ class PressurePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting - pressure data
+        # Data storage for plotting - pressure data (5 pressure sensors)
         self.time_data = deque()
-        self.pressure1_data = deque()
-        self.pressure2_data = deque()
-        
-        # Data storage for gas concentrations (converted to 0-1 range) - primary gas from each BGA
-        self.h2_hydrogen_side_data = deque()  # Primary gas from BGA1 (H2 Header)
-        self.o2_oxygen_side_data = deque()    # Primary gas from BGA2 (O2 Header)
-        self.h2_mixed_data = deque()          # Primary gas from BGA3 (De-oxo)
+        self.pressure1_data = deque()  # H2 Header (0-15 PSI)
+        self.pressure2_data = deque()  # O2 Header (0-15 PSI)
+        self.pressure3_data = deque()  # Post MS (0-1.012 PSI from 28 inWC)
+        self.pressure4_data = deque()  # Pre MS (0-1.012 PSI from 28 inWC)
+        self.pressure5_data = deque()  # H2 Back Pressure (0-1.012 PSI from 28 inWC)
         
         self.last_update_time = 0
         
@@ -44,26 +42,24 @@ class PressurePlot:
         self.ax = self.fig.add_subplot(111)
         
         # Configure plot appearance
-        self.ax.set_title("Pressure & Gas Concentrations vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_title("Pressure vs Time (All Sensors)", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
+        self.ax.set_ylabel("Pressure (PSI)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         
-        # Create line objects for pressure sensors
-        self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='H_2 Header')
-        self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O_2 Header')
-        
-        # Create line objects for gas concentrations (primary gas from each BGA)
-        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, alpha=0.8, label='BGA-H2')
-        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, alpha=0.8, label='BGA-O2')  
-        self.line_h2_mixed, = self.ax.plot([], [], 'c--', linewidth=1.5, alpha=0.8, label='BGA-DO')
+        # Create line objects for all 5 pressure sensors
+        self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='H2 Header (15)')
+        self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O2 Header (15)')
+        self.line3, = self.ax.plot([], [], 'g-', linewidth=2, label='Post MS (1)')
+        self.line4, = self.ax.plot([], [], 'm-', linewidth=2, label='Pre MS (1)')
+        self.line5, = self.ax.plot([], [], 'c-', linewidth=2, label='H2 BP (1)')
         
         # Add legend with smaller font to fit entries
-        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
+        self.ax.legend(loc='upper right', fontsize=9, ncol=1)
         
         # Set initial axis limits - static Y, dynamic X
         self.ax.set_xlim(0, 120)  # Initial X limit
-        self.ax.set_ylim(0, 1)    # Static Y limit (0-1 range)
+        self.ax.set_ylim(0, 16)   # Static Y limit (0-16 PSI to accommodate all sensors)
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -83,106 +79,72 @@ class PressurePlot:
         
         # Check test states
         if self.state.emergency_stop or not self.state.test_running:
-            return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed)
+            return (self.line1, self.line2, self.line3, self.line4, self.line5)
         
         if self.state.test_paused:
-            return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed)
+            return (self.line1, self.line2, self.line3, self.line4, self.line5)
         
         # Update only if enough time has passed (throttle updates)
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line1, self.line2, self.line_h2_h_side, 
-                   self.line_o2_o_side, self.line_h2_mixed)
+            return (self.line1, self.line2, self.line3, self.line4, self.line5)
         
         self.last_update_time = current_time
         
         # Use global timer
         relative_time = self.state.timer_value
         
-        # Get current pressure values
-        pressure1 = self.state.pressure_values[0] if len(self.state.pressure_values) > 0 else 0.0
-        pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
-        
-        # Get gas concentration values and convert percentages to fractions (0-1 range)
-        # Plot primary gas concentrations instead of hardcoded H2/O2
-        gas_concentrations = self.state.gas_concentrations
-        enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
-        
-        # If enhanced data is available, use primary gas concentrations
-        if enhanced_gas_data and len(enhanced_gas_data) >= 3:
-            # Unit 1: Use primary gas concentration (could be H2 or O2 depending on purge mode)
-            primary_1 = (enhanced_gas_data[0]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[0]['primary_gas_concentration'] else 0.0
-            
-            # Unit 2: Use primary gas concentration  
-            primary_2 = (enhanced_gas_data[1]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[1]['primary_gas_concentration'] else 0.0
-            
-            # Unit 3: Use primary gas concentration
-            primary_3 = (enhanced_gas_data[2]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[2]['primary_gas_concentration'] else 0.0
-        else:
-            # Fallback to legacy hardcoded gas types
-            # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
-            primary_1 = (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0
-            
-            # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
-            primary_2 = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
-            
-            # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
-            primary_3 = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
+        # Get all 5 pressure values
+        pressure_values = self.state.pressure_values
+        pressure1 = pressure_values[0] if len(pressure_values) > 0 else 0.0  # H2 Header (0-15 PSI)
+        pressure2 = pressure_values[1] if len(pressure_values) > 1 else 0.0  # O2 Header (0-15 PSI)
+        pressure3 = pressure_values[2] if len(pressure_values) > 2 else 0.0  # Post MS (0-1.012 PSI)
+        pressure4 = pressure_values[3] if len(pressure_values) > 3 else 0.0  # Pre MS (0-1.012 PSI)
+        pressure5 = pressure_values[4] if len(pressure_values) > 4 else 0.0  # H2 BP (0-1.012 PSI)
         
         # Add new data points
         self.time_data.append(relative_time)
         self.pressure1_data.append(pressure1)
         self.pressure2_data.append(pressure2)
-        
-        # Add gas concentration data points - plot primary gas concentrations
-        self.h2_hydrogen_side_data.append(primary_1)
-        self.o2_oxygen_side_data.append(primary_2)
-        self.h2_mixed_data.append(primary_3)
+        self.pressure3_data.append(pressure3)
+        self.pressure4_data.append(pressure4)
+        self.pressure5_data.append(pressure5)
         
         # Update line data
         if len(self.time_data) > 0:
-            # Update pressure lines
+            # Update all 5 pressure lines
             self.line1.set_data(list(self.time_data), list(self.pressure1_data))
             self.line2.set_data(list(self.time_data), list(self.pressure2_data))
-            
-            # Update gas concentration lines - primary gas concentrations
-            self.line_h2_h_side.set_data(list(self.time_data), list(self.h2_hydrogen_side_data))
-            self.line_o2_o_side.set_data(list(self.time_data), list(self.o2_oxygen_side_data))
-            self.line_h2_mixed.set_data(list(self.time_data), list(self.h2_mixed_data))
+            self.line3.set_data(list(self.time_data), list(self.pressure3_data))
+            self.line4.set_data(list(self.time_data), list(self.pressure4_data))
+            self.line5.set_data(list(self.time_data), list(self.pressure5_data))
             
             # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
-            # Static Y-axis: [0, 1] (no auto-scaling)
+            # Static Y-axis: [0, 16] (no auto-scaling)
             self.ax.set_xlim(0, max(relative_time*1.2, 120))
         
-        return (self.line1, self.line2, self.line_h2_h_side, 
-               self.line_o2_o_side, self.line_h2_mixed)
+        return (self.line1, self.line2, self.line3, self.line4, self.line5)
 
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
         self.pressure1_data.clear()
         self.pressure2_data.clear()
-        
-        # Clear primary gas concentration data from each BGA
-        self.h2_hydrogen_side_data.clear()
-        self.o2_oxygen_side_data.clear()
-        self.h2_mixed_data.clear()
+        self.pressure3_data.clear()
+        self.pressure4_data.clear()
+        self.pressure5_data.clear()
 
         self.last_update_time = 0
         
         # Reset axis limits - static Y, initial X
         self.ax.set_xlim(0, 120)
-        self.ax.set_ylim(0, 1)
+        self.ax.set_ylim(0, 16)
         
-        # Clear line data
+        # Clear all 5 pressure line data
         self.line1.set_data([], [])
         self.line2.set_data([], [])
-        
-        # Clear primary gas concentration lines
-        self.line_h2_h_side.set_data([], [])
-        self.line_o2_o_side.set_data([], [])
-        self.line_h2_mixed.set_data([], [])
+        self.line3.set_data([], [])
+        self.line4.set_data([], [])
+        self.line5.set_data([], [])
         
         self.canvas.draw()
     

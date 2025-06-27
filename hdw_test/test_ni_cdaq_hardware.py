@@ -42,9 +42,12 @@ ACTUATORS = {
 
 # Analog input channels (4-20mA sensors)
 ANALOG_CHANNELS = {
-    "pressure_1": {"channel": f"{NI_9253_SLOT}/ai0", "name": "Pressure Sensor 1", "range": [0, 15], "units": "PSI"},
-    "pressure_2": {"channel": f"{NI_9253_SLOT}/ai1", "name": "Pressure Sensor 2", "range": [0, 15], "units": "PSI"},
+    "pressure_1": {"channel": f"{NI_9253_SLOT}/ai0", "name": "Pressure Sensor 1 (H2)", "range": [0, 15], "units": "PSI"},
+    "pressure_2": {"channel": f"{NI_9253_SLOT}/ai1", "name": "Pressure Sensor 2 (O2)", "range": [0, 15], "units": "PSI"},
     "current": {"channel": f"{NI_9253_SLOT}/ai2", "name": "Current Sensor", "range": [0, 150], "units": "A"},
+    "pressure_3": {"channel": f"{NI_9253_SLOT}/ai4", "name": "Post MS Pressure", "range": [0, 1.012], "units": "PSI"},
+    "pressure_4": {"channel": f"{NI_9253_SLOT}/ai5", "name": "Pre MS Pressure", "range": [0, 1.012], "units": "PSI"},
+    "pressure_5": {"channel": f"{NI_9253_SLOT}/ai6", "name": "H2 Back Pressure", "range": [0, 1.012], "units": "PSI"},
 }
 
 def test_device_detection():
@@ -163,8 +166,15 @@ def test_analog_inputs():
                     eng_value = max_eng
                 else:
                     status = "OK"
-                    # Calibrated scaling: 3.9mA = 0, 20mA = max
-                    eng_value = ((avg_current - 0.0039) / 0.0161) * (max_eng - min_eng) + min_eng
+                    # Calibrated scaling: 4mA = 0, 20mA = max
+                    # For inWC sensors: 4mA = 0 inWC, 20mA = 28 inWC, convert to PSI (1 inWC = 0.03613 PSI)
+                    if "MS" in ch_config["name"] or "Back Pressure" in ch_config["name"]:
+                        # These are inWC sensors (0-28 inWC = 0-1.012 PSI)
+                        inWC_value = ((avg_current - 0.004) / 0.016) * 28.0  # Convert to inWC first
+                        eng_value = inWC_value * 0.03613  # Convert inWC to PSI
+                    else:
+                        # These are direct PSI sensors (0-15 PSI)
+                        eng_value = ((avg_current - 0.004) / 0.016) * (max_eng - min_eng) + min_eng
                 
                 print(f"  • {ch_config['name']}: {current_ma:.2f}mA → {eng_value:.2f} {ch_config['units']} [{status}]")
             

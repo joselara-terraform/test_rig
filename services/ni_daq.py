@@ -49,12 +49,19 @@ class NIDAQService:
         self.ni_9485_slot_2 = "cDAQ9187-23E902CMod2"  # Digital output module
         self.ni_9485_slot_3 = "cDAQ9187-23E902CMod3"  # Digital output module
         
-        # Analog input channels (4-20mA sensors)
-        self.analog_channels = {
-            'pressure_1': {'channel': f"{self.ni_9253_slot}/ai0", 'name': "Pressure Sensor 1", 'range': [0, 15], 'units': "PSI"},
-            'pressure_2': {'channel': f"{self.ni_9253_slot}/ai1", 'name': "Pressure Sensor 2", 'range': [0, 15], 'units': "PSI"},
-            'current': {'channel': f"{self.ni_9253_slot}/ai2", 'name': "Current Sensor", 'range': [0, 150], 'units': "A"},
-        }
+        # Analog input channels (4-20mA sensors) - Load from device configuration
+        self.analog_channels = {}
+        # Get channel configurations from device config
+        channel_configs = ['pressure_1', 'pressure_2', 'current', 'pressure_3', 'pressure_4', 'pressure_5']
+        for ch_name in channel_configs:
+            ch_config = self.device_config.get_analog_input_config(ch_name)
+            if ch_config:  # Only add if configuration exists
+                self.analog_channels[ch_name] = {
+                    'channel': f"{self.ni_9253_slot}/{ch_config['channel']}",
+                    'name': ch_config['name'],
+                    'range': ch_config['range'],
+                    'units': ch_config['units']
+                }
         
         # Digital output channels (valve relays)
         self.digital_channels = {
@@ -236,9 +243,17 @@ class NIDAQService:
                 analog_data = self._read_analog_inputs()
                 
                 # Update global state with new readings
+                pressure_values = [
+                    analog_data.get('pressure_1', 0.0),
+                    analog_data.get('pressure_2', 0.0),
+                    analog_data.get('pressure_3', 0.0),
+                    analog_data.get('pressure_4', 0.0),
+                    analog_data.get('pressure_5', 0.0)
+                ]
+                
                 self.state.update_sensor_values(
-                    pressure_values=[analog_data['pressure_1'], analog_data['pressure_2']],
-                    current_value=analog_data['current']
+                    pressure_values=pressure_values,
+                    current_value=analog_data.get('current', 0.0)
                 )
                 
                 # Control digital outputs based on state

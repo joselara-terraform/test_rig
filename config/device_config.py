@@ -95,6 +95,30 @@ class DeviceConfig:
                             'range': [0, 150],
                             'zero_offset': 0.0,
                             'description': 'Electrolyzer stack current measurement'
+                        },
+                        'pressure_3': {
+                            'channel': 'ai4',
+                            'name': 'Post MS Pressure',
+                            'units': 'PSI',
+                            'range': [0, 1.012],  # 28 inWC = 1.012 PSI
+                            'zero_offset': 0.0,
+                            'description': 'Post mass spectrometer pressure measurement'
+                        },
+                        'pressure_4': {
+                            'channel': 'ai5',
+                            'name': 'Pre MS Pressure',
+                            'units': 'PSI',
+                            'range': [0, 1.012],  # 28 inWC = 1.012 PSI
+                            'zero_offset': 0.0,
+                            'description': 'Pre mass spectrometer pressure measurement'
+                        },
+                        'pressure_5': {
+                            'channel': 'ai6',
+                            'name': 'H2 Back Pressure',
+                            'units': 'PSI',
+                            'range': [0, 1.012],  # 28 inWC = 1.012 PSI
+                            'zero_offset': 0.0,
+                            'description': 'H2 back pressure measurement'
                         }
                     }
                 },

@@ -37,7 +37,7 @@ class GlobalState:
     })
     
     # Sensor values (mocked initially)
-    pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0])  # 2 pressure sensors
+    pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0, 0.0, 0.0])  # 5 pressure sensors
     current_value: float = 0.0  # 1 current sensor
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
     cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 120)  # 120 cell voltages

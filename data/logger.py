@@ -40,7 +40,7 @@ class CSVLogger:
         self.column_definitions = {
             'main_sensors': [
                 'timestamp', 'elapsed_seconds',
-                'pressure_h2_psi', 'pressure_o2_psi', 'current_a',
+                'pressure_h2_psi', 'pressure_o2_psi', 'pressure_post_ms_psi', 'pressure_pre_ms_psi', 'pressure_h2_bp_psi', 'current_a',
                 'temp_inlet_c', 'temp_outlet_c', 'temp_stack1_c', 'temp_stack2_c',
                 'temp_ambient_c', 'temp_cooling_c', 'temp_gas_c', 'temp_case_c'
             ],
@@ -245,12 +245,12 @@ class CSVLogger:
         """Log main sensor data (pressure, current, temperature)"""
         try:
             # Get current sensor values
-            pressure_vals = self.state.pressure_values[:2]
+            pressure_vals = self.state.pressure_values[:5]
             current_val = self.state.current_value
             temp_vals = self.state.temperature_values[:8]
             
             # Ensure we have the right number of values
-            while len(pressure_vals) < 2:
+            while len(pressure_vals) < 5:
                 pressure_vals.append(0.0)
             while len(temp_vals) < 8:
                 temp_vals.append(0.0)
@@ -258,7 +258,8 @@ class CSVLogger:
             # Create row data
             row = [
                 timestamp, round(elapsed, 3),
-                round(pressure_vals[0], 3), round(pressure_vals[1], 3), round(current_val, 1),
+                round(pressure_vals[0], 3), round(pressure_vals[1], 3), round(pressure_vals[2], 3), 
+                round(pressure_vals[3], 3), round(pressure_vals[4], 3), round(current_val, 1),
                 round(temp_vals[0], 1), round(temp_vals[1], 1), round(temp_vals[2], 1), round(temp_vals[3], 1),
                 round(temp_vals[4], 1), round(temp_vals[5], 1), round(temp_vals[6], 1), round(temp_vals[7], 1)
             ]
