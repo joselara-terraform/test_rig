@@ -16,11 +16,12 @@ class VoltageChannelSelector(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Select Voltage Channels")
-        self.geometry("300x500")
+        self.geometry("400x500")  # Made wider to accommodate voltage values
         self.resizable(False, True)
 
         self.state = get_global_state()
         self.vars = []
+        self.channel_labels = []  # Store references to the checkbox labels for updating
 
         # Main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -57,13 +58,43 @@ class VoltageChannelSelector(tk.Toplevel):
         canvas.grid(row=1, column=0, sticky="nsew")
         scrollbar.grid(row=1, column=1, sticky="ns")
 
-        # --- Checkboxes ---
+        # --- Checkboxes with Voltage Values ---
         for i in range(120):
             var = tk.BooleanVar(value=(i in self.state.visible_voltage_channels))
-            chk = ttk.Checkbutton(scrollable_frame, text=f"Channel {i + 1}", variable=var,
+            
+            # Get initial voltage value
+            voltage = 0.0
+            if len(self.state.cell_voltages) > i:
+                voltage = self.state.cell_voltages[i]
+            
+            # Create checkbox with initial voltage display
+            chk = ttk.Checkbutton(scrollable_frame, 
+                                  text=f"Channel {i + 1} - {voltage:.3f}V", 
+                                  variable=var,
                                   command=lambda i=i: self._on_check(i))
             chk.pack(anchor="w", padx=10)
             self.vars.append(var)
+            self.channel_labels.append(chk)
+
+        # Start periodic updates of voltage values
+        self._update_voltage_values()
+
+    def _update_voltage_values(self):
+        """Update the voltage values displayed next to each channel checkbox."""
+        cell_voltages = self.state.cell_voltages
+        
+        for i in range(120):
+            # Get current voltage value
+            voltage = 0.0
+            if len(cell_voltages) > i:
+                voltage = cell_voltages[i]
+            
+            # Update the checkbox text with current voltage
+            new_text = f"Channel {i + 1} - {voltage:.3f}V"
+            self.channel_labels[i].configure(text=new_text)
+        
+        # Schedule next update (every 100ms)
+        self.after(100, self._update_voltage_values)
 
     def _on_check(self, channel_index):
         if self.vars[channel_index].get():
