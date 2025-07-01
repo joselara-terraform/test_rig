@@ -222,8 +222,8 @@ class VoltagePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage
-        self.time_data = deque(maxlen=max_points)
+        # Data storage - remove maxlen to store entire history
+        self.time_data = deque()  # Store entire test history
         self.channel_data: Dict[int, deque] = {} # Key: channel_idx, Val: deque of voltages
 
         # Plotting objects
@@ -279,7 +279,8 @@ class VoltagePlot:
         else:
             for channel_idx in visible_channels:
                 if channel_idx not in self.channel_data:
-                    self.channel_data[channel_idx] = deque(maxlen=self.max_points)
+                    # Create new deque without maxlen to store entire history
+                    self.channel_data[channel_idx] = deque()
 
                 # Append new data if available
                 if len(cell_voltages) > channel_idx:
@@ -287,7 +288,7 @@ class VoltagePlot:
                 else:
                     self.channel_data[channel_idx].append(0.0)
                 
-                # Plot the line
+                # Plot the line with entire history
                 if self.time_data and self.channel_data[channel_idx]:
                     # Ensure time and data deques are the same length
                     min_len = min(len(self.time_data), len(self.channel_data[channel_idx]))
@@ -299,7 +300,7 @@ class VoltagePlot:
                                  linewidth=1.5, 
                                  label=f'Ch {channel_idx + 1}')
 
-        # Set axis limits
+        # Set axis limits to show entire history
         self.ax.set_xlim(0, max(relative_time * 1.2, 120))
         self.ax.set_ylim(0, 5)
 
