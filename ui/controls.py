@@ -10,6 +10,83 @@ from core.timer import get_timer
 from services.controller_manager import get_controller_manager
 
 
+class VoltageChannelSelector(tk.Toplevel):
+    """Popup window to select which voltage channels to plot."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.title("Select Voltage Channels")
+        self.geometry("300x500")
+        self.resizable(False, True)
+
+        self.state = get_global_state()
+        self.vars = []
+
+        # Main frame
+        main_frame = ttk.Frame(self, padding="10")
+        main_frame.pack(fill="both", expand=True)
+        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+        
+        # --- Control Buttons ---
+        button_frame = ttk.Frame(main_frame)
+        button_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+
+        select_all_button = ttk.Button(button_frame, text="Select All", command=self._select_all)
+        select_all_button.pack(side="left", padx=5)
+
+        deselect_all_button = ttk.Button(button_frame, text="Deselect All", command=self._deselect_all)
+        deselect_all_button.pack(side="left", padx=5)
+        
+        close_button = ttk.Button(button_frame, text="Close", command=self.destroy)
+        close_button.pack(side="right", padx=5)
+
+        # --- Scrollable Checkbox List ---
+        canvas = tk.Canvas(main_frame)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.grid(row=1, column=0, sticky="nsew")
+        scrollbar.grid(row=1, column=1, sticky="ns")
+
+        # --- Checkboxes ---
+        for i in range(120):
+            var = tk.BooleanVar(value=(i in self.state.visible_voltage_channels))
+            chk = ttk.Checkbutton(scrollable_frame, text=f"Channel {i + 1}", variable=var,
+                                  command=lambda i=i: self._on_check(i))
+            chk.pack(anchor="w", padx=10)
+            self.vars.append(var)
+
+    def _on_check(self, channel_index):
+        if self.vars[channel_index].get():
+            self.state.visible_voltage_channels.add(channel_index)
+        else:
+            self.state.visible_voltage_channels.discard(channel_index)
+        print(f"Visible channels: {sorted(list(self.state.visible_voltage_channels))}")
+
+    def _select_all(self):
+        for i in range(120):
+            if not self.vars[i].get():
+                self.vars[i].set(True)
+                self.state.visible_voltage_channels.add(i)
+        print("All channels selected.")
+    
+    def _deselect_all(self):
+        for i in range(120):
+            if self.vars[i].get():
+                self.vars[i].set(False)
+                self.state.visible_voltage_channels.discard(i)
+        print("All channels deselected.")
+
+
 class ControlPanel:
     """Control buttons for test operations"""
     
@@ -18,6 +95,7 @@ class ControlPanel:
         self.state = get_global_state()
         self.timer = get_timer()
         self.controller = get_controller_manager()
+        self.channel_selector_window = None
         
         # Callback to reset plots when starting a new test
         self.plot_reset_callback = plot_reset_callback
@@ -68,6 +146,15 @@ class ControlPanel:
         )
         self.pause_button.grid(row=0, column=2, padx=5, pady=5)
         
+        # Voltage Channel Selector Button
+        self.channel_select_button = ttk.Button(
+            button_frame,
+            text="Select Plot Channels",
+            command=self._open_channel_selector,
+            width=20
+        )
+        self.channel_select_button.grid(row=0, column=3, padx=5, pady=5)
+        
         # Emergency Stop button
         self.estop_button = tk.Button(
             button_frame,
@@ -80,7 +167,7 @@ class ControlPanel:
             relief=tk.RAISED,
             borderwidth=2
         )
-        self.estop_button.grid(row=0, column=3, padx=5, pady=5)
+        self.estop_button.grid(row=0, column=4, padx=5, pady=5)
         
         # Purge button
         self.purge_button = tk.Button(
@@ -94,7 +181,7 @@ class ControlPanel:
             relief=tk.RAISED,
             borderwidth=2
         )
-        self.purge_button.grid(row=0, column=4, padx=5, pady=5)
+        self.purge_button.grid(row=0, column=5, padx=5, pady=5)
         
         # Timer display
         self.timer_label = ttk.Label(
@@ -103,7 +190,7 @@ class ControlPanel:
             font=("Arial", 16, "bold"),
             foreground="blue"
         )
-        self.timer_label.grid(row=0, column=5, padx=20, pady=5)
+        self.timer_label.grid(row=0, column=6, padx=20, pady=5)
         
         # Bottom row: status
         status_frame = ttk.Frame(control_frame)
@@ -111,6 +198,13 @@ class ControlPanel:
         
         self.status_label = ttk.Label(status_frame, text="Status: Disconnected", font=("Arial", 10))
         self.status_label.pack()
+    
+    def _open_channel_selector(self):
+        """Open the voltage channel selector window."""
+        if self.channel_selector_window and self.channel_selector_window.winfo_exists():
+            self.channel_selector_window.lift()
+        else:
+            self.channel_selector_window = VoltageChannelSelector(self.parent_frame)
     
     def _on_connect_click(self):
         """Handle Connect button click"""

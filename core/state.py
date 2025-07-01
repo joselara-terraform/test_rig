@@ -3,7 +3,7 @@ Global application state singleton for AWE test rig
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Set
 import threading
 
 
@@ -41,6 +41,9 @@ class GlobalState:
     current_value: float = 0.0  # 1 current sensor
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
     cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 120)  # 120 cell voltages
+    
+    # UI State - which voltage channels to display
+    visible_voltage_channels: Set[int] = field(default_factory=set)
     
     # Gas analysis data from BGA244 units
     gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [
