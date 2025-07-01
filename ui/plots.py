@@ -222,9 +222,13 @@ class VoltagePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage - remove maxlen to store entire history
+        # Data storage - store ALL channel data continuously, regardless of visibility
         self.time_data = deque()  # Store entire test history
-        self.channel_data: Dict[int, deque] = {} # Key: channel_idx, Val: deque of voltages
+        self.all_channel_data = {}  # Store data for ALL 120 channels continuously
+        
+        # Initialize deques for all 120 channels
+        for i in range(120):
+            self.all_channel_data[i] = deque()
 
         # Plotting objects
         self.last_update_time = 0
@@ -262,6 +266,15 @@ class VoltagePlot:
         self.time_data.append(relative_time)
         
         cell_voltages = self.state.cell_voltages
+        
+        # CONTINUOUSLY store data for ALL channels (background data collection)
+        for channel_idx in range(120):
+            if len(cell_voltages) > channel_idx:
+                self.all_channel_data[channel_idx].append(cell_voltages[channel_idx])
+            else:
+                self.all_channel_data[channel_idx].append(0.0)
+        
+        # Get currently visible channels for display
         visible_channels = sorted(list(self.state.visible_voltage_channels))
         
         # --- Redraw the entire plot for dynamic channel visibility ---
@@ -277,23 +290,12 @@ class VoltagePlot:
             # If no channels are selected, just show an empty plot
             self.ax.text(0.5, 0.5, "No channels selected", ha='center', va='center', transform=self.ax.transAxes)
         else:
+            # Plot only the selected channels, but with their FULL historical data
             for channel_idx in visible_channels:
-                if channel_idx not in self.channel_data:
-                    # Create new deque without maxlen to store entire history
-                    self.channel_data[channel_idx] = deque()
-
-                # Append new data if available
-                if len(cell_voltages) > channel_idx:
-                    self.channel_data[channel_idx].append(cell_voltages[channel_idx])
-                else:
-                    self.channel_data[channel_idx].append(0.0)
-                
-                # Plot the line with entire history
-                if self.time_data and self.channel_data[channel_idx]:
-                    # Ensure time and data deques are the same length
-                    min_len = min(len(self.time_data), len(self.channel_data[channel_idx]))
-                    time_list = list(self.time_data)[-min_len:]
-                    data_list = list(self.channel_data[channel_idx])[-min_len:]
+                if self.time_data and self.all_channel_data[channel_idx]:
+                    # Use the complete historical data for this channel
+                    time_list = list(self.time_data)
+                    data_list = list(self.all_channel_data[channel_idx])
                     
                     self.ax.plot(time_list, data_list, 
                                  color=self.colors(channel_idx / 120.0), 
@@ -316,15 +318,14 @@ class VoltagePlot:
                 fontsize = 10
             self.ax.legend(loc='upper right', fontsize=fontsize, ncol=ncol)
 
-        # Prune data for channels that are no longer visible
-        for channel_idx in list(self.channel_data.keys()):
-            if channel_idx not in visible_channels:
-                del self.channel_data[channel_idx]
-
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        self.channel_data.clear()
+        
+        # Clear all channel data
+        for i in range(120):
+            self.all_channel_data[i].clear()
+            
         self.last_update_time = 0
         
         # Clear the plot and redraw
