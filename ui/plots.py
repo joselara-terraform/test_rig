@@ -27,18 +27,18 @@ class PressurePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting - pressure data
-        self.time_data = deque()
-        self.pressure1_data = deque()
-        self.pressure2_data = deque()
-        self.pressure_post_ms_data = deque()
-        self.pressure_pre_ms_data = deque()
-        self.pressure_h2_bp_data = deque()
+        # Data storage - store ALL pressure/gas data continuously
+        self.time_data = deque()  # Store entire test history
+        self.all_pressure_data = {}  # Store data for all 5 pressure sensors continuously
+        self.all_gas_data = {}  # Store data for all 3 gas analyzers continuously
         
-        # Data storage for gas concentrations (converted to 0-1 range) - primary gas from each BGA
-        self.h2_hydrogen_side_data = deque()  # Primary gas from BGA1 (H2 Header)
-        self.o2_oxygen_side_data = deque()    # Primary gas from BGA2 (O2 Header)
-        self.h2_mixed_data = deque()          # Primary gas from BGA3 (De-oxo)
+        # Initialize deques for all 5 pressure sensors
+        for i in range(5):
+            self.all_pressure_data[i] = deque()
+            
+        # Initialize deques for all 3 gas concentration channels
+        for i in range(3):
+            self.all_gas_data[i] = deque()
         
         self.last_update_time = 0
         
@@ -46,30 +46,9 @@ class PressurePlot:
         self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
         self.ax = self.fig.add_subplot(111)
         
-        # Configure plot appearance
-        self.ax.set_title("Pressure & Gas Concentrations vs Time", fontsize=12, fontweight='bold')
-        self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
-        self.ax.grid(True, alpha=0.3)
-        
-        # Create line objects for pressure sensors
-        self.line1, = self.ax.plot([], [], 'b-', linewidth=2, label='H_2 Header')
-        self.line2, = self.ax.plot([], [], 'r-', linewidth=2, label='O_2 Header')
-        self.line_post_ms, = self.ax.plot([], [], 'orange', linewidth=1.5, label='Post MS')
-        self.line_pre_ms, = self.ax.plot([], [], 'purple', linewidth=1.5, label='Pre MS')
-        self.line_h2_bp, = self.ax.plot([], [], 'brown', linewidth=1.5, label='H2 BP')
-        
-        # Create line objects for gas concentrations (primary gas from each BGA)
-        self.line_h2_h_side, = self.ax.plot([], [], 'g--', linewidth=1.5, alpha=0.8, label='BGA-H2')
-        self.line_o2_o_side, = self.ax.plot([], [], 'm--', linewidth=1.5, alpha=0.8, label='BGA-O2')  
-        self.line_h2_mixed, = self.ax.plot([], [], 'c--', linewidth=1.5, alpha=0.8, label='BGA-DO')
-        
-        # Add legend with smaller font to fit entries
-        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
-        
-        # Set initial axis limits - static Y, dynamic X
-        self.ax.set_xlim(0, 120)  # Initial X limit
-        self.ax.set_ylim(0, 1)    # Static Y limit (0-1 range)
+        # Get colormaps for different data types
+        self.pressure_colors = plt.cm.get_cmap('Set1', 5)  # 5 pressure channels
+        self.gas_colors = plt.cm.get_cmap('Set2', 3)  # 3 gas channels
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -84,127 +63,126 @@ class PressurePlot:
         self.canvas.draw()
     
     def _update_plot(self, frame):
-        """Update plot with new data from GlobalState"""
+        """Update plot with new data from GlobalState based on visible channels."""
         current_time = time.time()
         
-        # Check test states
-        if self.state.emergency_stop or not self.state.test_running:
-            return (self.line1, self.line2, self.line_post_ms, self.line_pre_ms, self.line_h2_bp,
-                   self.line_h2_h_side, self.line_o2_o_side, self.line_h2_mixed)
-        
-        if self.state.test_paused:
-            return (self.line1, self.line2, self.line_post_ms, self.line_pre_ms, self.line_h2_bp,
-                   self.line_h2_h_side, self.line_o2_o_side, self.line_h2_mixed)
-        
-        # Update only if enough time has passed (throttle updates)
+        # Throttle updates
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line1, self.line2, self.line_post_ms, self.line_pre_ms, self.line_h2_bp,
-                   self.line_h2_h_side, self.line_o2_o_side, self.line_h2_mixed)
-        
+            return
         self.last_update_time = current_time
-        
-        # Use global timer
+
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running or self.state.test_paused:
+            return
+
         relative_time = self.state.timer_value
+        self.time_data.append(relative_time)
         
-        # Get current pressure values
-        pressure1 = self.state.pressure_values[0] if len(self.state.pressure_values) > 0 else 0.0
-        pressure2 = self.state.pressure_values[1] if len(self.state.pressure_values) > 1 else 0.0
-        pressure_post_ms = self.state.pressure_values[2] if len(self.state.pressure_values) > 2 else 0.0
-        pressure_pre_ms = self.state.pressure_values[3] if len(self.state.pressure_values) > 3 else 0.0
-        pressure_h2_bp = self.state.pressure_values[4] if len(self.state.pressure_values) > 4 else 0.0
+        # CONTINUOUSLY store data for ALL pressure channels
+        pressure_values = self.state.pressure_values
+        for i in range(5):
+            if len(pressure_values) > i:
+                self.all_pressure_data[i].append(pressure_values[i])
+            else:
+                self.all_pressure_data[i].append(0.0)
         
-        # Get gas concentration values and convert percentages to fractions (0-1 range)
-        # Plot primary gas concentrations instead of hardcoded H2/O2
+        # CONTINUOUSLY store data for ALL gas concentration channels
         gas_concentrations = self.state.gas_concentrations
         enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
         
-        # If enhanced data is available, use primary gas concentrations
+        # Store gas concentration data
         if enhanced_gas_data and len(enhanced_gas_data) >= 3:
-            # Unit 1: Use primary gas concentration (could be H2 or O2 depending on purge mode)
-            primary_1 = (enhanced_gas_data[0]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[0]['primary_gas_concentration'] else 0.0
-            
-            # Unit 2: Use primary gas concentration  
-            primary_2 = (enhanced_gas_data[1]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[1]['primary_gas_concentration'] else 0.0
-            
-            # Unit 3: Use primary gas concentration
-            primary_3 = (enhanced_gas_data[2]['primary_gas_concentration'] / 100.0) if enhanced_gas_data[2]['primary_gas_concentration'] else 0.0
+            # Use primary gas concentrations (convert to 0-1 range)
+            for i in range(3):
+                primary_conc = enhanced_gas_data[i]['primary_gas_concentration'] if enhanced_gas_data[i]['primary_gas_concentration'] else 0.0
+                self.all_gas_data[i].append(primary_conc / 100.0)  # Convert percentage to fraction
         else:
-            # Fallback to legacy hardcoded gas types
-            # Unit 1: hydrogen_side (H2 outlet) - get H2 concentration
-            primary_1 = (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0
-            
-            # Unit 2: oxygen_side (O2 outlet) - get O2 concentration  
-            primary_2 = (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0
-            
-            # Unit 3: mixed_gas (Mixed stream) - get H2 concentration only
-            primary_3 = (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
+            # Fallback to legacy gas concentrations
+            gas_values = [
+                (gas_concentrations[0]['H2'] / 100.0) if len(gas_concentrations) > 0 else 0.0,
+                (gas_concentrations[1]['O2'] / 100.0) if len(gas_concentrations) > 1 else 0.0,
+                (gas_concentrations[2]['H2'] / 100.0) if len(gas_concentrations) > 2 else 0.0
+            ]
+            for i in range(3):
+                self.all_gas_data[i].append(gas_values[i])
         
-        # Add new data points
-        self.time_data.append(relative_time)
-        self.pressure1_data.append(pressure1)
-        self.pressure2_data.append(pressure2)
-        self.pressure_post_ms_data.append(pressure_post_ms)
-        self.pressure_pre_ms_data.append(pressure_pre_ms)
-        self.pressure_h2_bp_data.append(pressure_h2_bp)
+        # Get currently visible pressure channels
+        visible_pressure_channels = sorted(list(self.state.visible_pressure_channels))
         
-        # Add gas concentration data points - plot primary gas concentrations
-        self.h2_hydrogen_side_data.append(primary_1)
-        self.o2_oxygen_side_data.append(primary_2)
-        self.h2_mixed_data.append(primary_3)
+        # --- Redraw the entire plot for dynamic channel visibility ---
+        self.ax.clear()
         
-        # Update line data
-        if len(self.time_data) > 0:
-            # Update pressure lines
-            self.line1.set_data(list(self.time_data), list(self.pressure1_data))
-            self.line2.set_data(list(self.time_data), list(self.pressure2_data))
-            self.line_post_ms.set_data(list(self.time_data), list(self.pressure_post_ms_data))
-            self.line_pre_ms.set_data(list(self.time_data), list(self.pressure_pre_ms_data))
-            self.line_h2_bp.set_data(list(self.time_data), list(self.pressure_h2_bp_data))
-            
-            # Update gas concentration lines - primary gas concentrations
-            self.line_h2_h_side.set_data(list(self.time_data), list(self.h2_hydrogen_side_data))
-            self.line_o2_o_side.set_data(list(self.time_data), list(self.o2_oxygen_side_data))
-            self.line_h2_mixed.set_data(list(self.time_data), list(self.h2_mixed_data))
-            
-            # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
-            # Static Y-axis: [0, 1] (no auto-scaling)
-            self.ax.set_xlim(0, max(relative_time*1.2, 120))
+        # Configure plot appearance
+        self.ax.set_title("Pressure & Gas Concentrations vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+
+        # Channel names
+        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
+        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
         
-        return (self.line1, self.line2, self.line_post_ms, self.line_pre_ms, self.line_h2_bp,
-               self.line_h2_h_side, self.line_o2_o_side, self.line_h2_mixed)
+        has_visible_channels = False
+        
+        # Plot visible pressure channels
+        for channel_idx in visible_pressure_channels:
+            if self.time_data and self.all_pressure_data[channel_idx]:
+                time_list = list(self.time_data)
+                data_list = list(self.all_pressure_data[channel_idx])
+                
+                self.ax.plot(time_list, data_list, 
+                             color=self.pressure_colors(channel_idx), 
+                             linewidth=2, 
+                             label=pressure_names[channel_idx],
+                             linestyle='-')
+                has_visible_channels = True
+        
+        # Always show all gas channels (for now - could be made configurable later)
+        for i in range(3):
+            if self.time_data and self.all_gas_data[i]:
+                time_list = list(self.time_data)
+                data_list = list(self.all_gas_data[i])
+                
+                self.ax.plot(time_list, data_list, 
+                             color=self.gas_colors(i), 
+                             linewidth=1.5, 
+                             alpha=0.8,
+                             label=gas_names[i],
+                             linestyle='--')
+                has_visible_channels = True
+
+        if not has_visible_channels:
+            self.ax.text(0.5, 0.5, "No channels selected", ha='center', va='center', transform=self.ax.transAxes)
+
+        # Set axis limits
+        self.ax.set_xlim(0, max(relative_time * 1.2, 120))
+        self.ax.set_ylim(0, 1)  # 0-1 range for mixed pressure/gas display
+
+        # Update legend
+        if has_visible_channels:
+            self.ax.legend(loc='upper right', fontsize=10, ncol=1)
 
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        self.pressure1_data.clear()
-        self.pressure2_data.clear()
-        self.pressure_post_ms_data.clear()
-        self.pressure_pre_ms_data.clear()
-        self.pressure_h2_bp_data.clear()
         
-        # Clear primary gas concentration data from each BGA
-        self.h2_hydrogen_side_data.clear()
-        self.o2_oxygen_side_data.clear()
-        self.h2_mixed_data.clear()
+        # Clear all pressure and gas data
+        for i in range(5):
+            self.all_pressure_data[i].clear()
+        for i in range(3):
+            self.all_gas_data[i].clear()
 
         self.last_update_time = 0
         
-        # Reset axis limits - static Y, initial X
+        # Clear the plot and redraw
+        self.ax.clear()
+        self.ax.set_title("Pressure & Gas Concentrations vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
         self.ax.set_xlim(0, 120)
         self.ax.set_ylim(0, 1)
-        
-        # Clear line data
-        self.line1.set_data([], [])
-        self.line2.set_data([], [])
-        self.line_post_ms.set_data([], [])
-        self.line_pre_ms.set_data([], [])
-        self.line_h2_bp.set_data([], [])
-        
-        # Clear primary gas concentration lines
-        self.line_h2_h_side.set_data([], [])
-        self.line_o2_o_side.set_data([], [])
-        self.line_h2_mixed.set_data([], [])
-        
+        self.ax.text(0.5, 0.5, "Test not started", ha='center', va='center', transform=self.ax.transAxes)
         self.canvas.draw()
     
     def destroy(self):
@@ -354,16 +332,13 @@ class TemperaturePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage for plotting - temperature data (8 thermocouple channels)
-        self.time_data = deque()
-        self.inlet_temp_data = deque()     # CH0: Inlet water temp
-        self.outlet_temp_data = deque()    # CH1: Outlet water temp
-        self.stack_temp1_data = deque()    # CH2: Stack temperature 1
-        self.stack_temp2_data = deque()    # CH3: Stack temperature 2
-        self.ambient_temp_data = deque()   # CH4: Ambient temperature
-        self.cooling_temp_data = deque()   # CH5: Cooling system temp
-        self.gas_temp_data = deque()       # CH6: Gas output temp
-        self.case_temp_data = deque()      # CH7: Electronics case temp
+        # Data storage - store ALL temperature data continuously
+        self.time_data = deque()  # Store entire test history
+        self.all_temperature_data = {}  # Store data for all 8 temperature sensors continuously
+        
+        # Initialize deques for all 8 temperature sensors
+        for i in range(8):
+            self.all_temperature_data[i] = deque()
         
         self.last_update_time = 0
         
@@ -371,28 +346,8 @@ class TemperaturePlot:
         self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
         self.ax = self.fig.add_subplot(111)
         
-        # Configure plot appearance
-        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
-        self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
-        self.ax.grid(True, alpha=0.3)
-        
-        # Create line objects for temperature channels
-        self.line_TC1, = self.ax.plot([], [], 'b-', linewidth=2, label='Stack 1', alpha=0.9)
-        self.line_TC2, = self.ax.plot([], [], 'r-', linewidth=2, label='Stack 2', alpha=0.9)
-        self.line_TC3, = self.ax.plot([], [], 'g-', linewidth=2, label='Stack 3', alpha=0.9)
-        self.line_TC4, = self.ax.plot([], [], 'm-', linewidth=2, label='Stack 4', alpha=0.9)
-        self.line_TC5, = self.ax.plot([], [], 'c--', linewidth=1.5, label='H_2 Bubbler', alpha=0.8)
-        self.line_TC6, = self.ax.plot([], [], 'y--', linewidth=1.5, label='O_2 Bubbler', alpha=0.8)
-        self.line_TC7, = self.ax.plot([], [], 'orange', linewidth=1.5, label='H_2 Line HEX', alpha=0.8)
-        self.line_TC8, = self.ax.plot([], [], 'brown', linewidth=1.5, label='O_2 Line HEX', alpha=0.8)
-        
-        # Add legend with smaller font to fit entries
-        self.ax.legend(loc='upper right', fontsize=10, ncol=1)
-        
-        # Set initial axis limits - static Y (0-100°C), dynamic X
-        self.ax.set_xlim(0, 120)   # Initial X limit
-        self.ax.set_ylim(0, 100)   # Static Y limit (0-100°C range)
+        # Get colormap for temperature channels
+        self.colors = plt.cm.get_cmap('tab10', 8)  # 8 temperature channels
         
         # Create canvas and add to parent frame
         self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
@@ -403,107 +358,108 @@ class TemperaturePlot:
             self.fig, self._update_plot, interval=100, blit=False, cache_frame_data=False
         )
         
-        # Pack the canvas
         self.canvas.draw()
     
     def _update_plot(self, frame):
-        """Update plot with new data from GlobalState"""
+        """Update plot with new data from GlobalState based on visible channels."""
         current_time = time.time()
         
-        # Check test states
-        if self.state.emergency_stop or not self.state.test_running:
-            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
-                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
-        
-        if self.state.test_paused:
-            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
-                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
-        
-        # Update only if enough time has passed (throttle updates)
+        # Throttle updates
         if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
-            return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
-                   self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
-        
+            return
         self.last_update_time = current_time
-        
-        # Use global timer
+
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running or self.state.test_paused:
+            return
+
         relative_time = self.state.timer_value
-        
-        # Get current temperature values from the 8 thermocouple channels
-        temp_values = self.state.temperature_values
-        
-        if len(temp_values) >= 8:
-            # Extract temperature values for each channel
-            inlet_temp = temp_values[0]     # CH0: Inlet water temp
-            outlet_temp = temp_values[1]    # CH1: Outlet water temp
-            stack_temp1 = temp_values[2]    # CH2: Stack temperature 1
-            stack_temp2 = temp_values[3]    # CH3: Stack temperature 2
-            ambient_temp = temp_values[4]   # CH4: Ambient temperature
-            cooling_temp = temp_values[5]   # CH5: Cooling system temp
-            gas_temp = temp_values[6]       # CH6: Gas output temp
-            case_temp = temp_values[7]      # CH7: Electronics case temp
-        else:
-            # No data available or insufficient data
-            inlet_temp = outlet_temp = stack_temp1 = stack_temp2 = 0.0
-            ambient_temp = cooling_temp = gas_temp = case_temp = 0.0
-        
-        # Add new data points
         self.time_data.append(relative_time)
-        self.inlet_temp_data.append(inlet_temp)
-        self.outlet_temp_data.append(outlet_temp)
-        self.stack_temp1_data.append(stack_temp1)
-        self.stack_temp2_data.append(stack_temp2)
-        self.ambient_temp_data.append(ambient_temp)
-        self.cooling_temp_data.append(cooling_temp)
-        self.gas_temp_data.append(gas_temp)
-        self.case_temp_data.append(case_temp)
         
-        # Update line data
-        if len(self.time_data) > 0:
-            self.line_TC1.set_data(list(self.time_data), list(self.inlet_temp_data))
-            self.line_TC2.set_data(list(self.time_data), list(self.outlet_temp_data))
-            self.line_TC3.set_data(list(self.time_data), list(self.stack_temp1_data))
-            self.line_TC4.set_data(list(self.time_data), list(self.stack_temp2_data))
-            self.line_TC5.set_data(list(self.time_data), list(self.ambient_temp_data))
-            self.line_TC6.set_data(list(self.time_data), list(self.cooling_temp_data))
-            self.line_TC7.set_data(list(self.time_data), list(self.gas_temp_data))
-            self.line_TC8.set_data(list(self.time_data), list(self.case_temp_data))
-            
-            # Dynamic X-axis: [0, max(current_time * 1.2, 120)]
-            # Static Y-axis: [0, 100] (no auto-scaling)
-            self.ax.set_xlim(0, max(relative_time*1.2, 120))
+        # CONTINUOUSLY store data for ALL temperature channels
+        temp_values = self.state.temperature_values
+        for i in range(8):
+            if len(temp_values) > i:
+                self.all_temperature_data[i].append(temp_values[i])
+            else:
+                self.all_temperature_data[i].append(0.0)
         
-        return (self.line_TC1, self.line_TC2, self.line_TC3, self.line_TC4,
-               self.line_TC5, self.line_TC6, self.line_TC7, self.line_TC8)
+        # Get currently visible temperature channels
+        visible_temp_channels = sorted(list(self.state.visible_temperature_channels))
+        
+        # --- Redraw the entire plot for dynamic channel visibility ---
+        self.ax.clear()
+        
+        # Configure plot appearance
+        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+
+        # Temperature channel names
+        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        
+        if not visible_temp_channels:
+            # If no channels are selected, just show an empty plot
+            self.ax.text(0.5, 0.5, "No channels selected", ha='center', va='center', transform=self.ax.transAxes)
+        else:
+            # Plot only the selected temperature channels with their FULL historical data
+            for channel_idx in visible_temp_channels:
+                if self.time_data and self.all_temperature_data[channel_idx]:
+                    # Use the complete historical data for this channel
+                    time_list = list(self.time_data)
+                    data_list = list(self.all_temperature_data[channel_idx])
+                    
+                    # Choose line style based on channel type
+                    if channel_idx < 4:  # Stack temperatures (0-3)
+                        linestyle = '-'
+                        linewidth = 2
+                        alpha = 0.9
+                    else:  # Other temperatures (4-7)
+                        linestyle = '--'
+                        linewidth = 1.5
+                        alpha = 0.8
+                    
+                    self.ax.plot(time_list, data_list, 
+                                 color=self.colors(channel_idx), 
+                                 linewidth=linewidth, 
+                                 linestyle=linestyle,
+                                 alpha=alpha,
+                                 label=temp_names[channel_idx])
+
+        # Set axis limits
+        self.ax.set_xlim(0, max(relative_time * 1.2, 120))
+        self.ax.set_ylim(0, 100)  # 0-100°C range
+
+        # Update legend
+        if visible_temp_channels:
+            # Adjust legend size based on number of channels
+            num_channels = len(visible_temp_channels)
+            if num_channels > 6:
+                fontsize = 8
+            else:
+                fontsize = 10
+            self.ax.legend(loc='upper right', fontsize=fontsize, ncol=1)
 
     def reset(self):
         """Reset plot data"""
         self.time_data.clear()
-        self.inlet_temp_data.clear()
-        self.outlet_temp_data.clear()
-        self.stack_temp1_data.clear()
-        self.stack_temp2_data.clear()
-        self.ambient_temp_data.clear()
-        self.cooling_temp_data.clear()
-        self.gas_temp_data.clear()
-        self.case_temp_data.clear()
-
+        
+        # Clear all temperature data
+        for i in range(8):
+            self.all_temperature_data[i].clear()
+            
         self.last_update_time = 0
         
-        # Reset axis limits - static Y, initial X
+        # Clear the plot and redraw
+        self.ax.clear()
+        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
         self.ax.set_xlim(0, 120)
         self.ax.set_ylim(0, 100)
-        
-        # Clear line data
-        self.line_TC1.set_data([], [])
-        self.line_TC2.set_data([], [])
-        self.line_TC3.set_data([], [])
-        self.line_TC4.set_data([], [])
-        self.line_TC5.set_data([], [])
-        self.line_TC6.set_data([], [])
-        self.line_TC7.set_data([], [])
-        self.line_TC8.set_data([], [])
-        
+        self.ax.text(0.5, 0.5, "Test not started", ha='center', va='center', transform=self.ax.transAxes)
         self.canvas.draw()
     
     def destroy(self):

@@ -10,18 +10,24 @@ from core.timer import get_timer
 from services.controller_manager import get_controller_manager
 
 
-class VoltageChannelSelector(tk.Toplevel):
-    """Popup window to select which voltage channels to plot."""
+class ChannelSelector(tk.Toplevel):
+    """Popup window to select which channels to plot across all data types."""
 
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("Select Voltage Channels")
-        self.geometry("400x500")  # Made wider to accommodate voltage values
+        self.title("Select Plot Channels")
+        self.geometry("450x600")  # Larger to accommodate tabs
         self.resizable(False, True)
 
         self.state = get_global_state()
-        self.vars = []
-        self.channel_labels = []  # Store references to the checkbox labels for updating
+        
+        # Store references to checkboxes and labels for each tab
+        self.pressure_vars = []
+        self.pressure_labels = []
+        self.temperature_vars = []
+        self.temperature_labels = []
+        self.voltage_vars = []
+        self.voltage_labels = []
 
         # Main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -29,22 +35,40 @@ class VoltageChannelSelector(tk.Toplevel):
         main_frame.rowconfigure(1, weight=1)
         main_frame.columnconfigure(0, weight=1)
         
-        # --- Control Buttons ---
+        # --- Control Buttons (Global) ---
         button_frame = ttk.Frame(main_frame)
         button_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
 
-        select_all_button = ttk.Button(button_frame, text="Select All", command=self._select_all)
-        select_all_button.pack(side="left", padx=5)
-
-        deselect_all_button = ttk.Button(button_frame, text="Deselect All", command=self._deselect_all)
-        deselect_all_button.pack(side="left", padx=5)
-        
         close_button = ttk.Button(button_frame, text="Close", command=self.destroy)
         close_button.pack(side="right", padx=5)
 
-        # --- Scrollable Checkbox List ---
-        canvas = tk.Canvas(main_frame)
-        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        # --- Tabbed Interface ---
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.grid(row=1, column=0, sticky="nsew")
+
+        # Create tabs
+        self._create_pressure_tab()
+        self._create_temperature_tab()
+        self._create_voltage_tab()
+
+        # Start periodic updates of all values
+        self._update_all_values()
+
+    def _create_pressure_tab(self):
+        """Create the pressure channels tab."""
+        pressure_frame = ttk.Frame(self.notebook)
+        self.notebook.add(pressure_frame, text="Pressure")
+        
+        # Control buttons for pressure tab
+        button_frame = ttk.Frame(pressure_frame)
+        button_frame.pack(fill="x", pady=(5, 10))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_pressure).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_pressure).pack(side="left", padx=5)
+
+        # Scrollable frame for pressure channels
+        canvas = tk.Canvas(pressure_frame)
+        scrollbar = ttk.Scrollbar(pressure_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
@@ -55,10 +79,104 @@ class VoltageChannelSelector(tk.Toplevel):
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        canvas.grid(row=1, column=0, sticky="nsew")
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
-        # --- Checkboxes with Voltage Values ---
+        # Pressure channel names
+        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
+        
+        for i in range(5):  # 5 pressure sensors
+            var = tk.BooleanVar(value=(i in self.state.visible_pressure_channels))
+            
+            # Get initial pressure value
+            pressure = 0.0
+            if len(self.state.pressure_values) > i:
+                pressure = self.state.pressure_values[i]
+            
+            chk = ttk.Checkbutton(scrollable_frame, 
+                                  text=f"{pressure_names[i]} - {pressure:.2f} PSI", 
+                                  variable=var,
+                                  command=lambda i=i: self._on_pressure_check(i))
+            chk.pack(anchor="w", padx=10, pady=2)
+            self.pressure_vars.append(var)
+            self.pressure_labels.append(chk)
+
+    def _create_temperature_tab(self):
+        """Create the temperature channels tab."""
+        temp_frame = ttk.Frame(self.notebook)
+        self.notebook.add(temp_frame, text="Temperature")
+        
+        # Control buttons for temperature tab
+        button_frame = ttk.Frame(temp_frame)
+        button_frame.pack(fill="x", pady=(5, 10))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_temperature).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_temperature).pack(side="left", padx=5)
+
+        # Scrollable frame for temperature channels
+        canvas = tk.Canvas(temp_frame)
+        scrollbar = ttk.Scrollbar(temp_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Temperature channel names
+        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        
+        for i in range(8):  # 8 temperature sensors
+            var = tk.BooleanVar(value=(i in self.state.visible_temperature_channels))
+            
+            # Get initial temperature value
+            temperature = 0.0
+            if len(self.state.temperature_values) > i:
+                temperature = self.state.temperature_values[i]
+            
+            chk = ttk.Checkbutton(scrollable_frame, 
+                                  text=f"{temp_names[i]} - {temperature:.1f}°C", 
+                                  variable=var,
+                                  command=lambda i=i: self._on_temperature_check(i))
+            chk.pack(anchor="w", padx=10, pady=2)
+            self.temperature_vars.append(var)
+            self.temperature_labels.append(chk)
+
+    def _create_voltage_tab(self):
+        """Create the voltage channels tab."""
+        voltage_frame = ttk.Frame(self.notebook)
+        self.notebook.add(voltage_frame, text="Voltage")
+        
+        # Control buttons for voltage tab
+        button_frame = ttk.Frame(voltage_frame)
+        button_frame.pack(fill="x", pady=(5, 10))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_voltage).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_voltage).pack(side="left", padx=5)
+
+        # Scrollable frame for voltage channels
+        canvas = tk.Canvas(voltage_frame)
+        scrollbar = ttk.Scrollbar(voltage_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Voltage channels (120 cell voltages)
         for i in range(120):
             var = tk.BooleanVar(value=(i in self.state.visible_voltage_channels))
             
@@ -67,55 +185,113 @@ class VoltageChannelSelector(tk.Toplevel):
             if len(self.state.cell_voltages) > i:
                 voltage = self.state.cell_voltages[i]
             
-            # Create checkbox with initial voltage display
             chk = ttk.Checkbutton(scrollable_frame, 
                                   text=f"Channel {i + 1} - {voltage:.3f}V", 
                                   variable=var,
-                                  command=lambda i=i: self._on_check(i))
-            chk.pack(anchor="w", padx=10)
-            self.vars.append(var)
-            self.channel_labels.append(chk)
+                                  command=lambda i=i: self._on_voltage_check(i))
+            chk.pack(anchor="w", padx=10, pady=1)
+            self.voltage_vars.append(var)
+            self.voltage_labels.append(chk)
 
-        # Start periodic updates of voltage values
-        self._update_voltage_values()
+    def _update_all_values(self):
+        """Update all channel values displayed in all tabs."""
+        # Update pressure values
+        pressure_values = self.state.pressure_values
+        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
+        for i in range(5):
+            pressure = 0.0
+            if len(pressure_values) > i:
+                pressure = pressure_values[i]
+            new_text = f"{pressure_names[i]} - {pressure:.2f} PSI"
+            self.pressure_labels[i].configure(text=new_text)
 
-    def _update_voltage_values(self):
-        """Update the voltage values displayed next to each channel checkbox."""
+        # Update temperature values
+        temp_values = self.state.temperature_values
+        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        for i in range(8):
+            temperature = 0.0
+            if len(temp_values) > i:
+                temperature = temp_values[i]
+            new_text = f"{temp_names[i]} - {temperature:.1f}°C"
+            self.temperature_labels[i].configure(text=new_text)
+
+        # Update voltage values
         cell_voltages = self.state.cell_voltages
-        
         for i in range(120):
-            # Get current voltage value
             voltage = 0.0
             if len(cell_voltages) > i:
                 voltage = cell_voltages[i]
-            
-            # Update the checkbox text with current voltage
             new_text = f"Channel {i + 1} - {voltage:.3f}V"
-            self.channel_labels[i].configure(text=new_text)
+            self.voltage_labels[i].configure(text=new_text)
         
         # Schedule next update (every 100ms)
-        self.after(100, self._update_voltage_values)
+        self.after(100, self._update_all_values)
 
-    def _on_check(self, channel_index):
-        if self.vars[channel_index].get():
+    # Pressure tab callbacks
+    def _on_pressure_check(self, channel_index):
+        if self.pressure_vars[channel_index].get():
+            self.state.visible_pressure_channels.add(channel_index)
+        else:
+            self.state.visible_pressure_channels.discard(channel_index)
+        print(f"Visible pressure channels: {sorted(list(self.state.visible_pressure_channels))}")
+
+    def _select_all_pressure(self):
+        for i in range(5):
+            if not self.pressure_vars[i].get():
+                self.pressure_vars[i].set(True)
+                self.state.visible_pressure_channels.add(i)
+        print("All pressure channels selected.")
+
+    def _deselect_all_pressure(self):
+        for i in range(5):
+            if self.pressure_vars[i].get():
+                self.pressure_vars[i].set(False)
+                self.state.visible_pressure_channels.discard(i)
+        print("All pressure channels deselected.")
+
+    # Temperature tab callbacks
+    def _on_temperature_check(self, channel_index):
+        if self.temperature_vars[channel_index].get():
+            self.state.visible_temperature_channels.add(channel_index)
+        else:
+            self.state.visible_temperature_channels.discard(channel_index)
+        print(f"Visible temperature channels: {sorted(list(self.state.visible_temperature_channels))}")
+
+    def _select_all_temperature(self):
+        for i in range(8):
+            if not self.temperature_vars[i].get():
+                self.temperature_vars[i].set(True)
+                self.state.visible_temperature_channels.add(i)
+        print("All temperature channels selected.")
+
+    def _deselect_all_temperature(self):
+        for i in range(8):
+            if self.temperature_vars[i].get():
+                self.temperature_vars[i].set(False)
+                self.state.visible_temperature_channels.discard(i)
+        print("All temperature channels deselected.")
+
+    # Voltage tab callbacks (existing logic)
+    def _on_voltage_check(self, channel_index):
+        if self.voltage_vars[channel_index].get():
             self.state.visible_voltage_channels.add(channel_index)
         else:
             self.state.visible_voltage_channels.discard(channel_index)
-        print(f"Visible channels: {sorted(list(self.state.visible_voltage_channels))}")
+        print(f"Visible voltage channels: {sorted(list(self.state.visible_voltage_channels))}")
 
-    def _select_all(self):
+    def _select_all_voltage(self):
         for i in range(120):
-            if not self.vars[i].get():
-                self.vars[i].set(True)
+            if not self.voltage_vars[i].get():
+                self.voltage_vars[i].set(True)
                 self.state.visible_voltage_channels.add(i)
-        print("All channels selected.")
+        print("All voltage channels selected.")
     
-    def _deselect_all(self):
+    def _deselect_all_voltage(self):
         for i in range(120):
-            if self.vars[i].get():
-                self.vars[i].set(False)
+            if self.voltage_vars[i].get():
+                self.voltage_vars[i].set(False)
                 self.state.visible_voltage_channels.discard(i)
-        print("All channels deselected.")
+        print("All voltage channels deselected.")
 
 
 class ControlPanel:
@@ -176,8 +352,8 @@ class ControlPanel:
             state='disabled'
         )
         self.pause_button.grid(row=0, column=2, padx=5, pady=5)
-        
-        # Voltage Channel Selector Button
+
+        # Channel Selector Button (renamed from voltage-specific)
         self.channel_select_button = ttk.Button(
             button_frame,
             text="Select Plot Channels",
@@ -229,13 +405,13 @@ class ControlPanel:
         
         self.status_label = ttk.Label(status_frame, text="Status: Disconnected", font=("Arial", 10))
         self.status_label.pack()
-    
+
     def _open_channel_selector(self):
-        """Open the voltage channel selector window."""
+        """Open the comprehensive channel selector window."""
         if self.channel_selector_window and self.channel_selector_window.winfo_exists():
             self.channel_selector_window.lift()
         else:
-            self.channel_selector_window = VoltageChannelSelector(self.parent_frame)
+            self.channel_selector_window = ChannelSelector(self.parent_frame)
     
     def _on_connect_click(self):
         """Handle Connect button click"""

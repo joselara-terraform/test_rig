@@ -42,8 +42,10 @@ class GlobalState:
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
     cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 120)  # 120 cell voltages
     
-    # UI State - which voltage channels to display
+    # UI State - which channels to display
     visible_voltage_channels: Set[int] = field(default_factory=set)
+    visible_pressure_channels: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4})  # Default all pressure channels visible
+    visible_temperature_channels: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4, 5, 6, 7})  # Default all temperature channels visible
     
     # Gas analysis data from BGA244 units
     gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [
