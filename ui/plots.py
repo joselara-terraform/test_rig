@@ -108,6 +108,7 @@ class PressurePlot:
         
         # Get currently visible pressure channels
         visible_pressure_channels = sorted(list(self.state.visible_pressure_channels))
+        visible_gas_channels = sorted(list(self.state.visible_gas_channels))
         
         # --- Redraw the entire plot for dynamic channel visibility ---
         self.ax.clear()
@@ -137,17 +138,17 @@ class PressurePlot:
                              linestyle='-')
                 has_visible_channels = True
         
-        # Always show all gas channels (for now - could be made configurable later)
-        for i in range(3):
-            if self.time_data and self.all_gas_data[i]:
+        # Plot visible gas channels
+        for channel_idx in visible_gas_channels:
+            if self.time_data and self.all_gas_data[channel_idx]:
                 time_list = list(self.time_data)
-                data_list = list(self.all_gas_data[i])
+                data_list = list(self.all_gas_data[channel_idx])
                 
                 self.ax.plot(time_list, data_list, 
-                             color=self.gas_colors(i), 
+                             color=self.gas_colors(channel_idx), 
                              linewidth=1.5, 
                              alpha=0.8,
-                             label=gas_names[i],
+                             label=gas_names[channel_idx],
                              linestyle='--')
                 has_visible_channels = True
 

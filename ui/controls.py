@@ -82,6 +82,10 @@ class ChannelSelector(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
+        # Pressure section
+        pressure_label = ttk.Label(scrollable_frame, text="Pressure Sensors:", font=("Arial", 10, "bold"))
+        pressure_label.pack(anchor="w", padx=5, pady=(5, 5))
+
         # Pressure channel names
         pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
         
@@ -97,9 +101,47 @@ class ChannelSelector(tk.Toplevel):
                                   text=f"{pressure_names[i]} - {pressure:.2f} PSI", 
                                   variable=var,
                                   command=lambda i=i: self._on_pressure_check(i))
-            chk.pack(anchor="w", padx=10, pady=2)
+            chk.pack(anchor="w", padx=15, pady=2)
             self.pressure_vars.append(var)
             self.pressure_labels.append(chk)
+
+        # Separator
+        separator = ttk.Separator(scrollable_frame, orient='horizontal')
+        separator.pack(fill='x', padx=5, pady=10)
+
+        # Gas concentration section
+        gas_label = ttk.Label(scrollable_frame, text="Gas Concentrations:", font=("Arial", 10, "bold"))
+        gas_label.pack(anchor="w", padx=5, pady=(5, 5))
+
+        # Gas channel names and storage for gas checkboxes
+        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
+        self.gas_vars = []
+        self.gas_labels = []
+        
+        for i in range(3):  # 3 gas concentration channels
+            var = tk.BooleanVar(value=(i in self.state.visible_gas_channels))
+            
+            # Get initial gas concentration value
+            gas_conc = 0.0
+            enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
+            if enhanced_gas_data and len(enhanced_gas_data) > i:
+                gas_conc = enhanced_gas_data[i]['primary_gas_concentration'] if enhanced_gas_data[i]['primary_gas_concentration'] else 0.0
+            elif len(self.state.gas_concentrations) > i:
+                # Fallback to legacy gas data
+                if i == 0:
+                    gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
+                elif i == 1:
+                    gas_conc = self.state.gas_concentrations[i].get('O2', 0.0)
+                else:
+                    gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
+            
+            chk = ttk.Checkbutton(scrollable_frame, 
+                                  text=f"{gas_names[i]} - {gas_conc:.1f}%", 
+                                  variable=var,
+                                  command=lambda i=i: self._on_gas_check(i))
+            chk.pack(anchor="w", padx=15, pady=2)
+            self.gas_vars.append(var)
+            self.gas_labels.append(chk)
 
     def _create_temperature_tab(self):
         """Create the temperature channels tab."""
@@ -205,6 +247,24 @@ class ChannelSelector(tk.Toplevel):
             new_text = f"{pressure_names[i]} - {pressure:.2f} PSI"
             self.pressure_labels[i].configure(text=new_text)
 
+        # Update gas concentration values
+        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
+        enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
+        for i in range(3):
+            gas_conc = 0.0
+            if enhanced_gas_data and len(enhanced_gas_data) > i:
+                gas_conc = enhanced_gas_data[i]['primary_gas_concentration'] if enhanced_gas_data[i]['primary_gas_concentration'] else 0.0
+            elif len(self.state.gas_concentrations) > i:
+                # Fallback to legacy gas data
+                if i == 0:
+                    gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
+                elif i == 1:
+                    gas_conc = self.state.gas_concentrations[i].get('O2', 0.0)
+                else:
+                    gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
+            new_text = f"{gas_names[i]} - {gas_conc:.1f}%"
+            self.gas_labels[i].configure(text=new_text)
+
         # Update temperature values
         temp_values = self.state.temperature_values
         temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
@@ -240,14 +300,30 @@ class ChannelSelector(tk.Toplevel):
             if not self.pressure_vars[i].get():
                 self.pressure_vars[i].set(True)
                 self.state.visible_pressure_channels.add(i)
-        print("All pressure channels selected.")
+        for i in range(3):
+            if not self.gas_vars[i].get():
+                self.gas_vars[i].set(True)
+                self.state.visible_gas_channels.add(i)
+        print("All pressure and gas channels selected.")
 
     def _deselect_all_pressure(self):
         for i in range(5):
             if self.pressure_vars[i].get():
                 self.pressure_vars[i].set(False)
                 self.state.visible_pressure_channels.discard(i)
-        print("All pressure channels deselected.")
+        for i in range(3):
+            if self.gas_vars[i].get():
+                self.gas_vars[i].set(False)
+                self.state.visible_gas_channels.discard(i)
+        print("All pressure and gas channels deselected.")
+
+    # Gas concentration callbacks (for pressure tab)
+    def _on_gas_check(self, channel_index):
+        if self.gas_vars[channel_index].get():
+            self.state.visible_gas_channels.add(channel_index)
+        else:
+            self.state.visible_gas_channels.discard(channel_index)
+        print(f"Visible gas channels: {sorted(list(self.state.visible_gas_channels))}")
 
     # Temperature tab callbacks
     def _on_temperature_check(self, channel_index):
