@@ -36,6 +36,12 @@ class StatusIndicators:
         status_frame = ttk.LabelFrame(self.parent_frame, text="Hardware Connection Status", padding="10")
         status_frame.pack(fill='both', expand=True)
         
+        # Configure grid columns to properly fill available space
+        status_frame.columnconfigure(0, weight=0)  # Device name - fixed width
+        status_frame.columnconfigure(1, weight=0)  # Status indicator - fixed width  
+        status_frame.columnconfigure(2, weight=1)  # Description - expandable
+        status_frame.columnconfigure(3, weight=0)  # Info - fixed width
+        
         # Create grid for device indicators
         devices = [
             ('ni_daq', 'NI cDAQ', 'Pressure/Current sensors + Valve/Pump control'),
@@ -66,7 +72,7 @@ class StatusIndicators:
             
             # Description label
             desc_label = ttk.Label(status_frame, text=description, font=("Arial", 8), foreground="gray")
-            desc_label.grid(row=i, column=2, sticky='w', padx=5, pady=2)
+            desc_label.grid(row=i, column=2, sticky='ew', padx=5, pady=2)
             
             # Polling rate/error info (placeholder)
             info_label = ttk.Label(status_frame, text="No data", font=("Arial", 8), foreground="gray")
