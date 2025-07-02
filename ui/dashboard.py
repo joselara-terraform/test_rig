@@ -197,23 +197,40 @@ class Dashboard:
         self._create_valve_indicators()
     
     def _create_actuator_controls(self, parent_frame):
-        """Create actuator controls in 4-column grid layout"""
+        """Create actuator controls in 6-column grid layout with categories"""
         
         # Configure grid columns
-        parent_frame.columnconfigure(0, weight=0)  # Valve labels - fixed width
-        parent_frame.columnconfigure(1, weight=0)  # Valve buttons - fixed width
+        parent_frame.columnconfigure(0, weight=0)  # Fluid valve labels - fixed width
+        parent_frame.columnconfigure(1, weight=0)  # Fluid valve buttons - fixed width
         parent_frame.columnconfigure(2, weight=0)  # Pump labels - fixed width
         parent_frame.columnconfigure(3, weight=0)  # Pump buttons - fixed width
+        parent_frame.columnconfigure(4, weight=0)  # Purge valve labels - fixed width
+        parent_frame.columnconfigure(5, weight=0)  # Purge valve buttons - fixed width
         
-        # Valve names matching cDAQ configuration
-        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
+        # Column titles
+        fluid_title = ttk.Label(parent_frame, text="Fluid Valves", font=("Arial", 10, "bold"))
+        fluid_title.grid(row=0, column=0, sticky='w', padx=5, pady=2)
         
-        # Create valve controls
+        pump_title = ttk.Label(parent_frame, text="Pumps", font=("Arial", 10, "bold"))
+        pump_title.grid(row=0, column=2, sticky='w', padx=5, pady=2)
+        
+        purge_title = ttk.Label(parent_frame, text="Purge Valves", font=("Arial", 10, "bold"))
+        purge_title.grid(row=0, column=4, sticky='w', padx=5, pady=2)
+        
+        # Fluid valve names (excluding purge valves)
+        fluid_valve_names = ["KOH Storage", "DI Storage", "Stack Drain"]
+        
+        # Purge valve names  
+        purge_valve_names = ["H2 Purge", "O2 Purge"]
+        
+        # Create fluid valve controls
         self.valve_labels = []
-        for i, valve_name in enumerate(valve_names):
+        
+        # Fluid valves (indices 0, 1, 2)
+        for i, valve_name in enumerate(fluid_valve_names):
             # Valve label
             valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10, "bold"))
-            valve_label.grid(row=i, column=0, sticky='w', padx=5, pady=2)
+            valve_label.grid(row=i+1, column=0, sticky='w', padx=5, pady=2)
             
             # Valve toggle button
             valve_button = tk.Button(
@@ -227,15 +244,34 @@ class Dashboard:
                 command=lambda valve_idx=i: self._toggle_valve(valve_idx),
                 cursor="hand2"
             )
-            valve_button.grid(row=i, column=1, padx=10, pady=2)
+            valve_button.grid(row=i+1, column=1, padx=10, pady=2)
             self.valve_labels.append(valve_button)
         
-        # Pump names and controls
-        pump_names = ["DI Fill Pump", "KOH Fill Pump"]
+        # Purge valves (indices 3, 4)
+        for i, valve_name in enumerate(purge_valve_names):
+            # Valve label
+            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10, "bold"))
+            valve_label.grid(row=i+1, column=4, sticky='w', padx=5, pady=2)
+            
+            # Valve toggle button (original indices 3, 4)
+            valve_button = tk.Button(
+                parent_frame,
+                text="OFF",
+                background="red",
+                foreground="white",
+                width=12,
+                relief=tk.RAISED,
+                font=("Arial", 9),
+                command=lambda valve_idx=i+3: self._toggle_valve(valve_idx),
+                cursor="hand2"
+            )
+            valve_button.grid(row=i+1, column=5, padx=10, pady=2)
+            self.valve_labels.append(valve_button)
         
+        # Pump controls
         # DI Fill Pump
         di_pump_label = ttk.Label(parent_frame, text="DI Fill Pump", font=("Arial", 10, "bold"))
-        di_pump_label.grid(row=0, column=2, sticky='w', padx=5, pady=2)
+        di_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
         
         self.pump_state_label = tk.Button(
             parent_frame,
@@ -248,11 +284,11 @@ class Dashboard:
             command=self._toggle_pump,
             cursor="hand2"
         )
-        self.pump_state_label.grid(row=0, column=3, padx=10, pady=2)
+        self.pump_state_label.grid(row=1, column=3, padx=10, pady=2)
         
         # KOH Fill Pump
         koh_pump_label = ttk.Label(parent_frame, text="KOH Fill Pump", font=("Arial", 10, "bold"))
-        koh_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
+        koh_pump_label.grid(row=2, column=2, sticky='w', padx=5, pady=2)
         
         self.koh_pump_state_label = tk.Button(
             parent_frame,
@@ -265,7 +301,7 @@ class Dashboard:
             command=self._toggle_koh_pump,
             cursor="hand2"
         )
-        self.koh_pump_state_label.grid(row=1, column=3, padx=10, pady=2)
+        self.koh_pump_state_label.grid(row=2, column=3, padx=10, pady=2)
     
     def _create_valve_indicators(self):
         """Create current sensor display (actuator controls moved to right side)"""
