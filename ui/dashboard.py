@@ -68,9 +68,12 @@ class Dashboard:
         status_right_frame = ttk.Frame(status_container)
         status_right_frame.grid(row=0, column=1, sticky='nsew', padx=(2, 0))
         
-        # Create empty Actuator Controls section
+        # Create Actuator Controls section
         actuator_controls_frame = ttk.LabelFrame(status_right_frame, text="Actuator Controls", padding="10")
         actuator_controls_frame.pack(fill='both', expand=True)
+        
+        # Add actuator controls to this section
+        self._create_actuator_controls(actuator_controls_frame)
         
         # Create main frame for 2x2 grid
         self.main_frame = ttk.Frame(main_container, padding="5")
@@ -193,86 +196,83 @@ class Dashboard:
         # Create valve state indicators with toggle controls
         self._create_valve_indicators()
     
+    def _create_actuator_controls(self, parent_frame):
+        """Create actuator controls in 4-column grid layout"""
+        
+        # Configure grid columns
+        parent_frame.columnconfigure(0, weight=0)  # Valve labels - fixed width
+        parent_frame.columnconfigure(1, weight=0)  # Valve buttons - fixed width
+        parent_frame.columnconfigure(2, weight=0)  # Pump labels - fixed width
+        parent_frame.columnconfigure(3, weight=0)  # Pump buttons - fixed width
+        
+        # Valve names matching cDAQ configuration
+        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
+        
+        # Create valve controls
+        self.valve_labels = []
+        for i, valve_name in enumerate(valve_names):
+            # Valve label
+            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10, "bold"))
+            valve_label.grid(row=i, column=0, sticky='w', padx=5, pady=2)
+            
+            # Valve toggle button
+            valve_button = tk.Button(
+                parent_frame,
+                text="OFF",
+                background="red",
+                foreground="white",
+                width=12,
+                relief=tk.RAISED,
+                font=("Arial", 9),
+                command=lambda valve_idx=i: self._toggle_valve(valve_idx),
+                cursor="hand2"
+            )
+            valve_button.grid(row=i, column=1, padx=10, pady=2)
+            self.valve_labels.append(valve_button)
+        
+        # Pump names and controls
+        pump_names = ["DI Fill Pump", "KOH Fill Pump"]
+        
+        # DI Fill Pump
+        di_pump_label = ttk.Label(parent_frame, text="DI Fill Pump", font=("Arial", 10, "bold"))
+        di_pump_label.grid(row=0, column=2, sticky='w', padx=5, pady=2)
+        
+        self.pump_state_label = tk.Button(
+            parent_frame,
+            text="OFF",
+            background="red",
+            foreground="white",
+            width=12,
+            relief=tk.RAISED,
+            font=("Arial", 9),
+            command=self._toggle_pump,
+            cursor="hand2"
+        )
+        self.pump_state_label.grid(row=0, column=3, padx=10, pady=2)
+        
+        # KOH Fill Pump
+        koh_pump_label = ttk.Label(parent_frame, text="KOH Fill Pump", font=("Arial", 10, "bold"))
+        koh_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
+        
+        self.koh_pump_state_label = tk.Button(
+            parent_frame,
+            text="OFF",
+            background="red",
+            foreground="white",
+            width=12,
+            relief=tk.RAISED,
+            font=("Arial", 9),
+            command=self._toggle_koh_pump,
+            cursor="hand2"
+        )
+        self.koh_pump_state_label.grid(row=1, column=3, padx=10, pady=2)
+    
     def _create_valve_indicators(self):
-        """Create valve and pump state indicators with toggle controls"""
+        """Create current sensor display (actuator controls moved to right side)"""
         
         # Container frame to center content and control sizing
         container_frame = ttk.Frame(self.valve_frame)
         container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Title
-        title_label = ttk.Label(container_frame, text="Actuator Controls", font=("Arial", 12, "bold"))
-        title_label.pack(pady=(10, 5))
-        
-        # Valve states (5 valves with real names)
-        valve_frame = ttk.Frame(container_frame)
-        valve_frame.pack(pady=5)
-        
-        ttk.Label(valve_frame, text="Solenoid Valves:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=5, pady=5)
-        
-        # Real valve names matching cDAQ configuration - now 5 valves
-        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
-        
-        self.valve_labels = []
-        for i, valve_name in enumerate(valve_names):
-            valve_label = ttk.Label(valve_frame, text=f"{valve_name}")
-            valve_label.grid(row=1, column=i, padx=5, pady=2)
-            
-            # Clickable button instead of label
-            valve_button = tk.Button(
-                valve_frame, 
-                text="OFF", 
-                background="red", 
-                foreground="white",
-                width=8,  # Slightly wider for longer names
-                relief=tk.RAISED,
-                command=lambda valve_idx=i: self._toggle_valve(valve_idx),
-                cursor="hand2"
-            )
-            valve_button.grid(row=2, column=i, padx=5, pady=2)
-            self.valve_labels.append(valve_button)
-        
-        # Pump states - DI Pump and KOH Pump
-        pump_frame = ttk.Frame(container_frame)
-        pump_frame.pack(pady=10)
-        
-        ttk.Label(pump_frame, text="Pumps", font=("Arial", 10, "bold")).pack()
-        
-        # DI Fill Pump
-        di_pump_frame = ttk.Frame(pump_frame)
-        di_pump_frame.pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(di_pump_frame, text="DI Fill Pump", font=("Arial", 9)).pack()
-        self.pump_state_label = tk.Button(
-            di_pump_frame, 
-            text="OFF", 
-            background="red", 
-            foreground="white",
-            width=8,
-            relief=tk.RAISED,
-            font=("Arial", 10, "bold"),
-            command=self._toggle_pump,
-            cursor="hand2"
-        )
-        self.pump_state_label.pack(pady=5)
-        
-        # KOH Fill Pump
-        koh_pump_frame = ttk.Frame(pump_frame)
-        koh_pump_frame.pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(koh_pump_frame, text="KOH Fill Pump", font=("Arial", 9)).pack()
-        self.koh_pump_state_label = tk.Button(
-            koh_pump_frame, 
-            text="OFF", 
-            background="red", 
-            foreground="white",
-            width=8,
-            relief=tk.RAISED,
-            font=("Arial", 10, "bold"),
-            command=self._toggle_koh_pump,
-            cursor="hand2"
-        )
-        self.koh_pump_state_label.pack(pady=5)
         
         # Current sensor display (read-only)
         current_frame = ttk.Frame(container_frame)
