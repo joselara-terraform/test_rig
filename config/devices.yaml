@@ -53,7 +53,7 @@ ni_cdaq:
         description: "Electrolyzer stack current measurement"
         
       pressure_post_ms:
-        channel: "ai4"
+        channel: "ai3"
         name: "Post MS Pressure"
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI (28 * 0.036127 = 1.012)
@@ -61,7 +61,7 @@ ni_cdaq:
         description: "Post mass spectrometer pressure measurement"
         
       pressure_pre_ms:
-        channel: "ai5"
+        channel: "ai4"
         name: "Pre MS Pressure"  
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI
@@ -69,7 +69,7 @@ ni_cdaq:
         description: "Pre mass spectrometer pressure measurement"
         
       pressure_h2_bp:
-        channel: "ai6"
+        channel: "ai5"
         name: "H2 Back Pressure"
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI
