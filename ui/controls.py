@@ -98,7 +98,7 @@ class ChannelSelector(tk.Toplevel):
                 pressure = self.state.pressure_values[i]
             
             chk = ttk.Checkbutton(scrollable_frame, 
-                                  text=f"{pressure_names[i]} - {pressure:.2f} PSI", 
+                                  text=f"{pressure_names[i]} - {pressure:.4f} PSI", 
                                   variable=var,
                                   command=lambda i=i: self._on_pressure_check(i))
             chk.pack(anchor="w", padx=15, pady=2)
@@ -244,7 +244,7 @@ class ChannelSelector(tk.Toplevel):
             pressure = 0.0
             if len(pressure_values) > i:
                 pressure = pressure_values[i]
-            new_text = f"{pressure_names[i]} - {pressure:.2f} PSI"
+            new_text = f"{pressure_names[i]} - {pressure:.4f} PSI"
             self.pressure_labels[i].configure(text=new_text)
 
         # Update gas concentration values
