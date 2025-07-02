@@ -271,7 +271,7 @@ class Dashboard:
         # Pump controls
         # DI Fill Pump
         di_pump_label = ttk.Label(parent_frame, text="DI Fill Pump", font=("Arial", 10))
-        di_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
+        di_pump_label.grid(row=2, column=2, sticky='w', padx=5, pady=2)
         
         self.pump_state_label = tk.Button(
             parent_frame,
@@ -284,11 +284,11 @@ class Dashboard:
             command=self._toggle_pump,
             cursor="hand2"
         )
-        self.pump_state_label.grid(row=1, column=3, padx=10, pady=2)
+        self.pump_state_label.grid(row=2, column=3, padx=10, pady=2)
         
         # KOH Fill Pump
         koh_pump_label = ttk.Label(parent_frame, text="KOH Fill Pump", font=("Arial", 10))
-        koh_pump_label.grid(row=2, column=2, sticky='w', padx=5, pady=2)
+        koh_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
         
         self.koh_pump_state_label = tk.Button(
             parent_frame,
@@ -301,7 +301,7 @@ class Dashboard:
             command=self._toggle_koh_pump,
             cursor="hand2"
         )
-        self.koh_pump_state_label.grid(row=2, column=3, padx=10, pady=2)
+        self.koh_pump_state_label.grid(row=1, column=3, padx=10, pady=2)
     
     def _create_valve_indicators(self):
         """Create current sensor display (actuator controls moved to right side)"""
