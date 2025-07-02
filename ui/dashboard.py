@@ -51,8 +51,26 @@ class Dashboard:
         # Add control panel at the top
         self.control_panel = ControlPanel(main_container, plot_reset_callback=self.reset_plots)
         
-        # Add status indicators in the middle
-        self.status_indicators = StatusIndicators(main_container)
+        # Create horizontal container for status indicators and actuator controls
+        status_container = ttk.Frame(main_container)
+        status_container.pack(fill='x', pady=5)
+        
+        # Configure columns for 50/50 split
+        status_container.columnconfigure(0, weight=1)
+        status_container.columnconfigure(1, weight=1)
+        
+        # Left side: Hardware Connection Status
+        status_left_frame = ttk.Frame(status_container)
+        status_left_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 2))
+        self.status_indicators = StatusIndicators(status_left_frame)
+        
+        # Right side: Actuator Controls (empty for now)
+        status_right_frame = ttk.Frame(status_container)
+        status_right_frame.grid(row=0, column=1, sticky='nsew', padx=(2, 0))
+        
+        # Create empty Actuator Controls section
+        actuator_controls_frame = ttk.LabelFrame(status_right_frame, text="Actuator Controls", padding="10")
+        actuator_controls_frame.pack(fill='both', expand=True)
         
         # Create main frame for 2x2 grid
         self.main_frame = ttk.Frame(main_container, padding="5")
