@@ -1,0 +1,4 @@
+timestamp,elapsed_seconds,pressure_h2_psi,pressure_o2_psi,current_a,temp_inlet_c,temp_outlet_c,temp_stack1_c,temp_stack2_c,temp_ambient_c,temp_cooling_c,temp_gas_c,temp_case_c
+2025-06-10 17:14:26.112,0.0,0.204,0.186,0,29.9,31.5,53.6,53.6,53.6,53.6,53.1,53.7
+2025-06-10 17:14:27.119,1.007,0.205,0.186,0,29.9,31.5,53.6,53.7,53.6,53.9,53.3,53.9
+2025-06-10 17:14:28.119,2.007,0.205,0.186,0,29.9,31.5,53.7,53.7,53.8,53.9,53.4,53.8

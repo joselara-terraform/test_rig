@@ -1,0 +1,47 @@
+{
+  "session_id": "2025-06-11_12-16-01_UI_Test_Session",
+  "start_time": "2025-06-11T12:16:01.890889",
+  "session_name": "UI_Test_Session",
+  "folder_path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session",
+  "status": "completed",
+  "files": {
+    "2025-06-11_12-16-01.json": {
+      "path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session\\config\\2025-06-11_12-16-01.json",
+      "type": "config",
+      "description": "Device configuration snapshot at test start",
+      "created": "2025-06-11T12:16:01.895154"
+    },
+    "2025-06-11_12-16-01_sensors.csv": {
+      "path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session\\csv_data\\2025-06-11_12-16-01_sensors.csv",
+      "type": "csv",
+      "description": "Real-time main sensors data",
+      "created": "2025-06-11T12:16:01.896717"
+    },
+    "2025-06-11_12-16-01_gas_analysis.csv": {
+      "path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session\\csv_data\\2025-06-11_12-16-01_gas_analysis.csv",
+      "type": "csv",
+      "description": "Real-time gas analysis data",
+      "created": "2025-06-11T12:16:01.897813"
+    },
+    "2025-06-11_12-16-01_cell_voltages.csv": {
+      "path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session\\csv_data\\2025-06-11_12-16-01_cell_voltages.csv",
+      "type": "csv",
+      "description": "Real-time cell voltages data",
+      "created": "2025-06-11T12:16:01.898821"
+    },
+    "2025-06-11_12-16-01_actuators.csv": {
+      "path": "data\\sessions\\2025-06-11_12-16-01_UI_Test_Session\\csv_data\\2025-06-11_12-16-01_actuators.csv",
+      "type": "csv",
+      "description": "Real-time actuator states data",
+      "created": "2025-06-11T12:16:01.899874"
+    }
+  },
+  "metadata": {
+    "test_rig_version": "1.0",
+    "operator": "terra",
+    "platform": "nt"
+  },
+  "end_time": "2025-06-11T13:03:00.752731",
+  "duration_seconds": 2818.861842,
+  "duration_formatted": "0:46:58"
+}

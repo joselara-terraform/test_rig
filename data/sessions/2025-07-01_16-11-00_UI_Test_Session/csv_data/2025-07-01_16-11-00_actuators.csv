@@ -1,0 +1,5 @@
+timestamp,elapsed_seconds,valve_koh_storage,valve_di_storage,valve_stack_drain,valve_h2_purge,valve_o2_purge,pump_di_fill,pump_koh_fill
+2025-07-01 16:11:00.227,0.0,0,0,0,0,0,0,0
+2025-07-01 16:11:01.233,1.007,0,0,0,0,0,0,0
+2025-07-01 16:11:02.241,2.015,0,0,0,0,0,0,0
+2025-07-01 16:11:03.243,3.016,0,0,0,0,0,0,0

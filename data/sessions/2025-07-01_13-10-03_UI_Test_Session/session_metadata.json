@@ -1,0 +1,47 @@
+{
+  "session_id": "2025-07-01_13-10-03_UI_Test_Session",
+  "start_time": "2025-07-01T13:10:03.102680",
+  "session_name": "UI_Test_Session",
+  "folder_path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session",
+  "status": "completed",
+  "files": {
+    "2025-07-01_13-10-03.json": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session\\config\\2025-07-01_13-10-03.json",
+      "type": "config",
+      "description": "Device configuration snapshot at test start",
+      "created": "2025-07-01T13:10:03.107029"
+    },
+    "2025-07-01_13-10-03_sensors.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session\\csv_data\\2025-07-01_13-10-03_sensors.csv",
+      "type": "csv",
+      "description": "Real-time main sensors data",
+      "created": "2025-07-01T13:10:03.108892"
+    },
+    "2025-07-01_13-10-03_gas_analysis.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session\\csv_data\\2025-07-01_13-10-03_gas_analysis.csv",
+      "type": "csv",
+      "description": "Real-time gas analysis data",
+      "created": "2025-07-01T13:10:03.109869"
+    },
+    "2025-07-01_13-10-03_cell_voltages.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session\\csv_data\\2025-07-01_13-10-03_cell_voltages.csv",
+      "type": "csv",
+      "description": "Real-time cell voltages data",
+      "created": "2025-07-01T13:10:03.110583"
+    },
+    "2025-07-01_13-10-03_actuators.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-01_13-10-03_UI_Test_Session\\csv_data\\2025-07-01_13-10-03_actuators.csv",
+      "type": "csv",
+      "description": "Real-time actuator states data",
+      "created": "2025-07-01T13:10:03.111628"
+    }
+  },
+  "metadata": {
+    "test_rig_version": "1.0",
+    "operator": "terra",
+    "platform": "Windows"
+  },
+  "end_time": "2025-07-01T13:59:28.458534",
+  "duration_seconds": 2965.355854,
+  "duration_formatted": "0:49:25"
+}

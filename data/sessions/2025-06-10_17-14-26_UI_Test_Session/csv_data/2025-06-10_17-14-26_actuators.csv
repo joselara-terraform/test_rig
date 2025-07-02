@@ -1,0 +1,4 @@
+timestamp,elapsed_seconds,valve_koh_storage,valve_di_storage,valve_stack_drain,valve_n2_purge,pump_main
+2025-06-10 17:14:26.112,0.0,0,0,0,0,0
+2025-06-10 17:14:27.119,1.007,0,0,0,0,0
+2025-06-10 17:14:28.119,2.007,0,0,0,0,0
