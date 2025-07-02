@@ -56,7 +56,7 @@ class Dashboard:
         status_container.pack(fill='x', pady=5)
         
         # Configure columns for 50/50 split
-        status_container.columnconfigure(0, weight=0)
+        status_container.columnconfigure(0, weight=1)
         status_container.columnconfigure(1, weight=1)
         
         # Left side: Hardware Connection Status
@@ -229,7 +229,7 @@ class Dashboard:
         # Fluid valves (indices 0, 1, 2)
         for i, valve_name in enumerate(fluid_valve_names):
             # Valve label
-            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10, "bold"))
+            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
             valve_label.grid(row=i+1, column=0, sticky='w', padx=5, pady=2)
             
             # Valve toggle button
@@ -250,7 +250,7 @@ class Dashboard:
         # Purge valves (indices 3, 4)
         for i, valve_name in enumerate(purge_valve_names):
             # Valve label
-            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10, "bold"))
+            valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
             valve_label.grid(row=i+1, column=4, sticky='w', padx=5, pady=2)
             
             # Valve toggle button (original indices 3, 4)
@@ -270,7 +270,7 @@ class Dashboard:
         
         # Pump controls
         # DI Fill Pump
-        di_pump_label = ttk.Label(parent_frame, text="DI Fill Pump", font=("Arial", 10, "bold"))
+        di_pump_label = ttk.Label(parent_frame, text="DI Fill Pump", font=("Arial", 10))
         di_pump_label.grid(row=1, column=2, sticky='w', padx=5, pady=2)
         
         self.pump_state_label = tk.Button(
@@ -287,7 +287,7 @@ class Dashboard:
         self.pump_state_label.grid(row=1, column=3, padx=10, pady=2)
         
         # KOH Fill Pump
-        koh_pump_label = ttk.Label(parent_frame, text="KOH Fill Pump", font=("Arial", 10, "bold"))
+        koh_pump_label = ttk.Label(parent_frame, text="KOH Fill Pump", font=("Arial", 10))
         koh_pump_label.grid(row=2, column=2, sticky='w', padx=5, pady=2)
         
         self.koh_pump_state_label = tk.Button(
