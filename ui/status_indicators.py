@@ -39,7 +39,7 @@ class StatusIndicators:
         # Configure grid columns to properly fill available space
         status_frame.columnconfigure(0, weight=0)  # Device name - fixed width
         status_frame.columnconfigure(1, weight=0)  # Status indicator - fixed width  
-        status_frame.columnconfigure(2, weight=1)  # Description - expandable
+        status_frame.columnconfigure(2, weight=0)  # Description - expandable
         status_frame.columnconfigure(3, weight=0)  # Info - fixed width
         
         # Create grid for device indicators

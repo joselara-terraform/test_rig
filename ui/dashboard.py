@@ -56,7 +56,7 @@ class Dashboard:
         status_container.pack(fill='x', pady=5)
         
         # Configure columns for 50/50 split
-        status_container.columnconfigure(0, weight=1)
+        status_container.columnconfigure(0, weight=0)
         status_container.columnconfigure(1, weight=1)
         
         # Left side: Hardware Connection Status
