@@ -50,7 +50,7 @@ def main():
                     channel,
                     name_to_assign_to_channel=f"ai{i}",
                     min_val=0.0,     # 0mA
-                    max_val=0.025    # 25mA
+                    max_val=0.021    # 21mA (within NI-9253 limits)
                 )
             
             # Configure timing
