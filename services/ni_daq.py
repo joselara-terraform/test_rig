@@ -54,6 +54,9 @@ class NIDAQService:
             'pressure_1': {'channel': f"{self.ni_9253_slot}/ai0", 'name': "Pressure Sensor 1", 'range': [0, 15], 'units': "PSI"},
             'pressure_2': {'channel': f"{self.ni_9253_slot}/ai1", 'name': "Pressure Sensor 2", 'range': [0, 15], 'units': "PSI"},
             'current': {'channel': f"{self.ni_9253_slot}/ai2", 'name': "Current Sensor", 'range': [0, 150], 'units': "A"},
+            'pressure_post_ms': {'channel': f"{self.ni_9253_slot}/ai3", 'name': "Post MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
+            'pressure_pre_ms': {'channel': f"{self.ni_9253_slot}/ai4", 'name': "Pre MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
+            'pressure_h2_bp': {'channel': f"{self.ni_9253_slot}/ai5", 'name': "H2 Back Pressure", 'range': [0, 1.012], 'units': "PSI"},
         }
         
         # Digital output channels (valve relays)
@@ -237,7 +240,13 @@ class NIDAQService:
                 
                 # Update global state with new readings
                 self.state.update_sensor_values(
-                    pressure_values=[analog_data['pressure_1'], analog_data['pressure_2']],
+                    pressure_values=[
+                        analog_data['pressure_1'], 
+                        analog_data['pressure_2'], 
+                        analog_data.get('pressure_post_ms', 0.0),
+                        analog_data.get('pressure_pre_ms', 0.0), 
+                        analog_data.get('pressure_h2_bp', 0.0)
+                    ],
                     current_value=analog_data['current']
                 )
                 
@@ -389,7 +398,7 @@ def main():
     service = NIDAQService()
     
     print("✅ NI DAQ service created")
-    print("✅ NI-9253 analog inputs (3 channels)")
+    print("✅ NI-9253 analog inputs (6 channels)")
     print("✅ NI-9485 digital outputs (7 channels)")
     print("✅ 4-20mA current measurement")
     print("✅ Enhanced signal conditioning")
@@ -422,8 +431,11 @@ def main():
     # Show some data
     state = get_global_state()
     print(f"\n5. Live sensor data:")
-    print(f"   Pressure 1: {state.pressure_values[0]:.2f} PSI")
-    print(f"   Pressure 2: {state.pressure_values[1]:.2f} PSI")
+    print(f"   Pressure 1 (H₂): {state.pressure_values[0]:.2f} PSI")
+    print(f"   Pressure 2 (O₂): {state.pressure_values[1]:.2f} PSI")
+    print(f"   Pressure Post MS: {state.pressure_values[2]:.4f} PSI")
+    print(f"   Pressure Pre MS: {state.pressure_values[3]:.4f} PSI")
+    print(f"   Pressure H₂ BP: {state.pressure_values[4]:.4f} PSI")
     print(f"   Current: {state.current_value:.2f} A")
     
     # Test output control
