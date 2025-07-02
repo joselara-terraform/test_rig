@@ -28,6 +28,8 @@ class ChannelSelector(tk.Toplevel):
         self.temperature_labels = []
         self.voltage_vars = []
         self.voltage_labels = []
+        self.current_vars = []
+        self.current_labels = []
 
         # Main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -50,6 +52,7 @@ class ChannelSelector(tk.Toplevel):
         self._create_pressure_tab()
         self._create_temperature_tab()
         self._create_voltage_tab()
+        self._create_current_tab()
 
         # Start periodic updates of all values
         self._update_all_values()
@@ -235,6 +238,48 @@ class ChannelSelector(tk.Toplevel):
             self.voltage_vars.append(var)
             self.voltage_labels.append(chk)
 
+    def _create_current_tab(self):
+        """Create the current channel tab."""
+        current_frame = ttk.Frame(self.notebook)
+        self.notebook.add(current_frame, text="Current")
+        
+        # Control buttons for current tab
+        button_frame = ttk.Frame(current_frame)
+        button_frame.pack(fill="x", pady=(5, 10))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_current).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_current).pack(side="left", padx=5)
+
+        # Scrollable frame for current channel
+        canvas = tk.Canvas(current_frame)
+        scrollbar = ttk.Scrollbar(current_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Current channel (just one channel)
+        var = tk.BooleanVar(value=(0 in self.state.visible_current_channels))
+        
+        # Get initial current value
+        current = self.state.current_value
+        
+        chk = ttk.Checkbutton(scrollable_frame, 
+                              text=f"Stack Current - {current:.1f}A", 
+                              variable=var,
+                              command=lambda: self._on_current_check(0))
+        chk.pack(anchor="w", padx=10, pady=2)
+        self.current_vars.append(var)
+        self.current_labels.append(chk)
+
     def _update_all_values(self):
         """Update all channel values displayed in all tabs."""
         # Update pressure values
@@ -283,6 +328,12 @@ class ChannelSelector(tk.Toplevel):
                 voltage = cell_voltages[i]
             new_text = f"Channel {i + 1} - {voltage:.3f}V"
             self.voltage_labels[i].configure(text=new_text)
+
+        # Update current values
+        current = self.state.current_value
+        if len(self.current_labels) > 0:
+            new_text = f"Stack Current - {current:.1f}A"
+            self.current_labels[0].configure(text=new_text)
         
         # Schedule next update (every 100ms)
         self.after(100, self._update_all_values)
@@ -368,6 +419,26 @@ class ChannelSelector(tk.Toplevel):
                 self.voltage_vars[i].set(False)
                 self.state.visible_voltage_channels.discard(i)
         print("All voltage channels deselected.")
+
+    # Current tab callbacks
+    def _on_current_check(self, channel_index):
+        if self.current_vars[channel_index].get():
+            self.state.visible_current_channels.add(channel_index)
+        else:
+            self.state.visible_current_channels.discard(channel_index)
+        print(f"Visible current channels: {sorted(list(self.state.visible_current_channels))}")
+
+    def _select_all_current(self):
+        if not self.current_vars[0].get():
+            self.current_vars[0].set(True)
+            self.state.visible_current_channels.add(0)
+        print("Current channel selected.")
+
+    def _deselect_all_current(self):
+        if self.current_vars[0].get():
+            self.current_vars[0].set(False)
+            self.state.visible_current_channels.discard(0)
+        print("Current channel deselected.")
 
 
 class ControlPanel:

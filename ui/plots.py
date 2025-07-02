@@ -470,6 +470,114 @@ class TemperaturePlot:
         self.canvas.get_tk_widget().destroy()
 
 
+class CurrentPlot:
+    """Live current vs time plot"""
+    
+    def __init__(self, parent_frame, max_points: int = 300):
+        self.parent_frame = parent_frame
+        self.state = get_global_state()
+        self.max_points = max_points
+        
+        # Data storage - store current data continuously
+        self.time_data = deque()  # Store entire test history
+        self.current_data = deque()  # Store current sensor data
+        
+        self.last_update_time = 0
+        
+        # Create the matplotlib figure
+        self.fig = Figure(figsize=(6, 4), dpi=80, facecolor='white')
+        self.ax = self.fig.add_subplot(111)
+        
+        # Create canvas and add to parent frame
+        self.canvas = FigureCanvasTkAgg(self.fig, parent_frame)
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+        
+        # Start animation
+        self.animation = animation.FuncAnimation(
+            self.fig, self._update_plot, interval=100, blit=False, cache_frame_data=False
+        )
+        
+        self.canvas.draw()
+    
+    def _update_plot(self, frame):
+        """Update plot with new data from GlobalState."""
+        current_time = time.time()
+        
+        # Throttle updates
+        if current_time - self.last_update_time < 0.1:  # 10 Hz max update rate
+            return
+        self.last_update_time = current_time
+
+        # Check test states
+        if self.state.emergency_stop or not self.state.test_running or self.state.test_paused:
+            return
+
+        relative_time = self.state.timer_value
+        self.time_data.append(relative_time)
+        
+        # Store current data continuously
+        current_value = self.state.current_value
+        self.current_data.append(current_value)
+        
+        # Check if current channel is visible (for future extensibility)
+        visible_current = getattr(self.state, 'visible_current_channels', {0})
+        show_current = 0 in visible_current
+        
+        # --- Redraw the entire plot ---
+        self.ax.clear()
+        
+        # Configure plot appearance
+        self.ax.set_title("Current vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Current (A)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+
+        if not show_current:
+            # If current channel not selected, show empty plot
+            self.ax.text(0.5, 0.5, "Current channel not selected", ha='center', va='center', transform=self.ax.transAxes)
+        else:
+            # Plot current data with full historical data
+            if self.time_data and self.current_data:
+                time_list = list(self.time_data)
+                data_list = list(self.current_data)
+                
+                self.ax.plot(time_list, data_list, 
+                             color='blue', 
+                             linewidth=2, 
+                             label='Stack Current')
+
+        # Set axis limits
+        self.ax.set_xlim(0, max(relative_time * 1.2, 120))
+        self.ax.set_ylim(0, 150)  # 0-150A range as requested
+
+        # Update legend
+        if show_current:
+            self.ax.legend(loc='upper right', fontsize=10)
+
+    def reset(self):
+        """Reset plot data"""
+        self.time_data.clear()
+        self.current_data.clear()
+        self.last_update_time = 0
+        
+        # Clear the plot and redraw
+        self.ax.clear()
+        self.ax.set_title("Current vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_xlabel("Time (s)", fontsize=10)
+        self.ax.set_ylabel("Current (A)", fontsize=10)
+        self.ax.grid(True, alpha=0.3)
+        self.ax.set_xlim(0, 120)
+        self.ax.set_ylim(0, 150)
+        self.ax.text(0.5, 0.5, "Test not started", ha='center', va='center', transform=self.ax.transAxes)
+        self.canvas.draw()
+    
+    def destroy(self):
+        """Clean up resources"""
+        if hasattr(self, 'animation'):
+            self.animation.event_source.stop()
+        self.canvas.get_tk_widget().destroy()
+
+
 def test_pressure_plot():
     """Test the pressure, gas concentration, voltage, and temperature plots independently"""
     import threading

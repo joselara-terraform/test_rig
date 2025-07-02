@@ -47,6 +47,7 @@ class GlobalState:
     visible_pressure_channels: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4})  # Default all pressure channels visible
     visible_temperature_channels: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4, 5, 6, 7})  # Default all temperature channels visible
     visible_gas_channels: Set[int] = field(default_factory=lambda: {0, 1, 2})  # Default all gas channels visible
+    visible_current_channels: Set[int] = field(default_factory=lambda: {0})  # Default current channel visible
     
     # Gas analysis data from BGA244 units
     gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [

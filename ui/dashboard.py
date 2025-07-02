@@ -14,7 +14,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from .controls import ControlPanel
 from .status_indicators import StatusIndicators
-from .plots import PressurePlot, VoltagePlot, TemperaturePlot
+from .plots import PressurePlot, VoltagePlot, TemperaturePlot, CurrentPlot
 from core.state import get_global_state
 
 
@@ -36,6 +36,7 @@ class Dashboard:
         self.pressure_plot = None
         self.voltage_plot = None
         self.temperature_plot = None
+        self.current_plot = None
         
         # Set up window close protocol
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
@@ -183,18 +184,18 @@ class Dashboard:
         # Create temperature plot
         self.temperature_plot = TemperaturePlot(self.temperature_frame)
         
-        # Bottom-right: Valve/Pump state indicators
-        self.valve_frame = ttk.LabelFrame(
+        # Bottom-right: Current vs Time plot
+        self.current_frame = ttk.LabelFrame(
             self.main_frame, 
-            text="Actuator States", 
-            padding="5"
+            text="Current vs Time", 
+            padding="2"
         )
-        self.valve_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
-        self.valve_frame.columnconfigure(0, weight=1)
-        self.valve_frame.rowconfigure(0, weight=1)
+        self.current_frame.grid(row=1, column=1, padx=2, pady=2, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.current_frame.columnconfigure(0, weight=1)
+        self.current_frame.rowconfigure(0, weight=1)
         
-        # Create valve state indicators with toggle controls
-        self._create_valve_indicators()
+        # Create current plot
+        self.current_plot = CurrentPlot(self.current_frame)
     
     def _create_actuator_controls(self, parent_frame):
         """Create actuator controls in 6-column grid layout with categories"""
@@ -304,19 +305,8 @@ class Dashboard:
         self.koh_pump_state_label.grid(row=1, column=3, padx=10, pady=2)
     
     def _create_valve_indicators(self):
-        """Create current sensor display (actuator controls moved to right side)"""
-        
-        # Container frame to center content and control sizing
-        container_frame = ttk.Frame(self.valve_frame)
-        container_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
-        
-        # Current sensor display (read-only)
-        current_frame = ttk.Frame(container_frame)
-        current_frame.pack(pady=10)
-        
-        ttk.Label(current_frame, text="Current Sensor:", font=("Arial", 10, "bold")).pack()
-        self.current_label = ttk.Label(current_frame, text="0.0 A", font=("Arial", 12))
-        self.current_label.pack()
+        """Placeholder method - current sensor moved to plot, actuator controls moved to right side"""
+        pass
     
     def _toggle_valve(self, valve_index):
         """Toggle valve state when clicked"""
@@ -373,6 +363,8 @@ class Dashboard:
             self.voltage_plot.reset()
         if self.temperature_plot:
             self.temperature_plot.reset()
+        if self.current_plot:
+            self.current_plot.reset()
     
     def _start_status_updates(self):
         """Start periodic status updates"""
@@ -459,9 +451,6 @@ class Dashboard:
         else:
             self.koh_pump_state_label.configure(state='disabled')
         
-        # Update current sensor
-        self.current_label.configure(text=f"{self.state.current_value:.1f} A")
-        
         # Schedule next update
         self.update_job = self.root.after(100, self._update_status_indicators)
     
@@ -506,6 +495,13 @@ class Dashboard:
                 print("   → Temperature plot destroyed")
             except Exception as e:
                 print(f"   ⚠️  Error destroying temperature plot: {e}")
+                
+        if self.current_plot:
+            try:
+                self.current_plot.destroy()
+                print("   → Current plot destroyed")
+            except Exception as e:
+                print(f"   ⚠️  Error destroying current plot: {e}")
         
         # Clean up control panel
         if hasattr(self.control_panel, 'cleanup'):
