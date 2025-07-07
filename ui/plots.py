@@ -398,7 +398,7 @@ class TemperaturePlot:
         self.ax.grid(True, alpha=0.3)
 
         # Temperature channel names
-        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        temp_names = ["TC01", "TC02", "TC03", "TC04", "TC05", "TC06", "TC07", "TC08"]
         
         if not visible_temp_channels:
             # If no channels are selected, just show an empty plot
@@ -412,11 +412,11 @@ class TemperaturePlot:
                     data_list = list(self.all_temperature_data[channel_idx])
                     
                     # Choose line style based on channel type
-                    if channel_idx < 4:  # Stack temperatures (0-3)
+                    if channel_idx < 4:  # TC01-TC04 (0-3)
                         linestyle = '-'
                         linewidth = 2
                         alpha = 0.9
-                    else:  # Other temperatures (4-7)
+                    else:  # TC05-TC08 (4-7)
                         linestyle = '--'
                         linewidth = 1.5
                         alpha = 0.8

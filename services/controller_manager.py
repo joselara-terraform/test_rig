@@ -194,8 +194,37 @@ class ControllerManager:
             # Stop CSV logging first
             logging_stats = self.csv_logger.stop_logging()
             
-            # End the current session
+            # End the current session (this saves active channels automatically)
             final_session = end_test_session(status)
+            
+            # Run post-processing on the completed session (skip for emergency stops)
+            if final_session and logging_stats.get('log_count', 0) > 0 and status != "emergency_stop":
+                print("   → Starting post-processing...")
+                try:
+                    from data.post_processor import process_session_data
+                    
+                    # Get active channels from the final session metadata
+                    active_channels = final_session.get('active_channels')
+                    
+                    # Process the session data
+                    post_success = process_session_data(
+                        final_session['folder_path'], 
+                        active_channels
+                    )
+                    
+                    if post_success:
+                        print("   ✅ Post-processing completed - plots generated")
+                    else:
+                        print("   ⚠️  Post-processing failed - no plots generated")
+                        
+                except Exception as e:
+                    print(f"   ❌ Post-processing error: {e}")
+                    print("   → Test session saved successfully, but plots not generated")
+            else:
+                if status == "emergency_stop":
+                    print("   → Skipping post-processing (emergency stop)")
+                else:
+                    print("   → Skipping post-processing (no data logged)")
             
             # Update test state
             self.test_running = False
@@ -229,7 +258,7 @@ class ControllerManager:
         self.timer.reset()
         print("   → Timer stopped immediately")
         
-        # Stop test session first
+        # Stop test session first (this will skip post-processing due to emergency status)
         final_session = None
         if self.test_running:
             # Stop CSV logging immediately
@@ -247,6 +276,7 @@ class ControllerManager:
         self.state.update_test_status(running=False)
         
         print("🚨 Emergency stop completed - all systems halted")
+        print("   → Post-processing skipped due to emergency stop")
         return final_session
     
     def _save_test_configuration(self, config_path: str):

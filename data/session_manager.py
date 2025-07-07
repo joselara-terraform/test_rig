@@ -188,6 +188,38 @@ class SessionManager:
         
         return str(full_path)
     
+    def save_active_channels(self):
+        """Save current active channel configuration to session metadata"""
+        if not self.current_session:
+            return
+        
+        try:
+            # Get current state to extract visible channels
+            state = get_global_state()
+            
+            # Extract visible channels and convert sets to lists for JSON serialization
+            active_channels = {
+                'pressure': sorted(list(state.visible_pressure_channels)),
+                'gas': sorted(list(state.visible_gas_channels)),
+                'temperature': sorted(list(state.visible_temperature_channels)),
+                'voltage': sorted(list(state.visible_voltage_channels)),
+                'current': sorted(list(state.visible_current_channels))
+            }
+            
+            # Add to session metadata
+            self.current_session['active_channels'] = active_channels
+            
+            # Save updated metadata
+            self._save_session_metadata()
+            
+            print(f"📁 Active channels saved to session metadata:")
+            for channel_type, channels in active_channels.items():
+                if channels:  # Only show non-empty channel lists
+                    print(f"   → {channel_type}: {channels}")
+                    
+        except Exception as e:
+            print(f"⚠️  Error saving active channels: {e}")
+
     def end_session(self, status: str = "completed") -> Dict[str, Any]:
         """
         End the current session and finalize metadata
@@ -201,6 +233,9 @@ class SessionManager:
         if not self.current_session:
             print("⚠️  No active session to end")
             return {}
+        
+        # Save active channels before ending session
+        self.save_active_channels()
         
         # Update session metadata
         end_time = datetime.datetime.now()

@@ -40,26 +40,22 @@ class CSVLogger:
         self.column_definitions = {
             'main_sensors': [
                 'timestamp', 'elapsed_seconds',
-                'pressure_h2_psi', 'pressure_o2_psi', 'pressure_post_ms_psi', 'pressure_pre_ms_psi', 'pressure_h2_bp_psi', 'current_a',
-                'temp_inlet_c', 'temp_outlet_c', 'temp_stack1_c', 'temp_stack2_c',
-                'temp_ambient_c', 'temp_cooling_c', 'temp_gas_c', 'temp_case_c'
+                'h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop', 'current',
+                'tc01', 'tc02', 'tc03', 'tc04',
+                'tc05', 'tc06', 'tc07', 'tc08'
             ],
             'gas_analysis': [
                 'timestamp', 'elapsed_seconds',
-                'bga1_primary_gas_pct', 'bga1_secondary_gas_pct', 'bga1_remaining_gas_pct', 
-                'bga1_primary_gas_type', 'bga1_secondary_gas_type', 'bga1_remaining_gas_type',
-                'bga2_primary_gas_pct', 'bga2_secondary_gas_pct', 'bga2_remaining_gas_pct',
-                'bga2_primary_gas_type', 'bga2_secondary_gas_type', 'bga2_remaining_gas_type',
-                'bga3_primary_gas_pct', 'bga3_secondary_gas_pct', 'bga3_remaining_gas_pct',
-                'bga3_primary_gas_type', 'bga3_secondary_gas_type', 'bga3_remaining_gas_type',
-                'purge_mode'
+                'bga1_pct', 'bga2_pct', 'bga3_pct',
+                'bga1_pgas', 'bga2_pgas', 'bga3_pgas',
+                'purge'
             ],
             'cell_voltages': [
                 'timestamp', 'elapsed_seconds'
             ] + [f'cell_{i+1:03d}_v' for i in range(120)],  # cell_001_v to cell_120_v
             'actuator_states': [
                 'timestamp', 'elapsed_seconds',
-                'valve_koh_storage', 'valve_di_storage', 'valve_stack_drain', 'valve_h2_purge', 'valve_o2_purge',
+                'koh_storage', 'di_storage', 'stack_drain', 'h2_purge', 'o2_purge',
                 'pump_di_fill', 'pump_koh_fill'
             ]
         }
@@ -275,14 +271,18 @@ class CSVLogger:
             print(f"⚠️  Error logging main sensors: {e}")
     
     def _log_gas_analysis(self, timestamp: str, elapsed: float):
-        """Log gas analysis data from BGA244 units with primary/secondary gas format"""
+        """Log gas analysis data from BGA244 units with primary gas only"""
         try:
             # Get enhanced gas data from state (if available)
             enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
             purge_mode = self.state.purge_mode
             
-            # Create row data with primary/secondary gas format
+            # Create row data with primary gas only
             row = [timestamp, round(elapsed, 3)]
+            
+            # Lists to collect primary gas data
+            primary_percentages = []
+            primary_gas_types = []
             
             # If enhanced data is available, use it
             if enhanced_gas_data and len(enhanced_gas_data) >= 3:
@@ -290,20 +290,12 @@ class CSVLogger:
                 for i in range(3):  # Only first 3 units
                     gas_reading = enhanced_gas_data[i]
                     
-                    # Extract gas assignments and concentrations
+                    # Extract primary gas data only
                     primary_gas = gas_reading.get('primary_gas', 'H2')
-                    secondary_gas = gas_reading.get('secondary_gas', 'O2')
-                    remaining_gas = gas_reading.get('remaining_gas', 'N2')
-                    
                     primary_pct = gas_reading.get('primary_gas_concentration', 0.0)
-                    secondary_pct = gas_reading.get('secondary_gas_concentration', 0.0)
-                    remaining_pct = gas_reading.get('remaining_gas_concentration', 0.0)
                     
-                    # Add data to row
-                    row.extend([
-                        round(primary_pct, 3), round(secondary_pct, 3), round(remaining_pct, 3),
-                        primary_gas, secondary_gas, remaining_gas
-                    ])
+                    primary_percentages.append(round(primary_pct, 3))
+                    primary_gas_types.append(primary_gas)
             else:
                 # Fallback to legacy data format
                 from services.bga244 import BGA244Config
@@ -319,38 +311,27 @@ class CSVLogger:
                     unit_config = BGA244Config.BGA_UNITS[unit_id]
                     gas_readings = gas_data[i]
                     
-                    # Determine current gas assignments based on purge mode
+                    # Determine primary gas based on purge mode
                     if purge_mode:
                         if unit_config['name'] == 'H2 Header':
                             primary_gas = 'H2'
-                            secondary_gas = 'N2'
-                            remaining_gas = 'O2'
                         elif unit_config['name'] == 'O2 Header':
                             primary_gas = 'O2'
-                            secondary_gas = 'N2'
-                            remaining_gas = 'H2'
                         else:  # De-oxo
                             primary_gas = 'H2'
-                            secondary_gas = 'N2'
-                            remaining_gas = 'O2'
                     else:
                         # Normal mode
                         primary_gas = unit_config['primary_gas']
-                        secondary_gas = unit_config['secondary_gas']
-                        remaining_gas = 'N2'  # Typically N2 in normal mode
                     
-                    # Extract concentrations
+                    # Extract primary gas concentration
                     primary_pct = gas_readings.get(primary_gas, 0.0)
-                    secondary_pct = gas_readings.get(secondary_gas, 0.0)
-                    remaining_pct = gas_readings.get(remaining_gas, 0.0)
                     
-                    # Add data to row
-                    row.extend([
-                        round(primary_pct, 3), round(secondary_pct, 3), round(remaining_pct, 3),
-                        primary_gas, secondary_gas, remaining_gas
-                    ])
+                    primary_percentages.append(round(primary_pct, 3))
+                    primary_gas_types.append(primary_gas)
             
-            # Add purge mode flag
+            # Build row: timestamp, elapsed, bga1_pct, bga2_pct, bga3_pct, bga1_pgas, bga2_pgas, bga3_pgas, purge
+            row.extend(primary_percentages)
+            row.extend(primary_gas_types)
             row.append(purge_mode)
             
             self.csv_writers['gas_analysis'].writerow(row)

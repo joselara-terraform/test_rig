@@ -134,68 +134,68 @@ pico_tc08:
   # Temperature Channels - NO ZERO OFFSETS (raw thermocouple readings)
   channels:
     channel_0:
-      name: "Inlet Temperature"
+      name: "TC01"
       type: "K"  # Thermocouple type
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Electrolyte inlet temperature"
+      description: "Thermocouple 1 temperature sensor"
       
     channel_1:
-      name: "Outlet Temperature"
+      name: "TC02"
       type: "K"
       units: "°C" 
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Electrolyte outlet temperature"
+      description: "Thermocouple 2 temperature sensor"
       
     channel_2:
-      name: "Stack Temperature 1"
+      name: "TC03"
       type: "K"
       units: "°C"
       range: [0, 100] 
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Electrolyzer stack temperature sensor 1"
+      description: "Thermocouple 3 temperature sensor"
       
     channel_3:
-      name: "Stack Temperature 2"
+      name: "TC04"
       type: "K"
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Electrolyzer stack temperature sensor 2"
+      description: "Thermocouple 4 temperature sensor"
       
     channel_4:
-      name: "Ambient Temperature"
+      name: "TC05"
       type: "K"
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Ambient air temperature"
+      description: "Thermocouple 5 temperature sensor"
       
     channel_5:
-      name: "Cooling System Temperature"
+      name: "TC06"
       type: "K"
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Cooling system temperature"
+      description: "Thermocouple 6 temperature sensor"
       
     channel_6:
-      name: "Gas Temperature"
+      name: "TC07"
       type: "K"
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Product gas temperature"
+      description: "Thermocouple 7 temperature sensor"
       
     channel_7:
-      name: "Case Temperature"
+      name: "TC08"
       type: "K"
       units: "°C"
       range: [0, 100]
       # NO ZERO OFFSET - Temperature sensors read direct thermocouple values
-      description: "Equipment case/enclosure temperature"
+      description: "Thermocouple 8 temperature sensor"
 
 # BGA244 Gas Analyzers (3 units)
 bga244:

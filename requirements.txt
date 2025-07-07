@@ -1,4 +1,9 @@
 # AWE Test Rig Requirements
 # Core dependencies for device configuration loading
 
-PyYAML>=6.0 
+PyYAML>=6.0
+
+# Data post-processing dependencies
+pandas>=2.0.0
+matplotlib>=3.7.0
+numpy>=1.24.0 
