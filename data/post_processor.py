@@ -76,6 +76,12 @@ class DataPostProcessor:
                 'title': 'Current vs Time',
                 'ylabel': 'Current (A)',
                 'channels': ['current']
+            },
+            'flowrate': {
+                'y_limits': (0, 50),  # 0-50 SLM
+                'title': 'Mass Flowrate vs Time',
+                'ylabel': 'Flowrate (SLM)',
+                'channels': ['flowrate']
             }
         }
         
@@ -100,7 +106,8 @@ class DataPostProcessor:
             'gas': [0, 1, 2],  # All BGA channels
             'temperature': [0, 1, 2, 3, 4, 5, 6, 7],  # All TC channels
             'voltage': list(range(120)),  # All voltage channels
-            'current': [0]  # Current channel
+            'current': [0],  # Current channel
+            'flowrate': [0]  # Flowrate channel
         }
     
     def load_csv_data(self) -> bool:
@@ -384,6 +391,47 @@ class DataPostProcessor:
             print(f"❌ Error generating current plot: {e}")
             return False
     
+    def generate_flowrate_plot(self) -> bool:
+        """Generate flowrate vs time plot"""
+        if 'sensors' not in self.data:
+            print("❌ No sensor data available for flowrate plot")
+            return False
+        
+        try:
+            print("📊 Generating flowrate plot...")
+            
+            df = self.data['sensors']
+            config = self.plot_config['flowrate']
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Plot flowrate if active
+            active_flowrate = self.active_channels.get('flowrate', [0])
+            
+            if 0 in active_flowrate and 'flowrate' in df.columns:
+                ax.plot(df['elapsed_seconds'], df['flowrate'], 
+                       color='red', linewidth=2, label='Mass Flowrate')
+            
+            ax.set_xlim(0, max(self.max_time * 1.1, 120))
+            ax.set_ylim(config['y_limits'])
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel(config['ylabel'])
+            ax.set_title(config['title'])
+            ax.grid(True, alpha=0.3)
+            ax.legend()
+            
+            # Save as JPEG
+            output_path = self.plots_folder / "flowrate.jpg"
+            plt.savefig(output_path, format='jpeg', dpi=300, bbox_inches='tight')
+            plt.close()
+            
+            print(f"✅ Flowrate plot saved: {output_path}")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error generating flowrate plot: {e}")
+            return False
+    
     def process_session(self) -> bool:
         """Process complete session data and generate all plots"""
         print(f"🔄 Starting post-processing for session: {self.session_folder.name}")
@@ -410,8 +458,11 @@ class DataPostProcessor:
             
         if self.generate_current_plot():
             plots_generated += 1
+            
+        if self.generate_flowrate_plot():
+            plots_generated += 1
         
-        print(f"✅ Post-processing complete: {plots_generated}/5 plots generated")
+        print(f"✅ Post-processing complete: {plots_generated}/6 plots generated")
         print(f"   → Plots saved to: {self.plots_folder}")
         
         return plots_generated > 0

@@ -45,10 +45,6 @@ class SessionManager:
         self.base_data_dir.mkdir(exist_ok=True)
         self.sessions_dir.mkdir(exist_ok=True)
         
-        # Create archive folder for old sessions
-        archive_dir = self.sessions_dir / "archive"
-        archive_dir.mkdir(exist_ok=True)
-        
         print(f"   → ✅ Directory structure ready")
     
     def start_new_session(self, session_name: Optional[str] = None) -> Dict[str, Any]:
@@ -83,8 +79,6 @@ class SessionManager:
             "csv_data",      # Raw sensor data CSV files
             "plots",         # Generated plots and charts
             "config",        # Configuration snapshots
-            "logs",          # Log files and debug info
-            "analysis"       # Post-test analysis results
         ]
         
         for subdir in subdirs:
@@ -167,9 +161,9 @@ class SessionManager:
             "csv": "csv_data",
             "data": "csv_data", 
             "config": "config",
-            "log": "logs",
+            "log": "csv_data",  # Redirect logs to csv_data if needed
             "plot": "plots",
-            "analysis": "analysis"
+            "analysis": "plots"  # Redirect analysis to plots if needed
         }
         
         subdir = subdir_map.get(file_type, "csv_data")
@@ -393,9 +387,9 @@ def get_session_file_path(filename: str, file_type: str = "csv") -> str:
         "csv": "csv_data",
         "data": "csv_data",
         "config": "config", 
-        "log": "logs",
+        "log": "csv_data",  # Redirect logs to csv_data if needed
         "plot": "plots",
-        "analysis": "analysis"
+        "analysis": "plots"  # Redirect analysis to plots if needed
     }
     
     subdir = subdir_map.get(file_type, "csv_data")
