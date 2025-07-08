@@ -229,9 +229,9 @@ bga244:
         expected_gases: ["H2", "N2", "O2"]
       
     bga_2:
-      port: "COM6"
+      port: "COM9"
       name: "O2 Header"
-      gas_types: ["H2", "O2", "N2"]
+      gas_types: ["O2", "H2", "N2"]
       description: "Gas analyzer on oxygen header"
       # Gas analysis configuration for normal operation
       normal_mode:
@@ -248,21 +248,21 @@ bga244:
       
     bga_3:
       port: "COM3"
-      name: "O2 Header"
-      gas_types: ["O2", "H2", "N2"]
+      name: "H2 Deoxo"
+      gas_types: ["H2", "O2", "N2"]
       description: "Gas analyzer on de-oxo unit"
       # Gas analysis configuration for normal operation
       normal_mode:
-        primary_gas: "O2"     # H2 in O2 mixture
-        secondary_gas: "H2"   # H2 in O2 mixture
+        primary_gas: "H2"     # H2 in O2 mixture
+        secondary_gas: "O2"   # H2 in O2 mixture
         remaining_gas: "N2"   # Remaining gas (calculated)
-        expected_gases: ["O2", "H2", "N2"]
+        expected_gases: ["H2", "O2", "N2"]
       # Gas analysis configuration for purge operation
       purge_mode:
-        primary_gas: "O2"     # H2 in N2 during purge
+        primary_gas: "H2"     # H2 in N2 during purge
         secondary_gas: "N2"   # N2 purge gas
-        remaining_gas: "H2"   # Remaining gas (calculated)
-        expected_gases: ["O2", "N2", "H2"]
+        remaining_gas: "O2"   # Remaining gas (calculated)
+        expected_gases: ["H2", "N2", "O2"]
 
 # CVM-24P Cell Voltage Monitor
 cvm24p:

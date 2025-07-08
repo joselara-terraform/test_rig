@@ -1,0 +1,9 @@
+timestamp,elapsed_seconds,bga1_primary_gas_pct,bga1_secondary_gas_pct,bga1_remaining_gas_pct,bga1_primary_gas_type,bga1_secondary_gas_type,bga1_remaining_gas_type,bga2_primary_gas_pct,bga2_secondary_gas_pct,bga2_remaining_gas_pct,bga2_primary_gas_type,bga2_secondary_gas_type,bga2_remaining_gas_type,bga3_primary_gas_pct,bga3_secondary_gas_pct,bga3_remaining_gas_pct,bga3_primary_gas_type,bga3_secondary_gas_type,bga3_remaining_gas_type,purge_mode
+2025-07-07 15:02:33.372,0.0,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:34.370,0.999,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:35.379,2.008,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:36.392,3.021,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:37.402,4.03,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:38.418,5.047,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:39.426,6.054,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
+2025-07-07 15:02:40.426,7.055,13.074,86.926,0.0,H2,O2,N2,0.0,0.0,0.0,H2,O2,N2,11.985,88.015,0.0,H2,O2,N2,False
