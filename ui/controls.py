@@ -30,6 +30,8 @@ class ChannelSelector(tk.Toplevel):
         self.voltage_labels = []
         self.current_vars = []
         self.current_labels = []
+        self.flowrate_vars = []
+        self.flowrate_labels = []
 
         # Main frame
         main_frame = ttk.Frame(self, padding="10")
@@ -53,6 +55,7 @@ class ChannelSelector(tk.Toplevel):
         self._create_temperature_tab()
         self._create_voltage_tab()
         self._create_current_tab()
+        self._create_flowrate_tab()
 
         # Start periodic updates of all values
         self._update_all_values()
@@ -280,6 +283,48 @@ class ChannelSelector(tk.Toplevel):
         self.current_vars.append(var)
         self.current_labels.append(chk)
 
+    def _create_flowrate_tab(self):
+        """Create the flowrate channel tab."""
+        flowrate_frame = ttk.Frame(self.notebook)
+        self.notebook.add(flowrate_frame, text="Flowrate")
+        
+        # Control buttons for flowrate tab
+        button_frame = ttk.Frame(flowrate_frame)
+        button_frame.pack(fill="x", pady=(5, 10))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_flowrate).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_flowrate).pack(side="left", padx=5)
+
+        # Scrollable frame for flowrate channel
+        canvas = tk.Canvas(flowrate_frame)
+        scrollbar = ttk.Scrollbar(flowrate_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Flowrate channel (just one channel)
+        var = tk.BooleanVar(value=(0 in self.state.visible_flowrate_channels))
+        
+        # Get initial flowrate value
+        flowrate = self.state.flowrate_value
+        
+        chk = ttk.Checkbutton(scrollable_frame, 
+                              text=f"Flowrate - {flowrate:.2f} SLM", 
+                              variable=var,
+                              command=lambda: self._on_flowrate_check(0))
+        chk.pack(anchor="w", padx=10, pady=2)
+        self.flowrate_vars.append(var)
+        self.flowrate_labels.append(chk)
+
     def _update_all_values(self):
         """Update all channel values displayed in all tabs."""
         # Update pressure values
@@ -334,6 +379,12 @@ class ChannelSelector(tk.Toplevel):
         if len(self.current_labels) > 0:
             new_text = f"Stack Current - {current:.1f}A"
             self.current_labels[0].configure(text=new_text)
+
+        # Update flowrate values
+        flowrate = self.state.flowrate_value
+        if len(self.flowrate_labels) > 0:
+            new_text = f"Flowrate - {flowrate:.2f} SLM"
+            self.flowrate_labels[0].configure(text=new_text)
         
         # Schedule next update (every 100ms)
         self.after(100, self._update_all_values)
@@ -439,6 +490,26 @@ class ChannelSelector(tk.Toplevel):
             self.current_vars[0].set(False)
             self.state.visible_current_channels.discard(0)
         print("Current channel deselected.")
+
+    # Flowrate tab callbacks
+    def _on_flowrate_check(self, channel_index):
+        if self.flowrate_vars[channel_index].get():
+            self.state.visible_flowrate_channels.add(channel_index)
+        else:
+            self.state.visible_flowrate_channels.discard(channel_index)
+        print(f"Visible flowrate channels: {sorted(list(self.state.visible_flowrate_channels))}")
+
+    def _select_all_flowrate(self):
+        if not self.flowrate_vars[0].get():
+            self.flowrate_vars[0].set(True)
+            self.state.visible_flowrate_channels.add(0)
+        print("Flowrate channel selected.")
+
+    def _deselect_all_flowrate(self):
+        if self.flowrate_vars[0].get():
+            self.flowrate_vars[0].set(False)
+            self.state.visible_flowrate_channels.discard(0)
+        print("Flowrate channel deselected.")
 
 
 class ControlPanel:

@@ -57,6 +57,7 @@ class NIDAQService:
             'pressure_post_ms': {'channel': f"{self.ni_9253_slot}/ai3", 'name': "Post MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
             'pressure_pre_ms': {'channel': f"{self.ni_9253_slot}/ai4", 'name': "Pre MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
             'pressure_h2_bp': {'channel': f"{self.ni_9253_slot}/ai5", 'name': "H2 Back Pressure", 'range': [0, 1.012], 'units': "PSI"},
+            'flowrate': {'channel': f"{self.ni_9253_slot}/ai6", 'name': "Flowrate Sensor", 'range': [0, 50], 'units': "SLM"},
         }
         
         # Digital output channels (valve relays)
@@ -247,7 +248,8 @@ class NIDAQService:
                         analog_data.get('pressure_pre_ms', 0.0), 
                         analog_data.get('pressure_h2_bp', 0.0)
                     ],
-                    current_value=analog_data['current']
+                    current_value=analog_data['current'],
+                    flowrate_value=analog_data.get('flowrate', 0.0)
                 )
                 
                 # Control digital outputs based on state

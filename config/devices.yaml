@@ -75,6 +75,14 @@ ni_cdaq:
         range: [0, 1.012]  # 0-28 inWC converted to PSI
         zero_offset: 0.0
         description: "Hydrogen back pressure measurement"
+        
+      flowrate:
+        channel: "ai6"
+        name: "Flowrate Sensor"
+        units: "SLM"
+        range: [0, 50]  # 0-50 SLM (Standard Liters per Minute)
+        zero_offset: 0.0
+        description: "Gas flowrate measurement"
   
   # NI-9485 Digital Output Modules (Relay Control)
   digital_outputs:

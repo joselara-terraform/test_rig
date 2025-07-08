@@ -39,6 +39,7 @@ class GlobalState:
     # Sensor values (mocked initially)
     pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0, 0.0, 0.0])  # 5 pressure sensors
     current_value: float = 0.0  # 1 current sensor
+    flowrate_value: float = 0.0  # 1 flowrate sensor
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples
     cell_voltages: List[float] = field(default_factory=lambda: [0.0] * 120)  # 120 cell voltages
     
@@ -48,6 +49,7 @@ class GlobalState:
     visible_temperature_channels: Set[int] = field(default_factory=lambda: {0, 1, 2, 3, 4, 5, 6, 7})  # Default all temperature channels visible
     visible_gas_channels: Set[int] = field(default_factory=lambda: {0, 1, 2})  # Default all gas channels visible
     visible_current_channels: Set[int] = field(default_factory=lambda: {0})  # Default current channel visible
+    visible_flowrate_channels: Set[int] = field(default_factory=lambda: {0})  # Default flowrate channel visible
     
     # Gas analysis data from BGA244 units
     gas_concentrations: List[Dict[str, float]] = field(default_factory=lambda: [

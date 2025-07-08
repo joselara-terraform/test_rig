@@ -40,7 +40,7 @@ class CSVLogger:
         self.column_definitions = {
             'main_sensors': [
                 'timestamp', 'elapsed_seconds',
-                'h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop', 'current',
+                'h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop', 'current', 'flowrate',
                 'tc01', 'tc02', 'tc03', 'tc04',
                 'tc05', 'tc06', 'tc07', 'tc08'
             ],
@@ -243,11 +243,12 @@ class CSVLogger:
         print("📊 CSV logging worker stopped")
     
     def _log_main_sensors(self, timestamp: str, elapsed: float):
-        """Log main sensor data (pressure, current, temperature)"""
+        """Log main sensor data (pressure, current, flowrate, temperature)"""
         try:
             # Get current sensor values
             pressure_vals = self.state.pressure_values[:5]
             current_val = self.state.current_value
+            flowrate_val = self.state.flowrate_value
             temp_vals = self.state.temperature_values[:8]
             
             # Ensure we have the right number of values
@@ -260,7 +261,7 @@ class CSVLogger:
             row = [
                 timestamp, round(elapsed, 3),
                 round(pressure_vals[0], 3), round(pressure_vals[1], 3), round(pressure_vals[2], 3), 
-                round(pressure_vals[3], 3), round(pressure_vals[4], 3), round(current_val, 1),
+                round(pressure_vals[3], 3), round(pressure_vals[4], 3), round(current_val, 1), round(flowrate_val, 2),
                 round(temp_vals[0], 1), round(temp_vals[1], 1), round(temp_vals[2], 1), round(temp_vals[3], 1),
                 round(temp_vals[4], 1), round(temp_vals[5], 1), round(temp_vals[6], 1), round(temp_vals[7], 1)
             ]

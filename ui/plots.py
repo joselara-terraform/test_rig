@@ -333,9 +333,10 @@ class TemperaturePlot:
         self.state = get_global_state()
         self.max_points = max_points
         
-        # Data storage - store ALL temperature data continuously
+        # Data storage - store ALL temperature and flowrate data continuously
         self.time_data = deque()  # Store entire test history
         self.all_temperature_data = {}  # Store data for all 8 temperature sensors continuously
+        self.flowrate_data = deque()  # Store flowrate data
         
         # Initialize deques for all 8 temperature sensors
         for i in range(8):
@@ -385,25 +386,30 @@ class TemperaturePlot:
             else:
                 self.all_temperature_data[i].append(0.0)
         
-        # Get currently visible temperature channels
+        # CONTINUOUSLY store flowrate data
+        flowrate_val = self.state.flowrate_value
+        self.flowrate_data.append(flowrate_val)
+        
+        # Get currently visible temperature and flowrate channels
         visible_temp_channels = sorted(list(self.state.visible_temperature_channels))
+        visible_flowrate_channels = sorted(list(self.state.visible_flowrate_channels))
         
         # --- Redraw the entire plot for dynamic channel visibility ---
         self.ax.clear()
         
         # Configure plot appearance
-        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_title("Temperatures & Flowrate vs Time", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
+        self.ax.set_ylabel("Temperature (°C) / Flowrate (SLM)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
 
         # Temperature channel names
         temp_names = ["TC01", "TC02", "TC03", "TC04", "TC05", "TC06", "TC07", "TC08"]
         
-        if not visible_temp_channels:
-            # If no channels are selected, just show an empty plot
-            self.ax.text(0.5, 0.5, "No channels selected", ha='center', va='center', transform=self.ax.transAxes)
-        else:
+        has_visible_channels = False
+        
+        # Plot visible temperature channels
+        if visible_temp_channels:
             # Plot only the selected temperature channels with their FULL historical data
             for channel_idx in visible_temp_channels:
                 if self.time_data and self.all_temperature_data[channel_idx]:
@@ -427,16 +433,35 @@ class TemperaturePlot:
                                  linestyle=linestyle,
                                  alpha=alpha,
                                  label=temp_names[channel_idx])
+                    has_visible_channels = True
+        
+        # Plot visible flowrate channels
+        if visible_flowrate_channels and 0 in visible_flowrate_channels:
+            if self.time_data and self.flowrate_data:
+                time_list = list(self.time_data)
+                data_list = list(self.flowrate_data)
+                
+                self.ax.plot(time_list, data_list, 
+                             color='red', 
+                             linewidth=2, 
+                             linestyle='-',
+                             alpha=1.0,
+                             label="Flowrate")
+                has_visible_channels = True
+        
+        if not has_visible_channels:
+            # If no channels are selected, just show an empty plot
+            self.ax.text(0.5, 0.5, "No channels selected", ha='center', va='center', transform=self.ax.transAxes)
 
         # Set axis limits
         self.ax.set_xlim(0, max(relative_time * 1.2, 120))
-        self.ax.set_ylim(0, 100)  # 0-100°C range
+        self.ax.set_ylim(0, 100)  # 0-100°C range covers both temperature and flowrate (0-50 SLM)
 
         # Update legend
-        if visible_temp_channels:
+        if has_visible_channels:
             # Adjust legend size based on number of channels
-            num_channels = len(visible_temp_channels)
-            if num_channels > 6:
+            total_channels = len(visible_temp_channels) + len(visible_flowrate_channels)
+            if total_channels > 6:
                 fontsize = 8
             else:
                 fontsize = 10
@@ -450,13 +475,16 @@ class TemperaturePlot:
         for i in range(8):
             self.all_temperature_data[i].clear()
             
+        # Clear flowrate data
+        self.flowrate_data.clear()
+            
         self.last_update_time = 0
         
         # Clear the plot and redraw
         self.ax.clear()
-        self.ax.set_title("Temperatures vs Time", fontsize=12, fontweight='bold')
+        self.ax.set_title("Temperatures & Flowrate vs Time", fontsize=12, fontweight='bold')
         self.ax.set_xlabel("Time (s)", fontsize=10)
-        self.ax.set_ylabel("Temperature (°C)", fontsize=10)
+        self.ax.set_ylabel("Temperature (°C) / Flowrate (SLM)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
         self.ax.set_xlim(0, 120)
         self.ax.set_ylim(0, 100)
