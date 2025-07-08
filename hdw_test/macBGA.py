@@ -7,7 +7,7 @@ def send(ser, cmd):
     return ser.read_all().decode('ascii', errors='ignore').strip()
 
 # Serial port for macOS
-SERIAL_PORT = '/dev/tty.usbserial-BG00PCY2'
+SERIAL_PORT = '/dev/tty.usbserial-B0035Q79'
 
 try:
     ser = serial.Serial(SERIAL_PORT, 9600, timeout=1)

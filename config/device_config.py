@@ -287,8 +287,8 @@ def main():
         print(f"   Current zero offset: {current_offset} A")
         
         # Temperature zero offsets
-        inlet_temp_offset = config.get_temperature_zero_offset('channel_0')
-        print(f"   Inlet temperature zero offset: {inlet_temp_offset} °C")
+        tc01_offset = config.get_temperature_zero_offset('channel_0')
+        print(f"   TC01 temperature zero offset: {tc01_offset} °C")
         
         print("   BGA and CVM zero offsets: Disabled (not needed)")
         

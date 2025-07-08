@@ -43,14 +43,14 @@ class PicoTC08Config:
     
     # Channel names for clarity (matching device config)
     CHANNEL_NAMES = [
-        "Inlet Temperature",
-        "Outlet Temperature", 
-        "Stack Temperature 1",
-        "Stack Temperature 2",
-        "Ambient Temperature",
-        "Cooling System Temperature",
-        "Gas Temperature",
-        "Case Temperature"
+        "TC01",
+        "TC02",
+        "TC03",
+        "TC04",
+        "TC05",
+        "TC06",
+        "TC07",
+        "TC08"
     ]
 
 
