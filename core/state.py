@@ -36,8 +36,8 @@ class GlobalState:
         'bga244_3': False
     })
     
-    # Sensor values (mocked initially)
-    pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0, 0.0, 0.0])  # 5 pressure sensors
+    # Sensor values (mocked initially) 
+    pressure_values: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])  # 6 pressure sensors (AI0,AI1,AI3,AI4,AI5,AI7)
     current_value: float = 0.0  # 1 current sensor
     flowrate_value: float = 0.0  # 1 flowrate sensor
     temperature_values: List[float] = field(default_factory=lambda: [0.0] * 8)  # 8 thermocouples

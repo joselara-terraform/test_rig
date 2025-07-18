@@ -246,7 +246,7 @@ class CSVLogger:
         """Log main sensor data (pressure, current, flowrate, temperature)"""
         try:
             # Get current sensor values
-            pressure_vals = self.state.pressure_values[:5]
+            pressure_vals = self.state.pressure_values[:6]
             current_val = self.state.current_value
             flowrate_val = self.state.flowrate_value
             temp_vals = self.state.temperature_values[:8]

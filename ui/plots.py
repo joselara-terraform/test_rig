@@ -32,8 +32,8 @@ class PressurePlot:
         self.all_pressure_data = {}  # Store data for all 5 pressure sensors continuously
         self.all_gas_data = {}  # Store data for all 3 gas analyzers continuously
         
-        # Initialize deques for all 5 pressure sensors
-        for i in range(5):
+        # Initialize deques for all 6 pressure sensors
+        for i in range(6):
             self.all_pressure_data[i] = deque()
             
         # Initialize deques for all 3 gas concentration channels
@@ -47,7 +47,7 @@ class PressurePlot:
         self.ax = self.fig.add_subplot(111)
         
         # Get colormaps for different data types
-        self.pressure_colors = plt.cm.get_cmap('Set1', 5)  # 5 pressure channels
+        self.pressure_colors = plt.cm.get_cmap('Set1', 6)  # 6 pressure channels
         self.gas_colors = plt.cm.get_cmap('Set2', 3)  # 3 gas channels
         
         # Create canvas and add to parent frame
@@ -80,7 +80,7 @@ class PressurePlot:
         
         # CONTINUOUSLY store data for ALL pressure channels
         pressure_values = self.state.pressure_values
-        for i in range(5):
+        for i in range(6):
             if len(pressure_values) > i:
                 self.all_pressure_data[i].append(pressure_values[i])
             else:
@@ -119,8 +119,8 @@ class PressurePlot:
         self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
         self.ax.grid(True, alpha=0.3)
 
-        # Channel names
-        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
+        # Channel names (index maps to pressure_values array)
+        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
         gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
         
         has_visible_channels = False
@@ -168,7 +168,7 @@ class PressurePlot:
         self.time_data.clear()
         
         # Clear all pressure and gas data
-        for i in range(5):
+        for i in range(6):
             self.all_pressure_data[i].clear()
         for i in range(3):
             self.all_gas_data[i].clear()

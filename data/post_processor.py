@@ -51,7 +51,7 @@ class DataPostProcessor:
                 'y_limits': (0, 1),  # 0-1 normalized
                 'title': 'Pressure vs Time',
                 'ylabel': 'Normalized Pressure',
-                'channels': ['h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop']
+                'channels': ['h2_header', 'o2_header', 'pt01', 'pt02', 'pt03', 'pt05']
             },
             'gas_purity': {
                 'y_limits': (0, 100),  # 0-100%
@@ -174,9 +174,9 @@ class DataPostProcessor:
             fig, ax = plt.subplots(figsize=(10, 6))
             
             # Plot pressure channels that are active
-            pressure_columns = ['h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop']
-            colors = ['blue', 'red', 'green', 'orange', 'purple']
-            active_pressure = self.active_channels.get('pressure', [0, 1, 2, 3, 4])
+            pressure_columns = ['h2_header', 'o2_header', 'pt01', 'pt02', 'pt03', 'pt05']
+            colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
+            active_pressure = self.active_channels.get('pressure', [0, 1, 2, 3, 4, 5])
             
             for i, col in enumerate(pressure_columns):
                 if i in active_pressure and col in df.columns:

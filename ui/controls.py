@@ -93,9 +93,9 @@ class ChannelSelector(tk.Toplevel):
         pressure_label.pack(anchor="w", padx=5, pady=(5, 5))
 
         # Pressure channel names
-        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
+        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
         
-        for i in range(5):  # 5 pressure sensors
+        for i in range(6):  # 6 pressure sensors
             var = tk.BooleanVar(value=(i in self.state.visible_pressure_channels))
             
             # Get initial pressure value
@@ -329,8 +329,8 @@ class ChannelSelector(tk.Toplevel):
         """Update all channel values displayed in all tabs."""
         # Update pressure values
         pressure_values = self.state.pressure_values
-        pressure_names = ["H₂ Header", "O₂ Header", "Post MS", "Pre MS", "H₂ BP"]
-        for i in range(5):
+        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
+        for i in range(6):
             pressure = 0.0
             if len(pressure_values) > i:
                 pressure = pressure_values[i]
