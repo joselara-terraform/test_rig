@@ -228,6 +228,75 @@ class DeviceConfig:
         
         return config.get('description', f'{device_type} {channel_name}')
     
+    # Label Management Methods - Single Source of Truth for Channel Names
+    def get_ni_daq_channel_names(self) -> List[str]:
+        """Get ordered list of NI-DAQ channel names from devices.yaml"""
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        # Maintain channel order as defined in YAML structure
+        ordered_channels = ['pt01', 'pt02', 'current', 'pt03', 'pt04', 'pt05', 'flowrate', 'pt06']
+        return [channels.get(ch, {}).get('name', ch) for ch in ordered_channels if ch in channels]
+    
+    def get_pressure_channel_names(self) -> List[str]:
+        """Get ordered list of only pressure sensor names from devices.yaml"""
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        # Only pressure sensors - exclude current and flowrate
+        pressure_channels = ['pt01', 'pt02', 'pt03', 'pt04', 'pt05', 'pt06']
+        return [channels.get(ch, {}).get('name', ch) for ch in pressure_channels if ch in channels]
+    
+    def get_pico_tc08_channel_names(self) -> List[str]:
+        """Get ordered list of Pico TC-08 channel names from devices.yaml"""
+        channels = self.config.get('pico_tc08', {}).get('channels', {})
+        # Maintain channel order (channel_0 through channel_7)
+        ordered_channels = [f'channel_{i}' for i in range(8)]
+        return [channels.get(ch, {}).get('name', f'TC{i+1:02d}') for i, ch in enumerate(ordered_channels) if ch in channels]
+    
+    def get_bga244_unit_names(self) -> List[str]:
+        """Get ordered list of BGA244 unit names from devices.yaml"""
+        units = self.config.get('bga244', {}).get('units', {})
+        # Maintain unit order (bga_1, bga_2, bga_3)
+        ordered_units = ['bga_1', 'bga_2', 'bga_3']
+        return [units.get(unit, {}).get('name', unit) for unit in ordered_units if unit in units]
+    
+    def get_csv_column_mapping(self) -> Dict[str, str]:
+        """Get mapping from current CSV column names to device names"""
+        mapping = {}
+        
+        # NI-DAQ analog channels - mapping based on actual current CSV usage
+        ni_daq_names = self.get_ni_daq_channel_names()
+        # Current CSV usage: h2_header=pt01, o2_header=pt02, current=current, etc.
+        analog_mappings = {
+            'h2_header': 'pt01',    # CSV col -> YAML key
+            'o2_header': 'pt02', 
+            'post_ms': 'pt03',
+            'pre_ms': 'pt04',
+            'h2_bop': 'pt05',
+            'current': 'current',
+            'flowrate': 'flowrate'
+        }
+        
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        for csv_col, yaml_key in analog_mappings.items():
+            if yaml_key in channels:
+                mapping[csv_col] = channels[yaml_key].get('name', csv_col)
+        
+        # Temperature channels  
+        temp_names = self.get_pico_tc08_channel_names()
+        for i in range(8):
+            current_col = f'tc{i+1:02d}'
+            if i < len(temp_names):
+                mapping[current_col] = temp_names[i]
+        
+        # Gas analyzer channels
+        bga_names = self.get_bga244_unit_names() 
+        for i in range(3):
+            pct_col = f'bga{i+1}_pct'
+            pgas_col = f'bga{i+1}_pgas'
+            if i < len(bga_names):
+                mapping[pct_col] = f'{bga_names[i]}_pct'
+                mapping[pgas_col] = f'{bga_names[i]}_pgas'
+        
+        return mapping
+    
     def validate_config(self) -> bool:
         """Validate that configuration contains required fields"""
         required_sections = ['ni_cdaq', 'pico_tc08', 'bga244', 'cvm24p', 'system']
@@ -278,12 +347,12 @@ def main():
         print("\n🎯 TEST: Calibrated zero offset retrieval:")
         
         # Analog input zero offsets
-        pressure_1_offset = config.get_analog_channel_zero_offset('pressure_1')
-        pressure_2_offset = config.get_analog_channel_zero_offset('pressure_2')
+        pt01_offset = config.get_analog_channel_zero_offset('pt01')
+        pt02_offset = config.get_analog_channel_zero_offset('pt02')
         current_offset = config.get_analog_channel_zero_offset('current')
         
-        print(f"   Pressure 1 zero offset: {pressure_1_offset} PSI")
-        print(f"   Pressure 2 zero offset: {pressure_2_offset} PSI")
+        print(f"   PT01 zero offset: {pt01_offset} PSI")
+        print(f"   PT02 zero offset: {pt02_offset} PSI")
         print(f"   Current zero offset: {current_offset} A")
         
         # Temperature zero offsets

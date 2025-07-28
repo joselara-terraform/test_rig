@@ -17,6 +17,7 @@ from collections import deque
 import time
 from typing import List, Tuple, Dict
 from core.state import get_global_state
+from config.device_config import get_device_config
 
 
 class PressurePlot:
@@ -25,6 +26,7 @@ class PressurePlot:
     def __init__(self, parent_frame, max_points: int = 300):
         self.parent_frame = parent_frame
         self.state = get_global_state()
+        self.device_config = get_device_config()
         self.max_points = max_points
         
         # Data storage - store ALL pressure/gas data continuously
@@ -119,9 +121,9 @@ class PressurePlot:
         self.ax.set_ylabel("Pressure (PSI) / Gas Fraction", fontsize=10)
         self.ax.grid(True, alpha=0.3)
 
-        # Channel names (index maps to pressure_values array)
-        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
-        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
+        # Channel names (dynamically loaded from devices.yaml)
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
+        gas_names = self.device_config.get_bga244_unit_names()
         
         has_visible_channels = False
         
@@ -331,6 +333,7 @@ class TemperaturePlot:
     def __init__(self, parent_frame, max_points: int = 300):
         self.parent_frame = parent_frame
         self.state = get_global_state()
+        self.device_config = get_device_config()
         self.max_points = max_points
         
         # Data storage - store ALL temperature and flowrate data continuously
@@ -403,8 +406,8 @@ class TemperaturePlot:
         self.ax.set_ylabel("Temperature (°C) / Flowrate (SLM)", fontsize=10)
         self.ax.grid(True, alpha=0.3)
 
-        # Temperature channel names
-        temp_names = ["TC01", "TC02", "TC03", "TC04", "TC05", "TC06", "TC07", "TC08"]
+        # Temperature channel names (dynamically loaded from devices.yaml)
+        temp_names = self.device_config.get_pico_tc08_channel_names()
         
         has_visible_channels = False
         

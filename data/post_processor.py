@@ -49,49 +49,58 @@ class DataPostProcessor:
         # Load device configuration for dynamic range settings
         self.device_config = get_device_config()
         
-        # Plot configuration matching UI settings
-        self.plot_config = {
+        # Plot configuration - dynamically generated from devices.yaml
+        self.plot_config = self._build_plot_config()
+        
+        # Load CSV data
+        self.data = {}
+        self.max_time = 0
+        
+    def _build_plot_config(self) -> Dict[str, Any]:
+        """Build plot configuration using device names from devices.yaml"""
+        # Get device names from configuration
+        ni_daq_names = self.device_config.get_ni_daq_channel_names()
+        temp_names = self.device_config.get_pico_tc08_channel_names()
+        bga_names = self.device_config.get_bga244_unit_names()
+        
+        return {
             'pressure': {
                 'y_limits': (0, 1),  # 0-1 normalized
                 'title': 'Pressure vs Time',
                 'ylabel': 'Normalized Pressure',
-                'channels': ['h2_header', 'o2_header', 'pt01', 'pt02', 'pt03', 'pt05']
+                'channels': self.device_config.get_pressure_channel_names()  # Only pressure sensors
             },
             'gas_purity': {
                 'y_limits': (0, 100),  # 0-100%
                 'title': 'Gas Purity vs Time', 
                 'ylabel': 'Gas Concentration (%)',
-                'channels': ['bga1_pct', 'bga2_pct', 'bga3_pct']
+                'channels': [f'{bga_name}_pct' for bga_name in bga_names]
             },
             'temperature': {
                 'y_limits': (0, 100),  # 0-100°C
                 'title': 'Temperatures vs Time',
                 'ylabel': 'Temperature (°C)',
-                'channels': ['tc01', 'tc02', 'tc03', 'tc04', 'tc05', 'tc06', 'tc07', 'tc08']
+                'channels': temp_names
             },
             'cell_voltage': {
                 'y_limits': (0, 5),  # 0-5V
                 'title': 'Cell Voltages vs Time',
                 'ylabel': 'Voltage (V)',
-                'channels': [f'cell_{i+1:03d}_v' for i in range(120)]  # All 120 cells
+                'channels': [f'cell_{i+1:03d}_v' for i in range(120)]  # Keep cell voltage naming as-is
             },
             'current': {
                 'y_limits': (0, 150),  # 0-150A
                 'title': 'Current vs Time',
                 'ylabel': 'Current (A)',
-                'channels': ['current']
+                'channels': [ni_daq_names[2]] if len(ni_daq_names) > 2 else ['Stack Current Sensor']  # Current sensor
             },
             'flowrate': {
                 'y_limits': self._get_flowrate_y_limits(),  # Dynamic range from devices.yaml
                 'title': 'Mass Flowrate vs Time',
                 'ylabel': 'Flowrate (SLM)',
-                'channels': ['flowrate']
+                'channels': [ni_daq_names[6]] if len(ni_daq_names) > 6 else ['Flowrate Sensor']  # Flowrate sensor
             }
         }
-        
-        # Load CSV data
-        self.data = {}
-        self.max_time = 0
         
     def _get_flowrate_y_limits(self) -> Tuple[float, float]:
         """Get flowrate y-axis limits from devices.yaml"""

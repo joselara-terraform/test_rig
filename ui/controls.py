@@ -8,6 +8,7 @@ from tkinter import ttk
 from core.state import get_global_state
 from core.timer import get_timer
 from services.controller_manager import get_controller_manager
+from config.device_config import get_device_config
 
 
 class ChannelSelector(tk.Toplevel):
@@ -20,6 +21,7 @@ class ChannelSelector(tk.Toplevel):
         self.resizable(False, True)
 
         self.state = get_global_state()
+        self.device_config = get_device_config()
         
         # Store references to checkboxes and labels for each tab
         self.pressure_vars = []
@@ -92,8 +94,8 @@ class ChannelSelector(tk.Toplevel):
         pressure_label = ttk.Label(scrollable_frame, text="Pressure Sensors:", font=("Arial", 10, "bold"))
         pressure_label.pack(anchor="w", padx=5, pady=(5, 5))
 
-        # Pressure channel names
-        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
+        # Pressure channel names (dynamically loaded from devices.yaml)
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
         
         for i in range(6):  # 6 pressure sensors
             var = tk.BooleanVar(value=(i in self.state.visible_pressure_channels))
@@ -119,8 +121,8 @@ class ChannelSelector(tk.Toplevel):
         gas_label = ttk.Label(scrollable_frame, text="Gas Concentrations:", font=("Arial", 10, "bold"))
         gas_label.pack(anchor="w", padx=5, pady=(5, 5))
 
-        # Gas channel names and storage for gas checkboxes
-        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
+        # Gas channel names (dynamically loaded from devices.yaml)
+        gas_names = self.device_config.get_bga244_unit_names()
         self.gas_vars = []
         self.gas_labels = []
         
@@ -177,8 +179,8 @@ class ChannelSelector(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Temperature channel names
-        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        # Temperature channel names (dynamically loaded from devices.yaml)
+        temp_names = self.device_config.get_pico_tc08_channel_names()
         
         for i in range(8):  # 8 temperature sensors
             var = tk.BooleanVar(value=(i in self.state.visible_temperature_channels))
@@ -329,7 +331,7 @@ class ChannelSelector(tk.Toplevel):
         """Update all channel values displayed in all tabs."""
         # Update pressure values
         pressure_values = self.state.pressure_values
-        pressure_names = ["H₂ Header", "O₂ Header", "PT01", "PT02", "PT03", "PT05"]
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
         for i in range(6):
             pressure = 0.0
             if len(pressure_values) > i:
@@ -338,7 +340,7 @@ class ChannelSelector(tk.Toplevel):
             self.pressure_labels[i].configure(text=new_text)
 
         # Update gas concentration values
-        gas_names = ["BGA-H2", "BGA-O2", "BGA-DO"]
+        gas_names = self.device_config.get_bga244_unit_names()
         enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
         for i in range(3):
             gas_conc = 0.0
@@ -357,7 +359,7 @@ class ChannelSelector(tk.Toplevel):
 
         # Update temperature values
         temp_values = self.state.temperature_values
-        temp_names = ["Stack 1", "Stack 2", "Stack 3", "Stack 4", "H₂ Bubbler", "O₂ Bubbler", "H₂ Line HEX", "O₂ Line HEX"]
+        temp_names = self.device_config.get_pico_tc08_channel_names()
         for i in range(8):
             temperature = 0.0
             if len(temp_values) > i:
