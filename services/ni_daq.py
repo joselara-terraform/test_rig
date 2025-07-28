@@ -54,10 +54,11 @@ class NIDAQService:
             'pressure_1': {'channel': f"{self.ni_9253_slot}/ai0", 'name': "Pressure Sensor 1", 'range': [0, 15], 'units': "PSI"},
             'pressure_2': {'channel': f"{self.ni_9253_slot}/ai1", 'name': "Pressure Sensor 2", 'range': [0, 15], 'units': "PSI"},
             'current': {'channel': f"{self.ni_9253_slot}/ai2", 'name': "Current Sensor", 'range': [0, 150], 'units': "A"},
-            'pressure_post_ms': {'channel': f"{self.ni_9253_slot}/ai3", 'name': "Post MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
-            'pressure_pre_ms': {'channel': f"{self.ni_9253_slot}/ai4", 'name': "Pre MS Pressure", 'range': [0, 1.012], 'units': "PSI"},
-            'pressure_h2_bp': {'channel': f"{self.ni_9253_slot}/ai5", 'name': "H2 Back Pressure", 'range': [0, 1.012], 'units': "PSI"},
+            'pressure_pt01': {'channel': f"{self.ni_9253_slot}/ai3", 'name': "PT01", 'range': [0, 1.012], 'units': "PSI"},
+            'pressure_pt02': {'channel': f"{self.ni_9253_slot}/ai4", 'name': "PT02", 'range': [0, 1.012], 'units': "PSI"},
+            'pressure_pt03': {'channel': f"{self.ni_9253_slot}/ai5", 'name': "PT03", 'range': [0, 1.012], 'units': "PSI"},
             'flowrate': {'channel': f"{self.ni_9253_slot}/ai6", 'name': "Flowrate Sensor", 'range': [0, 50], 'units': "SLM"},
+            'pressure_pt05': {'channel': f"{self.ni_9253_slot}/ai7", 'name': "PT05", 'range': [0, 1.012], 'units': "PSI"},
         }
         
         # Digital output channels (valve relays)
@@ -244,9 +245,10 @@ class NIDAQService:
                     pressure_values=[
                         analog_data['pressure_1'], 
                         analog_data['pressure_2'], 
-                        analog_data.get('pressure_post_ms', 0.0),
-                        analog_data.get('pressure_pre_ms', 0.0), 
-                        analog_data.get('pressure_h2_bp', 0.0)
+                        analog_data.get('pressure_pt01', 0.0),
+                        analog_data.get('pressure_pt02', 0.0), 
+                        analog_data.get('pressure_pt03', 0.0),
+                        analog_data.get('pressure_pt05', 0.0)
                     ],
                     current_value=analog_data['current'],
                     flowrate_value=analog_data.get('flowrate', 0.0)
@@ -435,9 +437,10 @@ def main():
     print(f"\n5. Live sensor data:")
     print(f"   Pressure 1 (H₂): {state.pressure_values[0]:.2f} PSI")
     print(f"   Pressure 2 (O₂): {state.pressure_values[1]:.2f} PSI")
-    print(f"   Pressure Post MS: {state.pressure_values[2]:.4f} PSI")
-    print(f"   Pressure Pre MS: {state.pressure_values[3]:.4f} PSI")
-    print(f"   Pressure H₂ BP: {state.pressure_values[4]:.4f} PSI")
+    print(f"   PT01: {state.pressure_values[2]:.4f} PSI")
+    print(f"   PT02: {state.pressure_values[3]:.4f} PSI")
+    print(f"   PT03: {state.pressure_values[4]:.4f} PSI")
+    print(f"   PT05: {state.pressure_values[5]:.4f} PSI")
     print(f"   Current: {state.current_value:.2f} A")
     
     # Test output control
