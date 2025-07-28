@@ -95,7 +95,7 @@ class ChannelSelector(tk.Toplevel):
         pressure_label.pack(anchor="w", padx=5, pady=(5, 5))
 
         # Pressure channel names (dynamically loaded from devices.yaml)
-        pressure_names = self.device_config.get_ni_daq_channel_names()[:6]  # First 6 channels
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
         
         for i in range(6):  # 6 pressure sensors
             var = tk.BooleanVar(value=(i in self.state.visible_pressure_channels))
@@ -331,7 +331,7 @@ class ChannelSelector(tk.Toplevel):
         """Update all channel values displayed in all tabs."""
         # Update pressure values
         pressure_values = self.state.pressure_values
-        pressure_names = self.device_config.get_ni_daq_channel_names()[:6]  # First 6 channels
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
         for i in range(6):
             pressure = 0.0
             if len(pressure_values) > i:

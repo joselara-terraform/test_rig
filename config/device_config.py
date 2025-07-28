@@ -233,8 +233,15 @@ class DeviceConfig:
         """Get ordered list of NI-DAQ channel names from devices.yaml"""
         channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
         # Maintain channel order as defined in YAML structure
-        ordered_channels = ['pressure_1', 'pressure_2', 'current', 'pressure_pt01', 'pressure_pt02', 'pressure_pt03', 'flowrate', 'pressure_pt05']
+        ordered_channels = ['pt01', 'pt02', 'current', 'pt03', 'pt04', 'pt05', 'flowrate', 'pt06']
         return [channels.get(ch, {}).get('name', ch) for ch in ordered_channels if ch in channels]
+    
+    def get_pressure_channel_names(self) -> List[str]:
+        """Get ordered list of only pressure sensor names from devices.yaml"""
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        # Only pressure sensors - exclude current and flowrate
+        pressure_channels = ['pt01', 'pt02', 'pt03', 'pt04', 'pt05', 'pt06']
+        return [channels.get(ch, {}).get('name', ch) for ch in pressure_channels if ch in channels]
     
     def get_pico_tc08_channel_names(self) -> List[str]:
         """Get ordered list of Pico TC-08 channel names from devices.yaml"""
@@ -256,13 +263,13 @@ class DeviceConfig:
         
         # NI-DAQ analog channels - mapping based on actual current CSV usage
         ni_daq_names = self.get_ni_daq_channel_names()
-        # Current CSV usage: h2_header=pressure_1, o2_header=pressure_2, current=current, etc.
+        # Current CSV usage: h2_header=pt01, o2_header=pt02, current=current, etc.
         analog_mappings = {
-            'h2_header': 'pressure_1',    # CSV col -> YAML key
-            'o2_header': 'pressure_2', 
-            'post_ms': 'pressure_pt01',
-            'pre_ms': 'pressure_pt02',
-            'h2_bop': 'pressure_pt03',
+            'h2_header': 'pt01',    # CSV col -> YAML key
+            'o2_header': 'pt02', 
+            'post_ms': 'pt03',
+            'pre_ms': 'pt04',
+            'h2_bop': 'pt05',
             'current': 'current',
             'flowrate': 'flowrate'
         }
@@ -340,12 +347,12 @@ def main():
         print("\n🎯 TEST: Calibrated zero offset retrieval:")
         
         # Analog input zero offsets
-        pressure_1_offset = config.get_analog_channel_zero_offset('pressure_1')
-        pressure_2_offset = config.get_analog_channel_zero_offset('pressure_2')
+        pt01_offset = config.get_analog_channel_zero_offset('pt01')
+        pt02_offset = config.get_analog_channel_zero_offset('pt02')
         current_offset = config.get_analog_channel_zero_offset('current')
         
-        print(f"   Pressure 1 zero offset: {pressure_1_offset} PSI")
-        print(f"   Pressure 2 zero offset: {pressure_2_offset} PSI")
+        print(f"   PT01 zero offset: {pt01_offset} PSI")
+        print(f"   PT02 zero offset: {pt02_offset} PSI")
         print(f"   Current zero offset: {current_offset} A")
         
         # Temperature zero offsets

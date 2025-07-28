@@ -68,7 +68,7 @@ class DataPostProcessor:
                 'y_limits': (0, 1),  # 0-1 normalized
                 'title': 'Pressure vs Time',
                 'ylabel': 'Normalized Pressure',
-                'channels': ni_daq_names[:6]  # First 6 channels (pressure sensors)
+                'channels': self.device_config.get_pressure_channel_names()  # Only pressure sensors
             },
             'gas_purity': {
                 'y_limits': (0, 100),  # 0-100%

@@ -122,7 +122,7 @@ class PressurePlot:
         self.ax.grid(True, alpha=0.3)
 
         # Channel names (dynamically loaded from devices.yaml)
-        pressure_names = self.device_config.get_ni_daq_channel_names()[:6]  # First 6 channels
+        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
         gas_names = self.device_config.get_bga244_unit_names()
         
         has_visible_channels = False

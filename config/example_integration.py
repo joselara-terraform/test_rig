@@ -22,43 +22,35 @@ def example_ni_daq_integration():
     # Get device configuration
     config = get_device_config()
     
-    # Simulate reading raw sensor values (in engineering units after 4-20mA scaling)
-    raw_sensor_values = {
-        'pressure_1': 0.0,    # 4-20mA properly scaled to 0 PSI at 4mA
-        'pressure_2': 0.0,    # 4-20mA properly scaled to 0 PSI at 4mA
-        'current': 0.0        # 4-20mA properly scaled to 0 A at 4mA
+    # Simulate raw analog readings from NI cDAQ (would be current values in amperes)
+    raw_readings = {
+        'pt01': 0.0,    # 4-20mA properly scaled to 0 PSI at 4mA
+        'pt02': 0.0,    # 4-20mA properly scaled to 0 PSI at 4mA
+        'current': 0.0   # 4-20mA properly scaled to 0 A at 4mA  
     }
     
-    print("🔧 Raw sensor readings (4-20mA properly scaled to engineering units):")
-    for sensor, raw_value in raw_sensor_values.items():
-        channel_config = config.get_analog_input_config(sensor)
-        print(f"   {channel_config.get('name', sensor)}: {raw_value} {channel_config.get('units', '')}")
-    
-    # Apply calibrated zero offsets (should be 0.0 for 4-20mA sensors)
-    print("\n🎯 Applying calibrated zero offsets:")
+    # Apply zero offsets from device configuration
+    print("🔧 Applying calibrated zero offsets:")
     calibrated_values = {}
     
-    for sensor, raw_value in raw_sensor_values.items():
-        # Get zero offset from configuration (should be 0.0 for 4-20mA)
-        zero_offset = config.get_analog_channel_zero_offset(sensor)
-        
-        # Apply calibration
+    for channel, raw_value in raw_readings.items():
+        zero_offset = config.get_analog_channel_zero_offset(channel)
         calibrated_value = raw_value + zero_offset
-        calibrated_values[sensor] = calibrated_value
+        calibrated_values[channel] = calibrated_value
         
-        # Get channel info
-        channel_config = config.get_analog_input_config(sensor)
-        sensor_name = channel_config.get('name', sensor)
+        # Get channel details for display
+        channel_config = config.get_analog_input_config(channel) 
         units = channel_config.get('units', '')
+        name = channel_config.get('name', channel)
         
-        print(f"   {sensor_name}:")
+        print(f"   {name}:")
         print(f"     Raw (4-20mA scaled): {raw_value} {units}")
         print(f"     Zero offset: +{zero_offset} {units}")
         print(f"     Final calibrated: {calibrated_value} {units}")
     
     print(f"\n📊 Final calibrated sensor values:")
-    print(f"   Hydrogen side pressure: {calibrated_values['pressure_1']:.2f} PSI (4mA = 0 PSI)")
-    print(f"   Oxygen side pressure: {calibrated_values['pressure_2']:.2f} PSI (4mA = 0 PSI)") 
+    print(f"   Hydrogen side pressure: {calibrated_values['pt01']:.2f} PSI (4mA = 0 PSI)")
+    print(f"   Oxygen side pressure: {calibrated_values['pt02']:.2f} PSI (4mA = 0 PSI)")
     print(f"   Stack current: {calibrated_values['current']:.1f} A (4mA = 0 A)")
     
     return calibrated_values
@@ -155,8 +147,8 @@ def main():
     print("   ✅ Calibration date tracking and validation")
     print("   ✅ Auto-zero application on service startup")
     print("\n📊 CALIBRATED READINGS READY FOR DASHBOARD:")
-    print(f"   Pressure H2: {pressure_values['pressure_1']:.2f} PSI (with zero offset)")
-    print(f"   Pressure O2: {pressure_values['pressure_2']:.2f} PSI (with zero offset)")
+    print(f"   Pressure H2: {pressure_values['pt01']:.2f} PSI (with zero offset)")
+    print(f"   Pressure O2: {pressure_values['pt02']:.2f} PSI (with zero offset)")
     print(f"   Current: {pressure_values['current']:.1f} A (with zero offset)")
     print(f"   Temperatures: {len(temp_values)} channels calibrated (with offsets)")
     print(f"   Gas analyzers: {len(gas_values)} units (direct measurement)")
