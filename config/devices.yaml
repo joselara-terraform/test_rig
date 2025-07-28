@@ -80,7 +80,7 @@ ni_cdaq:
         channel: "ai6"
         name: "Flowrate Sensor"
         units: "SLM"
-        range: [0, 50]  # 0-50 SLM (Standard Liters per Minute)
+        range: [0, 250]  # 0-250 SLM (Standard Liters per Minute)
         zero_offset: 0.0
         description: "Gas flowrate measurement"
         

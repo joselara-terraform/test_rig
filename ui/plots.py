@@ -576,7 +576,7 @@ class CurrentPlot:
 
         # Set axis limits
         self.ax.set_xlim(0, max(relative_time * 1.2, 120))
-        self.ax.set_ylim(0, 150)  # 0-150A range as requested
+        self.ax.set_ylim(0, 250)  # 0-150A range as requested
 
         # Update legend
         if show_current:
