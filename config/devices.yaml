@@ -27,7 +27,7 @@ ni_cdaq:
     channels:
       pressure_1:
         channel: "ai0"
-        name: "Pressure Sensor 1 (Hydrogen Side)"
+        name: "PT01"
         units: "PSI"
         range: [0, 15]
         # CALIBRATED ZERO OFFSET - Corrects sensor bias at 0 PSI
@@ -36,7 +36,7 @@ ni_cdaq:
         
       pressure_2:
         channel: "ai1" 
-        name: "Pressure Sensor 2 (Oxygen Side)"
+        name: "PT02"
         units: "PSI"
         range: [0, 15]
         # CALIBRATED ZERO OFFSET - Corrects sensor bias at 0 PSI  
@@ -45,7 +45,7 @@ ni_cdaq:
         
       current:
         channel: "ai2"
-        name: "Stack Current Sensor"
+        name: "Current"
         units: "A"
         range: [0, 150]
         # CALIBRATED ZERO OFFSET - 4mA represents true 0 A
@@ -54,7 +54,7 @@ ni_cdaq:
         
       pressure_pt01:
         channel: "ai3"
-        name: "PT01"
+        name: "PT03"
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI (28 * 0.036127 = 1.012)
         zero_offset: 0.0
@@ -62,7 +62,7 @@ ni_cdaq:
         
       pressure_pt02:
         channel: "ai4"
-        name: "PT02"  
+        name: "PT04"  
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI
         zero_offset: 0.0
@@ -70,7 +70,7 @@ ni_cdaq:
         
       pressure_pt03:
         channel: "ai5"
-        name: "PT03"
+        name: "PT05"
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI
         zero_offset: 0.0
@@ -78,7 +78,7 @@ ni_cdaq:
         
       flowrate:
         channel: "ai6"
-        name: "Flowrate Sensor"
+        name: "Flowrate"
         units: "SLM"
         range: [0, 250]  # 0-250 SLM (Standard Liters per Minute)
         zero_offset: 0.0
@@ -86,7 +86,7 @@ ni_cdaq:
         
       pressure_pt05:
         channel: "ai7"
-        name: "PT05"
+        name: "PT06"
         units: "PSI"
         range: [0, 1.012]  # 0-28 inWC converted to PSI
         zero_offset: 0.0
@@ -228,7 +228,7 @@ bga244:
   units:
     bga_1:
       port: "COM8"
-      name: "H2 Header"
+      name: "BGA01"
       gas_types: ["H2", "O2", "N2"]
       description: "Gas analyzer on hydrogen header"
       # Gas analysis configuration for normal operation
@@ -246,7 +246,7 @@ bga244:
       
     bga_2:
       port: "COM3"
-      name: "O2 Header"
+      name: "BGA02"
       gas_types: ["O2", "H2", "N2"]
       description: "Gas analyzer on oxygen header"
       # Gas analysis configuration for normal operation
@@ -264,7 +264,7 @@ bga244:
       
     bga_3:
       port: "COM9"
-      name: "H2 Deoxo"
+      name: "BGA03"
       gas_types: ["H2", "O2", "N2"]
       description: "Gas analyzer on de-oxo unit"
       # Gas analysis configuration for normal operation
