@@ -234,12 +234,12 @@ class NIDAQService:
                 # Update global state with new readings
                 self.state.update_sensor_values(
                     pressure_values=[
-                        analog_data['pt01'], 
-                        analog_data['pt02'], 
-                        analog_data.get('pt03', 0.0),
-                        analog_data.get('pt04', 0.0), 
-                        analog_data.get('pt05', 0.0),
-                        analog_data.get('pt06', 0.0)
+                        analog_data['pressure_1'], 
+                        analog_data['pressure_2'], 
+                        analog_data.get('pressure_pt01', 0.0),
+                        analog_data.get('pressure_pt02', 0.0), 
+                        analog_data.get('pressure_pt03', 0.0),
+                        analog_data.get('pressure_pt05', 0.0)
                     ],
                     current_value=analog_data['current'],
                     flowrate_value=analog_data.get('flowrate', 0.0)

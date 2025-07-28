@@ -51,14 +51,14 @@ ACTUATORS = {
 
 # Analog input channels (4-20mA sensors)
 ANALOG_CHANNELS = {
-    "pt01": {"channel": f"{NI_9253_SLOT}/ai0", "name": "PT01", "range": [0, 15], "units": "PSI"},
-    "pt02": {"channel": f"{NI_9253_SLOT}/ai1", "name": "PT02", "range": [0, 15], "units": "PSI"},
+    "pressure_1": {"channel": f"{NI_9253_SLOT}/ai0", "name": "Pressure Sensor 1", "range": [0, 15], "units": "PSI"},
+    "pressure_2": {"channel": f"{NI_9253_SLOT}/ai1", "name": "Pressure Sensor 2", "range": [0, 15], "units": "PSI"},
     "current": {"channel": f"{NI_9253_SLOT}/ai2", "name": "Current Sensor", "range": [0, 150], "units": "A"},
-    "pt03": {"channel": f"{NI_9253_SLOT}/ai3", "name": "PT03", "range": [0, 1.012], "units": "PSI"},
-    "pt04": {"channel": f"{NI_9253_SLOT}/ai4", "name": "PT04", "range": [0, 1.012], "units": "PSI"},
-    "pt05": {"channel": f"{NI_9253_SLOT}/ai5", "name": "PT05", "range": [0, 1.012], "units": "PSI"},
+    "pressure_pt01": {"channel": f"{NI_9253_SLOT}/ai3", "name": "PT01", "range": [0, 1.012], "units": "PSI"},
+    "pressure_pt02": {"channel": f"{NI_9253_SLOT}/ai4", "name": "PT02", "range": [0, 1.012], "units": "PSI"},
+    "pressure_pt03": {"channel": f"{NI_9253_SLOT}/ai5", "name": "PT03", "range": [0, 1.012], "units": "PSI"},
     "flowrate": {"channel": f"{NI_9253_SLOT}/ai6", "name": "Flowrate Sensor", "range": device_config.get_analog_input_config('flowrate').get('range', [0, 50]), "units": "SLM"},
-    "pt06": {"channel": f"{NI_9253_SLOT}/ai7", "name": "PT06", "range": [0, 1.012], "units": "PSI"},
+    "pressure_pt05": {"channel": f"{NI_9253_SLOT}/ai7", "name": "PT05", "range": [0, 1.012], "units": "PSI"},
 }
 
 def test_device_detection():
