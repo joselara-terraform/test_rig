@@ -22,6 +22,7 @@ if __name__ == "__main__":
 
 from core.state import get_global_state
 from data.session_manager import get_session_manager
+from config.device_config import get_device_config
 
 
 class DataPostProcessor:
@@ -44,6 +45,9 @@ class DataPostProcessor:
         
         # Active channels configuration
         self.active_channels = active_channels or self._load_channel_config()
+        
+        # Load device configuration for dynamic range settings
+        self.device_config = get_device_config()
         
         # Plot configuration matching UI settings
         self.plot_config = {
@@ -78,7 +82,7 @@ class DataPostProcessor:
                 'channels': ['current']
             },
             'flowrate': {
-                'y_limits': (0, 50),  # 0-50 SLM
+                'y_limits': self._get_flowrate_y_limits(),  # Dynamic range from devices.yaml
                 'title': 'Mass Flowrate vs Time',
                 'ylabel': 'Flowrate (SLM)',
                 'channels': ['flowrate']
@@ -88,6 +92,16 @@ class DataPostProcessor:
         # Load CSV data
         self.data = {}
         self.max_time = 0
+        
+    def _get_flowrate_y_limits(self) -> Tuple[float, float]:
+        """Get flowrate y-axis limits from devices.yaml"""
+        try:
+            flowrate_config = self.device_config.get_analog_input_config('flowrate')
+            flowrate_range = flowrate_config.get('range', [0, 50])
+            return (flowrate_range[0], flowrate_range[1])
+        except Exception as e:
+            print(f"⚠️  Could not read flowrate range from devices.yaml: {e}")
+            return (0, 50)  # Fallback to original range
         
     def _load_channel_config(self) -> Dict[str, Any]:
         """Load active channel configuration from session metadata"""

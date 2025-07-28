@@ -49,17 +49,8 @@ class NIDAQService:
         self.ni_9485_slot_2 = "cDAQ9187-23E902CMod2"  # Digital output module
         self.ni_9485_slot_3 = "cDAQ9187-23E902CMod3"  # Digital output module
         
-        # Analog input channels (4-20mA sensors)
-        self.analog_channels = {
-            'pressure_1': {'channel': f"{self.ni_9253_slot}/ai0", 'name': "Pressure Sensor 1", 'range': [0, 15], 'units': "PSI"},
-            'pressure_2': {'channel': f"{self.ni_9253_slot}/ai1", 'name': "Pressure Sensor 2", 'range': [0, 15], 'units': "PSI"},
-            'current': {'channel': f"{self.ni_9253_slot}/ai2", 'name': "Current Sensor", 'range': [0, 150], 'units': "A"},
-            'pressure_pt01': {'channel': f"{self.ni_9253_slot}/ai3", 'name': "PT01", 'range': [0, 1.012], 'units': "PSI"},
-            'pressure_pt02': {'channel': f"{self.ni_9253_slot}/ai4", 'name': "PT02", 'range': [0, 1.012], 'units': "PSI"},
-            'pressure_pt03': {'channel': f"{self.ni_9253_slot}/ai5", 'name': "PT03", 'range': [0, 1.012], 'units': "PSI"},
-            'flowrate': {'channel': f"{self.ni_9253_slot}/ai6", 'name': "Flowrate Sensor", 'range': [0, 50], 'units': "SLM"},
-            'pressure_pt05': {'channel': f"{self.ni_9253_slot}/ai7", 'name': "PT05", 'range': [0, 1.012], 'units': "PSI"},
-        }
+        # Analog input channels - loaded dynamically from devices.yaml
+        self.analog_channels = self._build_analog_channels_from_config()
         
         # Digital output channels (valve relays)
         self.digital_channels = {
@@ -391,6 +382,25 @@ class NIDAQService:
             'analog_channels': len(self.analog_channels),
             'digital_channels': len(self.digital_channels)
         }
+
+    def _build_analog_channels_from_config(self):
+        """Build analog channels configuration from devices.yaml"""
+        channels = {}
+        ni_config = self.device_config.get_ni_cdaq_config()
+        channel_configs = ni_config.get('analog_inputs', {}).get('channels', {})
+        
+        for channel_name, channel_config in channel_configs.items():
+            ai_channel = channel_config.get('channel', '')
+            full_channel_path = f"{self.ni_9253_slot}/{ai_channel}"
+            
+            channels[channel_name] = {
+                'channel': full_channel_path,
+                'name': channel_config.get('name', channel_name),
+                'range': channel_config.get('range', [0, 1]),
+                'units': channel_config.get('units', '')
+            }
+            
+        return channels
 
 
 def main():

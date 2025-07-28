@@ -12,6 +12,10 @@ Hardware Configuration:
 
 import time
 import sys
+import os
+
+# Add parent directory to path for config imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     import nidaqmx
@@ -24,10 +28,15 @@ except ImportError:
     print("   Or: conda install nidaqmx")
     sys.exit(1)
 
+from config.device_config import get_device_config
+
 # Hardware Configuration from user's previous project
 NI_9253_SLOT = "cDAQ9187-23E902CMod1"  # Analog input module
 NI_9485_SLOT_2 = "cDAQ9187-23E902CMod2"  # Digital output module 
 NI_9485_SLOT_3 = "cDAQ9187-23E902CMod3"  # Digital output module
+
+# Load device configuration for dynamic range settings
+device_config = get_device_config()
 
 # Actuator definitions with real hardware mapping
 ACTUATORS = {
@@ -48,7 +57,7 @@ ANALOG_CHANNELS = {
     "pressure_pt01": {"channel": f"{NI_9253_SLOT}/ai3", "name": "PT01", "range": [0, 1.012], "units": "PSI"},
     "pressure_pt02": {"channel": f"{NI_9253_SLOT}/ai4", "name": "PT02", "range": [0, 1.012], "units": "PSI"},
     "pressure_pt03": {"channel": f"{NI_9253_SLOT}/ai5", "name": "PT03", "range": [0, 1.012], "units": "PSI"},
-    "flowrate": {"channel": f"{NI_9253_SLOT}/ai6", "name": "Flowrate Sensor", "range": [0, 50], "units": "SLM"},
+    "flowrate": {"channel": f"{NI_9253_SLOT}/ai6", "name": "Flowrate Sensor", "range": device_config.get_analog_input_config('flowrate').get('range', [0, 50]), "units": "SLM"},
     "pressure_pt05": {"channel": f"{NI_9253_SLOT}/ai7", "name": "PT05", "range": [0, 1.012], "units": "PSI"},
 }
 
