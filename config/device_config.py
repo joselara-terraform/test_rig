@@ -228,6 +228,68 @@ class DeviceConfig:
         
         return config.get('description', f'{device_type} {channel_name}')
     
+    # Label Management Methods - Single Source of Truth for Channel Names
+    def get_ni_daq_channel_names(self) -> List[str]:
+        """Get ordered list of NI-DAQ channel names from devices.yaml"""
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        # Maintain channel order as defined in YAML structure
+        ordered_channels = ['pressure_1', 'pressure_2', 'current', 'pressure_pt01', 'pressure_pt02', 'pressure_pt03', 'flowrate', 'pressure_pt05']
+        return [channels.get(ch, {}).get('name', ch) for ch in ordered_channels if ch in channels]
+    
+    def get_pico_tc08_channel_names(self) -> List[str]:
+        """Get ordered list of Pico TC-08 channel names from devices.yaml"""
+        channels = self.config.get('pico_tc08', {}).get('channels', {})
+        # Maintain channel order (channel_0 through channel_7)
+        ordered_channels = [f'channel_{i}' for i in range(8)]
+        return [channels.get(ch, {}).get('name', f'TC{i+1:02d}') for i, ch in enumerate(ordered_channels) if ch in channels]
+    
+    def get_bga244_unit_names(self) -> List[str]:
+        """Get ordered list of BGA244 unit names from devices.yaml"""
+        units = self.config.get('bga244', {}).get('units', {})
+        # Maintain unit order (bga_1, bga_2, bga_3)
+        ordered_units = ['bga_1', 'bga_2', 'bga_3']
+        return [units.get(unit, {}).get('name', unit) for unit in ordered_units if unit in units]
+    
+    def get_csv_column_mapping(self) -> Dict[str, str]:
+        """Get mapping from current CSV column names to device names"""
+        mapping = {}
+        
+        # NI-DAQ analog channels - mapping based on actual current CSV usage
+        ni_daq_names = self.get_ni_daq_channel_names()
+        # Current CSV usage: h2_header=pressure_1, o2_header=pressure_2, current=current, etc.
+        analog_mappings = {
+            'h2_header': 'pressure_1',    # CSV col -> YAML key
+            'o2_header': 'pressure_2', 
+            'post_ms': 'pressure_pt01',
+            'pre_ms': 'pressure_pt02',
+            'h2_bop': 'pressure_pt03',
+            'current': 'current',
+            'flowrate': 'flowrate'
+        }
+        
+        channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
+        for csv_col, yaml_key in analog_mappings.items():
+            if yaml_key in channels:
+                mapping[csv_col] = channels[yaml_key].get('name', csv_col)
+        
+        # Temperature channels  
+        temp_names = self.get_pico_tc08_channel_names()
+        for i in range(8):
+            current_col = f'tc{i+1:02d}'
+            if i < len(temp_names):
+                mapping[current_col] = temp_names[i]
+        
+        # Gas analyzer channels
+        bga_names = self.get_bga244_unit_names() 
+        for i in range(3):
+            pct_col = f'bga{i+1}_pct'
+            pgas_col = f'bga{i+1}_pgas'
+            if i < len(bga_names):
+                mapping[pct_col] = f'{bga_names[i]}_pct'
+                mapping[pgas_col] = f'{bga_names[i]}_pgas'
+        
+        return mapping
+    
     def validate_config(self) -> bool:
         """Validate that configuration contains required fields"""
         required_sections = ['ni_cdaq', 'pico_tc08', 'bga244', 'cvm24p', 'system']

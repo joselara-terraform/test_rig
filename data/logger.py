@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from core.state import get_global_state
 from data.session_manager import get_session_manager
+from config.device_config import get_device_config
 import os
 
 
@@ -20,6 +21,7 @@ class CSVLogger:
     def __init__(self, log_interval: float = 1.0):
         self.state = get_global_state()
         self.session_manager = get_session_manager()
+        self.device_config = get_device_config()
         self.log_interval = log_interval  # seconds between log entries
         
         # Logging control
@@ -36,23 +38,29 @@ class CSVLogger:
         self.log_count = 0
         self.start_time = None
         
-        # Column definitions for different data types
-        self.column_definitions = {
+        # Column definitions for different data types - dynamically generated from devices.yaml
+        self.column_definitions = self._build_column_definitions()
+    
+    def _build_column_definitions(self) -> Dict[str, List[str]]:
+        """Build column definitions using device names from devices.yaml"""
+        # Get device names from configuration
+        ni_daq_names = self.device_config.get_ni_daq_channel_names()
+        temp_names = self.device_config.get_pico_tc08_channel_names()
+        bga_names = self.device_config.get_bga244_unit_names()
+        
+        return {
             'main_sensors': [
-                'timestamp', 'elapsed_seconds',
-                'h2_header', 'o2_header', 'post_ms', 'pre_ms', 'h2_bop', 'current', 'flowrate',
-                'tc01', 'tc02', 'tc03', 'tc04',
-                'tc05', 'tc06', 'tc07', 'tc08'
-            ],
+                'timestamp', 'elapsed_seconds'
+            ] + ni_daq_names + temp_names,
+            
             'gas_analysis': [
-                'timestamp', 'elapsed_seconds',
-                'bga1_pct', 'bga2_pct', 'bga3_pct',
-                'bga1_pgas', 'bga2_pgas', 'bga3_pgas',
-                'purge'
-            ],
+                'timestamp', 'elapsed_seconds'
+            ] + [f'{bga_name}_pct' for bga_name in bga_names] + [f'{bga_name}_pgas' for bga_name in bga_names] + ['purge'],
+            
             'cell_voltages': [
                 'timestamp', 'elapsed_seconds'
-            ] + [f'cell_{i+1:03d}_v' for i in range(120)],  # cell_001_v to cell_120_v
+            ] + [f'cell_{i+1:03d}_v' for i in range(120)],  # Keep cell voltage naming as-is
+            
             'actuator_states': [
                 'timestamp', 'elapsed_seconds',
                 'koh_storage', 'di_storage', 'stack_drain', 'h2_purge', 'o2_purge',
