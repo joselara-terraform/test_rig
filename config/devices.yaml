@@ -306,7 +306,7 @@ system:
     ni_daq: 100      # Hz - NI cDAQ analog inputs
     pico_tc08: 1     # Hz - Temperature readings
     bga244: 0.2      # Hz - Gas analyzer readings (every 5 seconds)
-    cvm24p: 50       # Hz - Cell voltage readings (optimized for parallel module reading)
+    cvm24p: 10       # Hz - Cell voltage readings
   
   # Calibration Settings
   calibration:
