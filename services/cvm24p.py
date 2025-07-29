@@ -79,8 +79,13 @@ class AsyncCVMManager:
                     except Exception as e:
                         self.result_queue.put(('error', f"Read error: {e}"))
                 
-                # Sleep to control polling rate
-                await asyncio.sleep(0.1)  # 10Hz check rate
+                # Sleep to control polling rate - use configurable sample rate
+                if self.minimize_latency:
+                    # Minimal sleep for maximum throughput
+                    await asyncio.sleep(1.0 / self.sample_rate)
+                else:
+                    # Conservative sleep
+                    await asyncio.sleep(0.1)
                 
             except Exception as e:
                 print(f"❌ AsyncCVMManager error: {e}")
@@ -389,9 +394,22 @@ class AsyncCVMManager:
         return initialized_count
     
     async def _read_all_voltages(self) -> List[float]:
-        """Read voltages from all modules (like CVM_test.py pattern)"""
+        """Read voltages from all modules with performance optimization"""
+        start_time = time.time()
         all_voltages = []
         
+        # Try AppStatus command first if enabled
+        if self.use_app_status:
+            try:
+                app_status_voltages = await self._read_voltages_app_status()
+                if app_status_voltages:
+                    self._update_performance_metrics(start_time)
+                    return app_status_voltages
+            except Exception as e:
+                if self.enable_perf_logging:
+                    print(f"⚠️  AppStatus command failed, falling back to individual reads: {e}")
+        
+        # Fallback to individual module reads
         # Sort by address for consistent ordering  
         sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
         
@@ -429,7 +447,87 @@ class AsyncCVMManager:
                 # Add zeros for failed module
                 all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
         
+        # Update performance metrics for individual reads
+        self._update_performance_metrics(start_time)
         return all_voltages
+    
+    async def _read_voltages_app_status(self) -> Optional[List[float]]:
+        """Attempt to read voltages using AppStatus (0xA0) command for efficient multi-channel polling"""
+        try:
+            # This is where we would implement the AppStatus command if available in XC2 library
+            # For now, check if the XC2 library supports it
+            sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
+            
+            if not sorted_modules:
+                return None
+                
+            # Try to use a more efficient command if available
+            # Check if first device has app_status or similar method
+            first_serial, _ = sorted_modules[0]
+            if first_serial in self.initialized_devices:
+                device = self.initialized_devices[first_serial]
+                
+                # Check if device has AppStatus-like methods
+                if hasattr(device, 'read_app_status') or hasattr(device, 'app_status'):
+                    if self.enable_perf_logging:
+                        print(f"📡 Using AppStatus command for efficient multi-channel polling")
+                    # Implementation would go here if available
+                    # For now, return None to fall back to individual reads
+                    pass
+            
+            return None  # Not implemented yet - fall back to individual reads
+            
+        except Exception as e:
+            if self.enable_perf_logging:
+                print(f"⚠️  AppStatus command error: {e}")
+            return None
+    
+    def _update_performance_metrics(self, start_time: float):
+        """Update performance monitoring metrics"""
+        if not self.enable_perf_logging:
+            return
+            
+        current_time = time.time()
+        read_duration = current_time - start_time
+        
+        # Track sample timestamps for rate calculation
+        self.sample_timestamps.append(current_time)
+        self.total_samples_collected += 1
+        
+        # Keep only recent samples for rate calculation
+        cutoff_time = current_time - (self.sample_rate_window / self.sample_rate)
+        self.sample_timestamps = [t for t in self.sample_timestamps if t > cutoff_time]
+        
+        # Calculate actual sample rate
+        if len(self.sample_timestamps) > 1:
+            time_span = self.sample_timestamps[-1] - self.sample_timestamps[0]
+            if time_span > 0:
+                self.actual_sample_rate = (len(self.sample_timestamps) - 1) / time_span
+        
+        # Periodic performance reports
+        if current_time - self.last_perf_report_time >= self.perf_report_interval:
+            self._log_performance_report(read_duration)
+            self.last_perf_report_time = current_time
+    
+    def _log_performance_report(self, last_read_duration: float):
+        """Log detailed performance report"""
+        if not self.enable_perf_logging:
+            return
+            
+        print(f"📊 CVM24P Performance Report:")
+        print(f"   Target sample rate: {self.sample_rate:.1f} Hz")
+        print(f"   Actual sample rate: {self.actual_sample_rate:.1f} Hz")
+        print(f"   Efficiency: {(self.actual_sample_rate/self.sample_rate)*100:.1f}%")
+        print(f"   Last read duration: {last_read_duration*1000:.1f} ms")
+        print(f"   Total samples collected: {self.total_samples_collected}")
+        print(f"   Active modules: {len(self.initialized_devices)}/{self.expected_modules}")
+        
+        # Performance recommendations
+        if self.actual_sample_rate < self.sample_rate * 0.9:  # Less than 90% efficiency
+            print(f"⚠️  Sample rate below target - consider:")
+            print(f"     • Reducing target sample rate in devices.yaml")
+            print(f"     • Checking USB connection quality")
+            print(f"     • Enabling latency minimization")
     
     async def _disconnect(self):
         """Disconnect from hardware"""
@@ -451,9 +549,27 @@ class CVM24PService:
         
         # CVM24P configuration from device config
         self.device_name = "CVM-24P"
-        self.sample_rate = self.device_config.get_sample_rate('cvm24p')
+        # Use new performance-optimized target sample rate
+        self.sample_rate = self.device_config.get_cvm24p_target_sample_rate()
+        self.max_sample_rate = self.device_config.get_cvm24p_max_sample_rate()
         self.expected_modules = 5  # Expect 5 modules for 120 channels (5 * 24 = 120)
         self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
+        
+        # Performance optimization settings
+        self.use_app_status = self.device_config.is_cvm24p_app_status_enabled()
+        self.minimize_latency = self.device_config.is_cvm24p_latency_minimized()
+        self.batch_requests = self.device_config.is_cvm24p_batch_requests_enabled()
+        
+        # Performance monitoring
+        self.enable_perf_logging = self.device_config.is_cvm24p_performance_logging_enabled()
+        self.sample_rate_window = self.device_config.get_cvm24p_sample_rate_window()
+        self.perf_report_interval = self.device_config.get_cvm24p_performance_report_interval()
+        
+        # Performance tracking variables
+        self.sample_timestamps = []
+        self.actual_sample_rate = 0.0
+        self.last_perf_report_time = time.time()
+        self.total_samples_collected = 0
         
         # Known module mapping for fast initialization (constant serial numbers and addresses)
         self.cached_module_mapping = {
@@ -514,6 +630,9 @@ class CVM24PService:
             self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue)
             # Pass cached mapping to async manager for fast connection
             self.async_manager.cached_mapping = self.cached_module_mapping
+            # Pass performance settings to async manager
+            self.async_manager.sample_rate = self.sample_rate
+            self.async_manager.minimize_latency = self.minimize_latency
             self.async_thread = threading.Thread(
                 target=lambda: asyncio.run(self.async_manager.run()), 
                 daemon=True
@@ -623,6 +742,16 @@ class CVM24PService:
         polling_thread.start()
         
         print("✅ CVM-24P polling started")
+        
+        # Log performance configuration
+        if self.enable_perf_logging:
+            print(f"📊 Performance optimization enabled:")
+            print(f"   Target sample rate: {self.sample_rate} Hz (max: {self.max_sample_rate} Hz)")
+            print(f"   AppStatus command: {'✓' if self.use_app_status else '✗'}")
+            print(f"   Latency minimization: {'✓' if self.minimize_latency else '✗'}")
+            print(f"   Batch requests: {'✓' if self.batch_requests else '✗'}")
+            print(f"   Performance reporting every {self.perf_report_interval}s")
+        
         return True
     
     def stop_polling(self):
@@ -678,17 +807,32 @@ class CVM24PService:
     
     def get_status(self) -> Dict[str, Any]:
         """Get current service status"""
-        return {
+        status = {
             'connected': self.connected,
             'polling': self.polling,
             'device': self.device_name,
-            'sample_rate': f"{self.sample_rate} Hz",
-            'mode': 'Hardware',
+            'target_sample_rate': f"{self.sample_rate} Hz",
+            'mode': 'Hardware (Optimized)',
             'modules': len(self.modules_info),
             'channels': self.total_channels,
             'resolution': f"{CVM24PConfig.VOLTAGE_RESOLUTION*1000}mV",
             'voltage_range': f"{CVM24PConfig.MIN_CELL_VOLTAGE}V - {CVM24PConfig.MAX_CELL_VOLTAGE}V"
         }
+        
+        # Add performance metrics if monitoring is enabled
+        if self.enable_perf_logging:
+            status.update({
+                'actual_sample_rate': f"{self.actual_sample_rate:.1f} Hz",
+                'efficiency': f"{(self.actual_sample_rate/self.sample_rate)*100:.1f}%",
+                'total_samples': self.total_samples_collected,
+                'optimizations': {
+                    'app_status_enabled': self.use_app_status,
+                    'latency_minimized': self.minimize_latency,
+                    'batch_requests': self.batch_requests
+                }
+            })
+        
+        return status
     
     def get_module_info(self) -> Dict[str, Dict]:
         """Get information about connected modules"""

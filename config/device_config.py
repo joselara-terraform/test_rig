@@ -175,12 +175,58 @@ class DeviceConfig:
             'ni_daq': 100,
             'pico_tc08': 1,
             'bga244': 0.2,
-            'cvm24p': 10
+            'cvm24p': 100  # Updated default to match optimized rate
         })
     
     def get_sample_rate(self, device: str) -> float:
         """Get sample rate for specific device"""
         return self.get_sample_rates().get(device, 1.0)
+    
+    # CVM24P Performance Configuration Methods
+    def get_cvm24p_performance_config(self) -> Dict[str, Any]:
+        """Get CVM24P performance configuration for high-speed sampling"""
+        return self.config.get('cvm24p', {}).get('performance', {
+            'target_sample_rate': 100,
+            'max_sample_rate': 500,
+            'use_app_status_command': True,
+            'minimize_polling_latency': True,
+            'batch_module_requests': True,
+            'log_actual_sample_rate': True,
+            'sample_rate_window': 100,
+            'performance_report_interval': 30
+        })
+    
+    def get_cvm24p_target_sample_rate(self) -> float:
+        """Get target sample rate for CVM24P (Hz)"""
+        return self.get_cvm24p_performance_config().get('target_sample_rate', 100)
+    
+    def get_cvm24p_max_sample_rate(self) -> float:
+        """Get maximum sample rate for CVM24P (Hz)"""
+        return self.get_cvm24p_performance_config().get('max_sample_rate', 500)
+    
+    def is_cvm24p_app_status_enabled(self) -> bool:
+        """Check if AppStatus (0xA0) command is enabled for efficient polling"""
+        return self.get_cvm24p_performance_config().get('use_app_status_command', True)
+    
+    def is_cvm24p_latency_minimized(self) -> bool:
+        """Check if polling latency minimization is enabled"""
+        return self.get_cvm24p_performance_config().get('minimize_polling_latency', True)
+    
+    def is_cvm24p_batch_requests_enabled(self) -> bool:
+        """Check if batch module requests are enabled"""
+        return self.get_cvm24p_performance_config().get('batch_module_requests', True)
+    
+    def is_cvm24p_performance_logging_enabled(self) -> bool:
+        """Check if actual sample rate logging is enabled"""
+        return self.get_cvm24p_performance_config().get('log_actual_sample_rate', True)
+    
+    def get_cvm24p_sample_rate_window(self) -> int:
+        """Get number of samples for rate calculation averaging"""
+        return self.get_cvm24p_performance_config().get('sample_rate_window', 100)
+    
+    def get_cvm24p_performance_report_interval(self) -> int:
+        """Get performance report interval in seconds"""
+        return self.get_cvm24p_performance_config().get('performance_report_interval', 30)
     
     def get_calibration_config(self) -> Dict[str, Any]:
         """Get calibration configuration settings"""
