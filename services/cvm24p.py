@@ -105,6 +105,36 @@ class AsyncCVMManager:
             await self._disconnect()
             self.result_queue.put(('stopped', True))
     
+    async def _try_cached_modules(self, cached_mapping: Dict[str, int]) -> Dict[str, Dict]:
+        """Try to connect to modules using cached serial→address mapping (fast path)"""
+        print(f"      → Attempting fast connection using cached addresses...")
+        found_modules = {}
+        
+        for serial, cached_address in cached_mapping.items():
+            try:
+                # Try to connect directly to cached address
+                device = XC2Cvm24p(self.bus, cached_address)
+                actual_type, actual_serial = await device.read_serial_number()
+                
+                if actual_serial == serial:
+                    found_modules[serial] = {
+                        'address': cached_address,
+                        'type': actual_type,
+                        'serial': serial
+                    }
+                    print(f"      → ✅ {serial} found at cached address 0x{cached_address:X}")
+                else:
+                    print(f"      → ⚠️  Address 0x{cached_address:X} has different serial: {actual_serial}")
+                    
+            except Exception as e:
+                print(f"      → ❌ Failed to reach {serial} at cached address 0x{cached_address:X}: {e}")
+        
+        success_count = len(found_modules)
+        expected_count = len(cached_mapping)
+        print(f"      → Fast connection result: {success_count}/{expected_count} modules found")
+        
+        return found_modules
+    
     async def _connect_to_port(self, port: str) -> bool:
         """Connect to CVM hardware on specified port (similar to CVM_test.py)"""
         try:
@@ -124,13 +154,32 @@ class AsyncCVMManager:
             
             # Connect to bus
             await self.bus.connect()
-            print(f"      → Bus connected, discovering modules...")
+            print(f"      → Bus connected")
             
             # Add stability pause (like CVM_test.py)
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
             
-            # Discover modules with robust retry logic
-            discovered_modules = await self._discover_modules()
+            # Get cached mapping from service (passed via attribute)
+            cached_mapping = getattr(self, 'cached_mapping', {})
+            discovered_modules = {}
+            
+            # Phase 1: Try cached addresses first (FAST - 2-5 seconds)
+            if cached_mapping:
+                discovered_modules = await self._try_cached_modules(cached_mapping)
+                
+                # If we found all expected modules, skip discovery
+                if len(discovered_modules) >= CVM24PConfig.EXPECTED_MODULES:
+                    print(f"      → ✅ All modules found via cached addresses - skipping discovery!")
+                else:
+                    missing_count = CVM24PConfig.EXPECTED_MODULES - len(discovered_modules)
+                    print(f"      → ⚠️  {missing_count} modules missing - falling back to discovery...")
+                    
+                    # Phase 2: Discovery for missing modules (SLOW - fallback only)
+                    missing_modules = await self._discover_modules()
+                    discovered_modules.update(missing_modules)
+            else:
+                print(f"      → No cached mapping available - using full discovery...")
+                discovered_modules = await self._discover_modules()
             
             if not discovered_modules:
                 print(f"      → No CVM24P modules found")
@@ -138,7 +187,7 @@ class AsyncCVMManager:
                 self.bus = None
                 return False
             
-            # Check if we found the expected number of modules
+            # Check module count
             expected_count = CVM24PConfig.EXPECTED_MODULES
             found_count = len(discovered_modules)
             
@@ -379,6 +428,15 @@ class CVM24PService:
         self.expected_modules = 5  # Expect 5 modules for 120 channels (5 * 24 = 120)
         self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
         
+        # Known module mapping for fast initialization (constant serial numbers and addresses)
+        self.cached_module_mapping = {
+            '158458': 0xA1,  # Channels 1-24
+            '158453': 0xA4,  # Channels 25-48
+            '158436': 0xA6,  # Channels 49-72
+            '158435': 0xA7,  # Channels 73-96
+            '158340': 0xA9,  # Channels 97-120
+        }
+        
         # Async communication - simplified pattern
         self.command_queue = queue.Queue()
         self.result_queue = queue.Queue()
@@ -427,6 +485,8 @@ class CVM24PService:
             
             # Start async manager thread
             self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue)
+            # Pass cached mapping to async manager for fast connection
+            self.async_manager.cached_mapping = self.cached_module_mapping
             self.async_thread = threading.Thread(
                 target=lambda: asyncio.run(self.async_manager.run()), 
                 daemon=True
