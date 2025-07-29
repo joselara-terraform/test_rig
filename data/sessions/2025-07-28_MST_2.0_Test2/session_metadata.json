@@ -1,0 +1,82 @@
+{
+  "session_id": "2025-07-28_17-06-30_UI_Test_Session",
+  "start_time": "2025-07-28T17:06:30.321719",
+  "session_name": "UI_Test_Session",
+  "folder_path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session",
+  "status": "completed",
+  "files": {
+    "2025-07-28_17-06-30.json": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session\\config\\2025-07-28_17-06-30.json",
+      "type": "config",
+      "description": "Device configuration snapshot at test start",
+      "created": "2025-07-28T17:06:30.327516"
+    },
+    "2025-07-28_17-06-30_sensors.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session\\csv_data\\2025-07-28_17-06-30_sensors.csv",
+      "type": "csv",
+      "description": "Real-time main sensors data",
+      "created": "2025-07-28T17:06:30.329731"
+    },
+    "2025-07-28_17-06-30_gas_analysis.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session\\csv_data\\2025-07-28_17-06-30_gas_analysis.csv",
+      "type": "csv",
+      "description": "Real-time gas analysis data",
+      "created": "2025-07-28T17:06:30.330741"
+    },
+    "2025-07-28_17-06-30_cell_voltages.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session\\csv_data\\2025-07-28_17-06-30_cell_voltages.csv",
+      "type": "csv",
+      "description": "Real-time cell voltages data",
+      "created": "2025-07-28T17:06:30.331622"
+    },
+    "2025-07-28_17-06-30_actuators.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-07-28_17-06-30_UI_Test_Session\\csv_data\\2025-07-28_17-06-30_actuators.csv",
+      "type": "csv",
+      "description": "Real-time actuator states data",
+      "created": "2025-07-28T17:06:30.332789"
+    }
+  },
+  "metadata": {
+    "test_rig_version": "1.0",
+    "operator": "terra",
+    "platform": "Windows"
+  },
+  "active_channels": {
+    "pressure": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "gas": [
+      0,
+      1,
+      2
+    ],
+    "temperature": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "voltage": [
+      0,
+      24,
+      48,
+      72,
+      96
+    ],
+    "current": [
+      0
+    ]
+  },
+  "end_time": "2025-07-28T17:45:57.025382",
+  "duration_seconds": 2366.703663,
+  "duration_formatted": "0:39:26"
+}
