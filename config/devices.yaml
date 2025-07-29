@@ -7,50 +7,6 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
-# Exception in Tkinter callback
-# Traceback (most recent call last):
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
-#     return self.func(*args)
-#            ~~~~~~~~~^^^^^^^
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 862, in callit
-#     func(*args)
-#     ~~~~^^^^^^^
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\backends\_backend_tk.py", line 142, in _on_timer
-#     super()._on_timer()
-#     ~~~~~~~~~~~~~~~~~^^
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\backend_bases.py", line 1152, in _on_timer
-#     ret = func(*args, **kwargs)
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\animation.py", line 1450, in _step
-#     still_going = super()._step(*args)
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\animation.py", line 1138, in _step
-#     self._draw_next_frame(framedata, self._blit)
-#     ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\animation.py", line 1157, in _draw_next_frame
-#     self._draw_frame(framedata)
-#     ~~~~~~~~~~~~~~~~^^^^^^^^^^^
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\site-packages\matplotlib\animation.py", line 1789, in _draw_frame
-#     self._drawn_artists = self._func(framedata, *self._args)
-#                           ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
-#   File "C:\Users\terra\Desktop\test_rig\ui\plots.py", line 139, in _update_plot
-#     label=pressure_names[channel_idx],
-#           ~~~~~~~~~~~~~~^^^^^^^^^^^^^
-# IndexError: list index out of range
-# Exception in Tkinter callback
-# Traceback (most recent call last):
-#   File "C:\Users\terra\AppData\Local\Programs\Python\Python313\Lib\tkinter\__init__.py", line 2068, in __call__
-#     return self.func(*args)
-#            ~~~~~~~~~^^^^^^^
-#   File "C:\Users\terra\Desktop\test_rig\ui\controls.py", line 647, in _open_channel_selector
-#     self.channel_selector_window = ChannelSelector(self.parent_frame)
-#                                    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
-#   File "C:\Users\terra\Desktop\test_rig\ui\controls.py", line 57, in __init__
-#     self._create_column1_pressure_gas(main_frame)
-#     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
-#   File "C:\Users\terra\Desktop\test_rig\ui\controls.py", line 111, in _create_column1_pressure_gas
-#     text=f"{pressure_names[i]} - {pressure:.4f} PSI",
-#             ~~~~~~~~~~~~~~^^^
-# IndexError: list index out of range
-
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
@@ -69,7 +25,7 @@ ni_cdaq:
     
     # Individual Sensor Channels with Calibrated Zero Offsets
     channels:
-      pressure_1:
+      pt01:
         channel: "ai0"
         name: "PT01"
         units: "PSI"
@@ -78,7 +34,7 @@ ni_cdaq:
         zero_offset: -0.035  # Corrects +0.035 PSI bias to achieve true 0 PSI
         description: "Hydrogen side pressure measurement"
         
-      pressure_2:
+      pt02:
         channel: "ai1" 
         name: "PT02"
         units: "PSI"
@@ -96,7 +52,7 @@ ni_cdaq:
         zero_offset: 0.0  # No bias correction needed for current sensor
         description: "Electrolyzer stack current measurement"
         
-      pressure_pt01:
+      pt03:
         channel: "ai3"
         name: "PT03"
         units: "PSI"
@@ -104,7 +60,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Pressure transducer 01 (4-20mA)"
         
-      pressure_pt02:
+      pt04:
         channel: "ai4"
         name: "PT04"  
         units: "PSI"
@@ -112,7 +68,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Pressure transducer 02 (4-20mA)"
         
-      pressure_pt03:
+      pt05:
         channel: "ai5"
         name: "PT05"
         units: "PSI"
@@ -128,7 +84,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Gas flowrate measurement"
         
-      pressure_pt05:
+      pt06:
         channel: "ai7"
         name: "PT06"
         units: "PSI"
