@@ -196,15 +196,15 @@ class DataPostProcessor:
             
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # Plot pressure channels that are active - use dynamic names from device_config
-            pressure_column_names = self.device_config.get_pressure_channel_names()
+            # Plot pressure channels that are active
+            pressure_columns = ['h2_header', 'o2_header', 'pt01', 'pt02', 'pt03', 'pt05']
             colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
             active_pressure = self.active_channels.get('pressure', [0, 1, 2, 3, 4, 5])
             
-            for i, col_name in enumerate(pressure_column_names):
-                if i in active_pressure and col_name in df.columns:
-                    ax.plot(df['elapsed_seconds'], df[col_name], 
-                           color=colors[i % len(colors)], linewidth=2, label=col_name)
+            for i, col in enumerate(pressure_columns):
+                if i in active_pressure and col in df.columns:
+                    ax.plot(df['elapsed_seconds'], df[col], 
+                           color=colors[i], linewidth=2, label=col.replace('_', ' ').title())
             
             ax.set_xlim(0, max(self.max_time * 1.1, 120))
             ax.set_ylim(config['y_limits'])
@@ -240,16 +240,15 @@ class DataPostProcessor:
             
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # Plot BGA channels that are active - use dynamic names from device_config
-            bga_names = self.device_config.get_bga244_unit_names()
-            gas_columns = [f'{name}_pct' for name in bga_names]
+            # Plot BGA channels that are active
+            gas_columns = ['bga1_pct', 'bga2_pct', 'bga3_pct']
             colors = ['blue', 'red', 'green']
             active_gas = self.active_channels.get('gas', [0, 1, 2])
             
             for i, col in enumerate(gas_columns):
                 if i in active_gas and col in df.columns:
                     ax.plot(df['elapsed_seconds'], df[col], 
-                           color=colors[i], linewidth=2, label=bga_names[i])
+                           color=colors[i], linewidth=2, label=f'BGA{i+1}')
             
             ax.set_xlim(0, max(self.max_time * 1.1, 120))
             ax.set_ylim(config['y_limits'])
@@ -285,20 +284,20 @@ class DataPostProcessor:
             
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # Plot temperature channels that are active - use dynamic names from device_config
-            temp_column_names = self.device_config.get_pico_tc08_channel_names()
+            # Plot temperature channels that are active
+            temp_columns = ['tc01', 'tc02', 'tc03', 'tc04', 'tc05', 'tc06', 'tc07', 'tc08']
             colors = plt.cm.tab10(np.linspace(0, 1, 8))
             active_temp = self.active_channels.get('temperature', list(range(8)))
             
-            for i, col_name in enumerate(temp_column_names):
-                if i in active_temp and col_name in df.columns:
+            for i, col in enumerate(temp_columns):
+                if i in active_temp and col in df.columns:
                     # Different line styles for different channel groups
                     linestyle = '-' if i < 4 else '--'
                     linewidth = 2 if i < 4 else 1.5
                     
-                    ax.plot(df['elapsed_seconds'], df[col_name], 
+                    ax.plot(df['elapsed_seconds'], df[col], 
                            color=colors[i], linewidth=linewidth, linestyle=linestyle,
-                           label=col_name)
+                           label=col.upper())
             
             ax.set_xlim(0, max(self.max_time * 1.1, 120))
             ax.set_ylim(config['y_limits'])
@@ -391,8 +390,8 @@ class DataPostProcessor:
             # Plot current if active
             active_current = self.active_channels.get('current', [0])
             
-            if 0 in active_current and 'Current' in df.columns:
-                ax.plot(df['elapsed_seconds'], df['Current'], 
+            if 0 in active_current and 'current' in df.columns:
+                ax.plot(df['elapsed_seconds'], df['current'], 
                        color='blue', linewidth=2, label='Stack Current')
             
             ax.set_xlim(0, max(self.max_time * 1.1, 120))
@@ -432,8 +431,8 @@ class DataPostProcessor:
             # Plot flowrate if active
             active_flowrate = self.active_channels.get('flowrate', [0])
             
-            if 0 in active_flowrate and 'Flowrate' in df.columns:
-                ax.plot(df['elapsed_seconds'], df['Flowrate'], 
+            if 0 in active_flowrate and 'flowrate' in df.columns:
+                ax.plot(df['elapsed_seconds'], df['flowrate'], 
                        color='red', linewidth=2, label='Mass Flowrate')
             
             ax.set_xlim(0, max(self.max_time * 1.1, 120))
