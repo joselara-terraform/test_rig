@@ -17,15 +17,17 @@ class ChannelSelector(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Select Plot Channels")
-        self.geometry("450x600")  # Larger to accommodate tabs
-        self.resizable(False, True)
+        self.geometry("900x700")  # Wider to accommodate 3 columns
+        self.resizable(True, True)
 
         self.state = get_global_state()
         self.device_config = get_device_config()
         
-        # Store references to checkboxes and labels for each tab
+        # Store references to checkboxes and labels for each section
         self.pressure_vars = []
         self.pressure_labels = []
+        self.gas_vars = []
+        self.gas_labels = []
         self.temperature_vars = []
         self.temperature_labels = []
         self.voltage_vars = []
@@ -40,43 +42,45 @@ class ChannelSelector(tk.Toplevel):
         main_frame.pack(fill="both", expand=True)
         main_frame.rowconfigure(1, weight=1)
         main_frame.columnconfigure(0, weight=1)
+        main_frame.columnconfigure(1, weight=1)
+        main_frame.columnconfigure(2, weight=1)
         
         # --- Control Buttons (Global) ---
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        button_frame.grid(row=0, column=0, columnspan=3, sticky="ew", pady=(0, 10))
 
         close_button = ttk.Button(button_frame, text="Close", command=self.destroy)
         close_button.pack(side="right", padx=5)
 
-        # --- Tabbed Interface ---
-        self.notebook = ttk.Notebook(main_frame)
-        self.notebook.grid(row=1, column=0, sticky="nsew")
-
-        # Create tabs
-        self._create_pressure_tab()
-        self._create_temperature_tab()
-        self._create_voltage_tab()
-        self._create_current_tab()
-        self._create_flowrate_tab()
+        # --- 3-Column Layout ---
+        # Column 1: Pressure & Gas
+        self._create_column1_pressure_gas(main_frame)
+        
+        # Column 2: Temperature, Current & Flow
+        self._create_column2_temp_current_flow(main_frame)
+        
+        # Column 3: Voltage
+        self._create_column3_voltage(main_frame)
 
         # Start periodic updates of all values
         self._update_all_values()
 
-    def _create_pressure_tab(self):
-        """Create the pressure channels tab."""
-        pressure_frame = ttk.Frame(self.notebook)
-        self.notebook.add(pressure_frame, text="Pressure")
+    def _create_column1_pressure_gas(self, parent):
+        """Create Column 1: Pressure sensors and Gas concentrations."""
+        # Column frame
+        col1_frame = ttk.LabelFrame(parent, text="Pressure & Gas", padding="5")
+        col1_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 5))
         
-        # Control buttons for pressure tab
-        button_frame = ttk.Frame(pressure_frame)
-        button_frame.pack(fill="x", pady=(5, 10))
+        # Control buttons for pressure/gas
+        button_frame = ttk.Frame(col1_frame)
+        button_frame.pack(fill="x", pady=(0, 5))
         
-        ttk.Button(button_frame, text="Select All", command=self._select_all_pressure).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_pressure).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Select All", command=self._select_all_pressure_gas).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_pressure_gas).pack(side="left", padx=2)
 
-        # Scrollable frame for pressure channels
-        canvas = tk.Canvas(pressure_frame)
-        scrollbar = ttk.Scrollbar(pressure_frame, orient="vertical", command=canvas.yview)
+        # Scrollable frame
+        canvas = tk.Canvas(col1_frame)
+        scrollbar = ttk.Scrollbar(col1_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
@@ -90,17 +94,15 @@ class ChannelSelector(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Pressure section
+        # --- Pressure Section ---
         pressure_label = ttk.Label(scrollable_frame, text="Pressure Sensors:", font=("Arial", 10, "bold"))
         pressure_label.pack(anchor="w", padx=5, pady=(5, 5))
 
-        # Pressure channel names (dynamically loaded from devices.yaml)
-        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
+        pressure_names = self.device_config.get_pressure_channel_names()
         
         for i in range(6):  # 6 pressure sensors
             var = tk.BooleanVar(value=(i in self.state.visible_pressure_channels))
             
-            # Get initial pressure value
             pressure = 0.0
             if len(self.state.pressure_values) > i:
                 pressure = self.state.pressure_values[i]
@@ -117,25 +119,20 @@ class ChannelSelector(tk.Toplevel):
         separator = ttk.Separator(scrollable_frame, orient='horizontal')
         separator.pack(fill='x', padx=5, pady=10)
 
-        # Gas concentration section
+        # --- Gas Concentration Section ---
         gas_label = ttk.Label(scrollable_frame, text="Gas Concentrations:", font=("Arial", 10, "bold"))
         gas_label.pack(anchor="w", padx=5, pady=(5, 5))
 
-        # Gas channel names (dynamically loaded from devices.yaml)
         gas_names = self.device_config.get_bga244_unit_names()
-        self.gas_vars = []
-        self.gas_labels = []
         
         for i in range(3):  # 3 gas concentration channels
             var = tk.BooleanVar(value=(i in self.state.visible_gas_channels))
             
-            # Get initial gas concentration value
             gas_conc = 0.0
             enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
             if enhanced_gas_data and len(enhanced_gas_data) > i:
                 gas_conc = enhanced_gas_data[i]['primary_gas_concentration'] if enhanced_gas_data[i]['primary_gas_concentration'] else 0.0
             elif len(self.state.gas_concentrations) > i:
-                # Fallback to legacy gas data
                 if i == 0:
                     gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
                 elif i == 1:
@@ -151,21 +148,22 @@ class ChannelSelector(tk.Toplevel):
             self.gas_vars.append(var)
             self.gas_labels.append(chk)
 
-    def _create_temperature_tab(self):
-        """Create the temperature channels tab."""
-        temp_frame = ttk.Frame(self.notebook)
-        self.notebook.add(temp_frame, text="Temperature")
+    def _create_column2_temp_current_flow(self, parent):
+        """Create Column 2: Temperature, Current, and Flowrate."""
+        # Column frame
+        col2_frame = ttk.LabelFrame(parent, text="Temperature, Current & Flow", padding="5")
+        col2_frame.grid(row=1, column=1, sticky="nsew", padx=2)
         
-        # Control buttons for temperature tab
-        button_frame = ttk.Frame(temp_frame)
-        button_frame.pack(fill="x", pady=(5, 10))
+        # Control buttons for temperature/current/flow
+        button_frame = ttk.Frame(col2_frame)
+        button_frame.pack(fill="x", pady=(0, 5))
         
-        ttk.Button(button_frame, text="Select All", command=self._select_all_temperature).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_temperature).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Select All", command=self._select_all_temp_current_flow).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_temp_current_flow).pack(side="left", padx=2)
 
-        # Scrollable frame for temperature channels
-        canvas = tk.Canvas(temp_frame)
-        scrollbar = ttk.Scrollbar(temp_frame, orient="vertical", command=canvas.yview)
+        # Scrollable frame
+        canvas = tk.Canvas(col2_frame)
+        scrollbar = ttk.Scrollbar(col2_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
@@ -179,13 +177,15 @@ class ChannelSelector(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Temperature channel names (dynamically loaded from devices.yaml)
+        # --- Temperature Section ---
+        temp_label = ttk.Label(scrollable_frame, text="Temperature Sensors:", font=("Arial", 10, "bold"))
+        temp_label.pack(anchor="w", padx=5, pady=(5, 5))
+
         temp_names = self.device_config.get_pico_tc08_channel_names()
         
         for i in range(8):  # 8 temperature sensors
             var = tk.BooleanVar(value=(i in self.state.visible_temperature_channels))
             
-            # Get initial temperature value
             temperature = 0.0
             if len(self.state.temperature_values) > i:
                 temperature = self.state.temperature_values[i]
@@ -194,25 +194,64 @@ class ChannelSelector(tk.Toplevel):
                                   text=f"{temp_names[i]} - {temperature:.1f}°C", 
                                   variable=var,
                                   command=lambda i=i: self._on_temperature_check(i))
-            chk.pack(anchor="w", padx=10, pady=2)
+            chk.pack(anchor="w", padx=15, pady=2)
             self.temperature_vars.append(var)
             self.temperature_labels.append(chk)
 
-    def _create_voltage_tab(self):
-        """Create the voltage channels tab."""
-        voltage_frame = ttk.Frame(self.notebook)
-        self.notebook.add(voltage_frame, text="Voltage")
-        
-        # Control buttons for voltage tab
-        button_frame = ttk.Frame(voltage_frame)
-        button_frame.pack(fill="x", pady=(5, 10))
-        
-        ttk.Button(button_frame, text="Select All", command=self._select_all_voltage).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_voltage).pack(side="left", padx=5)
+        # Separator
+        separator1 = ttk.Separator(scrollable_frame, orient='horizontal')
+        separator1.pack(fill='x', padx=5, pady=10)
 
-        # Scrollable frame for voltage channels
-        canvas = tk.Canvas(voltage_frame)
-        scrollbar = ttk.Scrollbar(voltage_frame, orient="vertical", command=canvas.yview)
+        # --- Current Section ---
+        current_label = ttk.Label(scrollable_frame, text="Current Sensor:", font=("Arial", 10, "bold"))
+        current_label.pack(anchor="w", padx=5, pady=(5, 5))
+
+        var = tk.BooleanVar(value=(0 in self.state.visible_current_channels))
+        current = self.state.current_value
+        
+        chk = ttk.Checkbutton(scrollable_frame, 
+                              text=f"Stack Current - {current:.1f}A", 
+                              variable=var,
+                              command=lambda: self._on_current_check(0))
+        chk.pack(anchor="w", padx=15, pady=2)
+        self.current_vars.append(var)
+        self.current_labels.append(chk)
+
+        # Separator
+        separator2 = ttk.Separator(scrollable_frame, orient='horizontal')
+        separator2.pack(fill='x', padx=5, pady=10)
+
+        # --- Flowrate Section ---
+        flowrate_label = ttk.Label(scrollable_frame, text="Flowrate Sensor:", font=("Arial", 10, "bold"))
+        flowrate_label.pack(anchor="w", padx=5, pady=(5, 5))
+
+        var = tk.BooleanVar(value=(0 in self.state.visible_flowrate_channels))
+        flowrate = self.state.flowrate_value
+        
+        chk = ttk.Checkbutton(scrollable_frame, 
+                              text=f"Flowrate - {flowrate:.2f} SLM", 
+                              variable=var,
+                              command=lambda: self._on_flowrate_check(0))
+        chk.pack(anchor="w", padx=15, pady=2)
+        self.flowrate_vars.append(var)
+        self.flowrate_labels.append(chk)
+
+    def _create_column3_voltage(self, parent):
+        """Create Column 3: Voltage sensors (120 channels)."""
+        # Column frame
+        col3_frame = ttk.LabelFrame(parent, text="Cell Voltages", padding="5")
+        col3_frame.grid(row=1, column=2, sticky="nsew", padx=(5, 0))
+        
+        # Control buttons for voltage
+        button_frame = ttk.Frame(col3_frame)
+        button_frame.pack(fill="x", pady=(0, 5))
+        
+        ttk.Button(button_frame, text="Select All", command=self._select_all_voltage).pack(side="left", padx=2)
+        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_voltage).pack(side="left", padx=2)
+
+        # Scrollable frame
+        canvas = tk.Canvas(col3_frame)
+        scrollbar = ttk.Scrollbar(col3_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
@@ -226,11 +265,10 @@ class ChannelSelector(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Voltage channels (120 cell voltages)
+        # --- Voltage Channels (120 cell voltages) ---
         for i in range(120):
             var = tk.BooleanVar(value=(i in self.state.visible_voltage_channels))
             
-            # Get initial voltage value
             voltage = 0.0
             if len(self.state.cell_voltages) > i:
                 voltage = self.state.cell_voltages[i]
@@ -243,96 +281,12 @@ class ChannelSelector(tk.Toplevel):
             self.voltage_vars.append(var)
             self.voltage_labels.append(chk)
 
-    def _create_current_tab(self):
-        """Create the current channel tab."""
-        current_frame = ttk.Frame(self.notebook)
-        self.notebook.add(current_frame, text="Current")
-        
-        # Control buttons for current tab
-        button_frame = ttk.Frame(current_frame)
-        button_frame.pack(fill="x", pady=(5, 10))
-        
-        ttk.Button(button_frame, text="Select All", command=self._select_all_current).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_current).pack(side="left", padx=5)
-
-        # Scrollable frame for current channel
-        canvas = tk.Canvas(current_frame)
-        scrollbar = ttk.Scrollbar(current_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        # Current channel (just one channel)
-        var = tk.BooleanVar(value=(0 in self.state.visible_current_channels))
-        
-        # Get initial current value
-        current = self.state.current_value
-        
-        chk = ttk.Checkbutton(scrollable_frame, 
-                              text=f"Stack Current - {current:.1f}A", 
-                              variable=var,
-                              command=lambda: self._on_current_check(0))
-        chk.pack(anchor="w", padx=10, pady=2)
-        self.current_vars.append(var)
-        self.current_labels.append(chk)
-
-    def _create_flowrate_tab(self):
-        """Create the flowrate channel tab."""
-        flowrate_frame = ttk.Frame(self.notebook)
-        self.notebook.add(flowrate_frame, text="Flowrate")
-        
-        # Control buttons for flowrate tab
-        button_frame = ttk.Frame(flowrate_frame)
-        button_frame.pack(fill="x", pady=(5, 10))
-        
-        ttk.Button(button_frame, text="Select All", command=self._select_all_flowrate).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_flowrate).pack(side="left", padx=5)
-
-        # Scrollable frame for flowrate channel
-        canvas = tk.Canvas(flowrate_frame)
-        scrollbar = ttk.Scrollbar(flowrate_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-
-        # Flowrate channel (just one channel)
-        var = tk.BooleanVar(value=(0 in self.state.visible_flowrate_channels))
-        
-        # Get initial flowrate value
-        flowrate = self.state.flowrate_value
-        
-        chk = ttk.Checkbutton(scrollable_frame, 
-                              text=f"Flowrate - {flowrate:.2f} SLM", 
-                              variable=var,
-                              command=lambda: self._on_flowrate_check(0))
-        chk.pack(anchor="w", padx=10, pady=2)
-        self.flowrate_vars.append(var)
-        self.flowrate_labels.append(chk)
-
     def _update_all_values(self):
-        """Update all channel values displayed in all tabs."""
+        """Update all channel values displayed in all columns."""
         # Update pressure values
         pressure_values = self.state.pressure_values
-        pressure_names = self.device_config.get_pressure_channel_names()  # Only pressure sensors
-        for i in range(6):
+        pressure_names = self.device_config.get_pressure_channel_names()
+        for i in range(min(6, len(self.pressure_labels))):
             pressure = 0.0
             if len(pressure_values) > i:
                 pressure = pressure_values[i]
@@ -342,12 +296,11 @@ class ChannelSelector(tk.Toplevel):
         # Update gas concentration values
         gas_names = self.device_config.get_bga244_unit_names()
         enhanced_gas_data = getattr(self.state, 'enhanced_gas_data', [])
-        for i in range(3):
+        for i in range(min(3, len(self.gas_labels))):
             gas_conc = 0.0
             if enhanced_gas_data and len(enhanced_gas_data) > i:
                 gas_conc = enhanced_gas_data[i]['primary_gas_concentration'] if enhanced_gas_data[i]['primary_gas_concentration'] else 0.0
             elif len(self.state.gas_concentrations) > i:
-                # Fallback to legacy gas data
                 if i == 0:
                     gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
                 elif i == 1:
@@ -360,7 +313,7 @@ class ChannelSelector(tk.Toplevel):
         # Update temperature values
         temp_values = self.state.temperature_values
         temp_names = self.device_config.get_pico_tc08_channel_names()
-        for i in range(8):
+        for i in range(min(8, len(self.temperature_labels))):
             temperature = 0.0
             if len(temp_values) > i:
                 temperature = temp_values[i]
@@ -369,7 +322,7 @@ class ChannelSelector(tk.Toplevel):
 
         # Update voltage values
         cell_voltages = self.state.cell_voltages
-        for i in range(120):
+        for i in range(min(120, len(self.voltage_labels))):
             voltage = 0.0
             if len(cell_voltages) > i:
                 voltage = cell_voltages[i]
@@ -391,16 +344,10 @@ class ChannelSelector(tk.Toplevel):
         # Schedule next update (every 100ms)
         self.after(100, self._update_all_values)
 
-    # Pressure tab callbacks
-    def _on_pressure_check(self, channel_index):
-        if self.pressure_vars[channel_index].get():
-            self.state.visible_pressure_channels.add(channel_index)
-        else:
-            self.state.visible_pressure_channels.discard(channel_index)
-        print(f"Visible pressure channels: {sorted(list(self.state.visible_pressure_channels))}")
-
-    def _select_all_pressure(self):
-        for i in range(5):
+    # Column 1 callbacks (Pressure & Gas)
+    def _select_all_pressure_gas(self):
+        """Select all pressure and gas channels."""
+        for i in range(6):
             if not self.pressure_vars[i].get():
                 self.pressure_vars[i].set(True)
                 self.state.visible_pressure_channels.add(i)
@@ -410,8 +357,9 @@ class ChannelSelector(tk.Toplevel):
                 self.state.visible_gas_channels.add(i)
         print("All pressure and gas channels selected.")
 
-    def _deselect_all_pressure(self):
-        for i in range(5):
+    def _deselect_all_pressure_gas(self):
+        """Deselect all pressure and gas channels."""
+        for i in range(6):
             if self.pressure_vars[i].get():
                 self.pressure_vars[i].set(False)
                 self.state.visible_pressure_channels.discard(i)
@@ -421,7 +369,43 @@ class ChannelSelector(tk.Toplevel):
                 self.state.visible_gas_channels.discard(i)
         print("All pressure and gas channels deselected.")
 
-    # Gas concentration callbacks (for pressure tab)
+    # Column 2 callbacks (Temperature, Current, Flow)
+    def _select_all_temp_current_flow(self):
+        """Select all temperature, current, and flowrate channels."""
+        for i in range(8):
+            if not self.temperature_vars[i].get():
+                self.temperature_vars[i].set(True)
+                self.state.visible_temperature_channels.add(i)
+        if not self.current_vars[0].get():
+            self.current_vars[0].set(True)
+            self.state.visible_current_channels.add(0)
+        if not self.flowrate_vars[0].get():
+            self.flowrate_vars[0].set(True)
+            self.state.visible_flowrate_channels.add(0)
+        print("All temperature, current, and flowrate channels selected.")
+
+    def _deselect_all_temp_current_flow(self):
+        """Deselect all temperature, current, and flowrate channels."""
+        for i in range(8):
+            if self.temperature_vars[i].get():
+                self.temperature_vars[i].set(False)
+                self.state.visible_temperature_channels.discard(i)
+        if self.current_vars[0].get():
+            self.current_vars[0].set(False)
+            self.state.visible_current_channels.discard(0)
+        if self.flowrate_vars[0].get():
+            self.flowrate_vars[0].set(False)
+            self.state.visible_flowrate_channels.discard(0)
+        print("All temperature, current, and flowrate channels deselected.")
+
+    # Individual channel callbacks (keep existing functionality)
+    def _on_pressure_check(self, channel_index):
+        if self.pressure_vars[channel_index].get():
+            self.state.visible_pressure_channels.add(channel_index)
+        else:
+            self.state.visible_pressure_channels.discard(channel_index)
+        print(f"Visible pressure channels: {sorted(list(self.state.visible_pressure_channels))}")
+
     def _on_gas_check(self, channel_index):
         if self.gas_vars[channel_index].get():
             self.state.visible_gas_channels.add(channel_index)
@@ -429,7 +413,6 @@ class ChannelSelector(tk.Toplevel):
             self.state.visible_gas_channels.discard(channel_index)
         print(f"Visible gas channels: {sorted(list(self.state.visible_gas_channels))}")
 
-    # Temperature tab callbacks
     def _on_temperature_check(self, channel_index):
         if self.temperature_vars[channel_index].get():
             self.state.visible_temperature_channels.add(channel_index)
@@ -437,21 +420,6 @@ class ChannelSelector(tk.Toplevel):
             self.state.visible_temperature_channels.discard(channel_index)
         print(f"Visible temperature channels: {sorted(list(self.state.visible_temperature_channels))}")
 
-    def _select_all_temperature(self):
-        for i in range(8):
-            if not self.temperature_vars[i].get():
-                self.temperature_vars[i].set(True)
-                self.state.visible_temperature_channels.add(i)
-        print("All temperature channels selected.")
-
-    def _deselect_all_temperature(self):
-        for i in range(8):
-            if self.temperature_vars[i].get():
-                self.temperature_vars[i].set(False)
-                self.state.visible_temperature_channels.discard(i)
-        print("All temperature channels deselected.")
-
-    # Voltage tab callbacks (existing logic)
     def _on_voltage_check(self, channel_index):
         if self.voltage_vars[channel_index].get():
             self.state.visible_voltage_channels.add(channel_index)
@@ -460,6 +428,7 @@ class ChannelSelector(tk.Toplevel):
         print(f"Visible voltage channels: {sorted(list(self.state.visible_voltage_channels))}")
 
     def _select_all_voltage(self):
+        """Select all voltage channels."""
         for i in range(120):
             if not self.voltage_vars[i].get():
                 self.voltage_vars[i].set(True)
@@ -467,13 +436,13 @@ class ChannelSelector(tk.Toplevel):
         print("All voltage channels selected.")
     
     def _deselect_all_voltage(self):
+        """Deselect all voltage channels."""
         for i in range(120):
             if self.voltage_vars[i].get():
                 self.voltage_vars[i].set(False)
                 self.state.visible_voltage_channels.discard(i)
         print("All voltage channels deselected.")
 
-    # Current tab callbacks
     def _on_current_check(self, channel_index):
         if self.current_vars[channel_index].get():
             self.state.visible_current_channels.add(channel_index)
@@ -481,19 +450,6 @@ class ChannelSelector(tk.Toplevel):
             self.state.visible_current_channels.discard(channel_index)
         print(f"Visible current channels: {sorted(list(self.state.visible_current_channels))}")
 
-    def _select_all_current(self):
-        if not self.current_vars[0].get():
-            self.current_vars[0].set(True)
-            self.state.visible_current_channels.add(0)
-        print("Current channel selected.")
-
-    def _deselect_all_current(self):
-        if self.current_vars[0].get():
-            self.current_vars[0].set(False)
-            self.state.visible_current_channels.discard(0)
-        print("Current channel deselected.")
-
-    # Flowrate tab callbacks
     def _on_flowrate_check(self, channel_index):
         if self.flowrate_vars[channel_index].get():
             self.state.visible_flowrate_channels.add(channel_index)
@@ -501,13 +457,46 @@ class ChannelSelector(tk.Toplevel):
             self.state.visible_flowrate_channels.discard(channel_index)
         print(f"Visible flowrate channels: {sorted(list(self.state.visible_flowrate_channels))}")
 
+    # Remove old tab-specific methods
+    def _select_all_pressure(self):
+        """Legacy method - use _select_all_pressure_gas instead."""
+        self._select_all_pressure_gas()
+
+    def _deselect_all_pressure(self):
+        """Legacy method - use _deselect_all_pressure_gas instead."""
+        self._deselect_all_pressure_gas()
+
+    def _select_all_temperature(self):
+        """Legacy method - use _select_all_temp_current_flow instead."""
+        self._select_all_temp_current_flow()
+
+    def _deselect_all_temperature(self):
+        """Legacy method - use _deselect_all_temp_current_flow instead."""
+        self._deselect_all_temp_current_flow()
+
+    def _select_all_current(self):
+        """Legacy method - use _select_all_temp_current_flow instead."""
+        if not self.current_vars[0].get():
+            self.current_vars[0].set(True)
+            self.state.visible_current_channels.add(0)
+        print("Current channel selected.")
+
+    def _deselect_all_current(self):
+        """Legacy method - use _deselect_all_temp_current_flow instead."""
+        if self.current_vars[0].get():
+            self.current_vars[0].set(False)
+            self.state.visible_current_channels.discard(0)
+        print("Current channel deselected.")
+
     def _select_all_flowrate(self):
+        """Legacy method - use _select_all_temp_current_flow instead."""
         if not self.flowrate_vars[0].get():
             self.flowrate_vars[0].set(True)
             self.state.visible_flowrate_channels.add(0)
         print("Flowrate channel selected.")
 
     def _deselect_all_flowrate(self):
+        """Legacy method - use _deselect_all_temp_current_flow instead."""
         if self.flowrate_vars[0].get():
             self.flowrate_vars[0].set(False)
             self.state.visible_flowrate_channels.discard(0)
