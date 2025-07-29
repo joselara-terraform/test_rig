@@ -431,58 +431,10 @@ class AsyncCVMManager:
                 # Add zeros for failed module
                 all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
         
-        # Update performance metrics for individual reads
-        self._update_performance_metrics(start_time)
         return all_voltages
     
 
-    def _update_performance_metrics(self, start_time: float):
-        """Update performance monitoring metrics"""
-        if not self.enable_perf_logging:
-            return
-            
-        current_time = time.time()
-        read_duration = current_time - start_time
-        
-        # Track sample timestamps for rate calculation
-        self.sample_timestamps.append(current_time)
-        self.total_samples_collected += 1
-        
-        # Keep only recent samples for rate calculation
-        cutoff_time = current_time - (self.sample_rate_window / self.sample_rate)
-        self.sample_timestamps = [t for t in self.sample_timestamps if t > cutoff_time]
-        
-        # Calculate actual sample rate
-        if len(self.sample_timestamps) > 1:
-            time_span = self.sample_timestamps[-1] - self.sample_timestamps[0]
-            if time_span > 0:
-                self.actual_sample_rate = (len(self.sample_timestamps) - 1) / time_span
-        
-        # Periodic performance reports
-        if current_time - self.last_perf_report_time >= self.perf_report_interval:
-            self._log_performance_report(read_duration)
-            self.last_perf_report_time = current_time
-    
-    def _log_performance_report(self, last_read_duration: float):
-        """Log detailed performance report"""
-        if not self.enable_perf_logging:
-            return
-            
-        print(f"📊 CVM24P Performance Report:")
-        print(f"   Target sample rate: {self.sample_rate:.1f} Hz")
-        print(f"   Actual sample rate: {self.actual_sample_rate:.1f} Hz")
-        print(f"   Efficiency: {(self.actual_sample_rate/self.sample_rate)*100:.1f}%")
-        print(f"   Last read duration: {last_read_duration*1000:.1f} ms")
-        print(f"   Total samples collected: {self.total_samples_collected}")
-        print(f"   Active modules: {len(self.initialized_devices)}/{self.expected_modules}")
-        
-        # Performance recommendations
-        if self.actual_sample_rate < self.sample_rate * 0.9:  # Less than 90% efficiency
-            print(f"⚠️  Sample rate below target - consider:")
-            print(f"     • Reducing target sample rate in devices.yaml")
-            print(f"     • Checking USB connection quality")
-            print(f"     • Enabling latency minimization")
-    
+
     async def _disconnect(self):
         """Disconnect from hardware"""
         # SerialBus doesn't have a disconnect() method
@@ -715,11 +667,15 @@ class CVM24PService:
         """Simplified polling thread function"""
         while self.polling and self.connected:
             try:
+                start_time = time.time()
                 voltage_readings = self._read_hardware_data()
                 
                 # Update global state
                 self.state.update_sensor_values(cell_voltages=voltage_readings)
                 self.latest_voltages = voltage_readings
+                
+                # Update performance metrics
+                self._update_performance_metrics(start_time)
                 
                 # Sleep for sample rate
                 time.sleep(1.0 / self.sample_rate)
@@ -829,4 +785,51 @@ class CVM24PService:
             if abs(voltage - avg_voltage) > threshold:
                 unbalanced.append(i + 1)  # 1-indexed cell numbers
         
-        return unbalanced 
+        return unbalanced
+    
+    def _update_performance_metrics(self, start_time: float):
+        """Update performance monitoring metrics"""
+        if not self.enable_perf_logging:
+            return
+            
+        current_time = time.time()
+        read_duration = current_time - start_time
+        
+        # Track sample timestamps for rate calculation
+        self.sample_timestamps.append(current_time)
+        self.total_samples_collected += 1
+        
+        # Keep only recent samples for rate calculation
+        cutoff_time = current_time - (self.sample_rate_window / self.sample_rate)
+        self.sample_timestamps = [t for t in self.sample_timestamps if t > cutoff_time]
+        
+        # Calculate actual sample rate
+        if len(self.sample_timestamps) > 1:
+            time_span = self.sample_timestamps[-1] - self.sample_timestamps[0]
+            if time_span > 0:
+                self.actual_sample_rate = (len(self.sample_timestamps) - 1) / time_span
+        
+        # Periodic performance reports
+        if current_time - self.last_perf_report_time >= self.perf_report_interval:
+            self._log_performance_report(read_duration)
+            self.last_perf_report_time = current_time
+    
+    def _log_performance_report(self, last_read_duration: float):
+        """Log detailed performance report"""
+        if not self.enable_perf_logging:
+            return
+            
+        print(f"📊 CVM24P Performance Report:")
+        print(f"   Target sample rate: {self.sample_rate:.1f} Hz")
+        print(f"   Actual sample rate: {self.actual_sample_rate:.1f} Hz")
+        print(f"   Efficiency: {(self.actual_sample_rate/self.sample_rate)*100:.1f}%")
+        print(f"   Last read duration: {last_read_duration*1000:.1f} ms")
+        print(f"   Total samples collected: {self.total_samples_collected}")
+        print(f"   Active modules: {len(self.async_manager.initialized_devices) if self.async_manager else 0}/{self.expected_modules}")
+        
+        # Performance recommendations
+        if self.actual_sample_rate < self.sample_rate * 0.9:  # Less than 90% efficiency
+            print(f"⚠️  Sample rate below target - consider:")
+            print(f"     • Reducing target sample rate in devices.yaml")
+            print(f"     • Checking USB connection quality")
+            print(f"     • Enabling latency minimization") 

@@ -322,12 +322,6 @@ system:
     bga244: 0.2      # Hz - Gas analyzer readings (every 5 seconds)
     cvm24p: 100      # Hz - Cell voltage readings (optimized from 10 Hz)
   
-  # Data Logging Rates (CSV files)
-  csv_log_rates:
-    default: 10      # Hz - Default CSV logging rate (balance between detail and file size)
-    high_speed: 50   # Hz - High-speed logging for detailed analysis
-    standard: 1      # Hz - Standard logging for long-term tests
-  
   # Calibration Settings
   calibration:
     auto_zero_on_startup: true  # Automatically apply zero offsets on connection

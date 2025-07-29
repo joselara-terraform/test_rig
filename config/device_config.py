@@ -182,17 +182,7 @@ class DeviceConfig:
         """Get sample rate for specific device"""
         return self.get_sample_rates().get(device, 1.0)
     
-    def get_csv_log_rates(self) -> Dict[str, float]:
-        """Get CSV logging rates configuration"""
-        return self.config.get('system', {}).get('csv_log_rates', {
-            'default': 10,
-            'high_speed': 50,
-            'standard': 1
-        })
-    
-    def get_csv_log_rate(self, rate_type: str = 'default') -> float:
-        """Get CSV logging rate for specific type"""
-        return self.get_csv_log_rates().get(rate_type, 10)
+
     
     # CVM24P Performance Configuration Methods
     def get_cvm24p_performance_config(self) -> Dict[str, Any]:

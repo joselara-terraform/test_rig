@@ -23,10 +23,11 @@ class CSVLogger:
         self.session_manager = get_session_manager()
         self.device_config = get_device_config()
         
-        # Use configurable log interval from devices.yaml
+        # Use configurable log interval from devices.yaml, defaulting to match CVM24P sample rate
         if log_interval is None:
-            csv_log_rate = self.device_config.get_csv_log_rate('default')  # 10Hz by default
-            self.log_interval = 1.0 / csv_log_rate
+            # Match the CVM24P sample rate to capture all voltage data points
+            cvm_sample_rate = self.device_config.get_sample_rate('cvm24p')
+            self.log_interval = 1.0 / cvm_sample_rate
         else:
             self.log_interval = log_interval
         
