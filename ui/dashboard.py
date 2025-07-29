@@ -11,7 +11,8 @@ Valve mapping (matches NI cDAQ hardware configuration):
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, PhotoImage
+import os
 from .controls import ControlPanel
 from .status_indicators import StatusIndicators
 from .plots import PressurePlot, VoltagePlot, TemperaturePlot, CurrentPlot
@@ -24,6 +25,9 @@ class Dashboard:
     def __init__(self, root):
         self.root = root
         self.root.title("AWE Electrolyzer Test Rig - Dashboard")
+        
+        # Set window icon
+        self._set_window_icon()
         
         # Maximize the window - cross-platform approach
         self._maximize_window()
@@ -107,6 +111,44 @@ class Dashboard:
             print(f"⚠️  Could not maximize window: {e}")
             print("   → Using fallback large window size")
             self.root.geometry("1400x900")
+    
+    def _set_window_icon(self):
+        """Set the window icon using the favicon file"""
+        try:
+            # Get the path to the assets directory
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+            # Method 1: For .ico files (Windows preferred)
+            icon_path_ico = os.path.join(script_dir, "assets", "favicon.ico")
+            if os.path.exists(icon_path_ico):
+                self.root.iconbitmap(icon_path_ico)
+                print(f"✅ Window icon loaded: {icon_path_ico}")
+                return
+            
+            # Method 2: For .png files (cross-platform)
+            icon_path_png = os.path.join(script_dir, "assets", "favicon-32x32.png")
+            if os.path.exists(icon_path_png):
+                icon_image = PhotoImage(file=icon_path_png)
+                self.root.iconphoto(True, icon_image)
+                # Keep a reference to prevent garbage collection
+                self.root.icon_image = icon_image
+                print(f"✅ Window icon loaded: {icon_path_png}")
+                return
+                
+            # Method 3: Try other common names
+            for filename in ["favicon-16x16.png", "android-chrome-192x192.png"]:
+                icon_path = os.path.join(script_dir, "assets", filename)
+                if os.path.exists(icon_path):
+                    icon_image = PhotoImage(file=icon_path)
+                    self.root.iconphoto(True, icon_image)
+                    self.root.icon_image = icon_image
+                    print(f"✅ Window icon loaded: {icon_path}")
+                    return
+            
+            print("⚠️  No icon file found in assets/ directory")
+            
+        except Exception as e:
+            print(f"⚠️  Error loading window icon: {e}")
     
     def _on_closing(self):
         """Handle window close event with test running check"""

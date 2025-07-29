@@ -184,6 +184,9 @@ class AsyncCVMManager:
                 self.bus = None
                 return False
             
+            # CRITICAL: Set self.modules for voltage reading to work
+            self.modules = discovered_modules
+            
             # Check module count
             expected_count = CVM24PConfig.EXPECTED_MODULES
             found_count = len(discovered_modules)
@@ -213,6 +216,8 @@ class AsyncCVMManager:
                     # Try initialization again with verified modules
                     if discovered_modules:
                         print(f"      → Retrying initialization with {len(discovered_modules)} verified modules...")
+                        # CRITICAL: Update self.modules for fallback path too
+                        self.modules = discovered_modules
                         initialized_count = await self._initialize_modules(discovered_modules)
                 
                 if initialized_count == 0:
