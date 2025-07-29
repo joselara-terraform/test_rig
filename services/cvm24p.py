@@ -117,16 +117,16 @@ class AsyncCVMManager:
         if cmd_type == 'connect':
             port = cmd_data
             success = await self._connect_to_port(port)
-            self.result_queue.put(('connect_result', success))
+            self.result_queue.put(('connect_result', success, time.time()))
             
         elif cmd_type == 'disconnect':
             await self._disconnect()
-            self.result_queue.put(('disconnect_result', True))
+            self.result_queue.put(('disconnect_result', True, time.time()))
             
         elif cmd_type == 'stop':
             self.running = False
             await self._disconnect()
-            self.result_queue.put(('stopped', True))
+            self.result_queue.put(('stopped', True, time.time()))
     
     async def _try_cached_modules(self, cached_mapping: Dict[str, int]) -> Dict[str, Dict]:
         """Try to connect to modules using cached serial→address mapping (fast path)"""
