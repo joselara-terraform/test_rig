@@ -7,12 +7,6 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
-# DEBUG:   Module 158458 (0xA1) → Channels 1-24
-# DEBUG:   Module 158453 (0xA4) → Channels 25-48
-# DEBUG:   Module 158436 (0xA6) → Channels 49-72
-# DEBUG:   Module 158435 (0xA7) → Channels 73-96
-# DEBUG:   Module 158340 (0xA9) → Channels 97-120
-
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
