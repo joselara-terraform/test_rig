@@ -49,20 +49,31 @@ class CVM24PConfig:
 class AsyncCVMManager:
     """Async manager for CVM hardware operations - runs in dedicated thread"""
     
-    def __init__(self, command_queue: queue.Queue, result_queue: queue.Queue):
+    def __init__(self, command_queue: queue.Queue, result_queue: queue.Queue, target_sample_rate: float = 10.0):
         self.command_queue = command_queue
         self.result_queue = result_queue
+        self.target_sample_rate = target_sample_rate
+        self.target_sleep_time = 1.0 / target_sample_rate  # Calculate sleep time from sample rate
         self.bus = None
         self.modules = {}  # Dict of serial -> device info
         self.initialized_devices = {}  # Dict of serial -> XC2Cvm24p device
         self.running = False
         self.debug_channel_assignment_printed = False  # DEBUG: Flag to print channel assignment only once
         
+        # Performance monitoring
+        self.sample_count = 0
+        self.last_rate_log_time = 0
+        self.rate_log_interval = 5.0  # Log actual rate every 5 seconds
+        
     async def run(self):
         """Main async loop - handles commands and polling"""
         self.running = True
+        self.last_rate_log_time = time.time()  # Initialize timing
+        print(f"🔋 CVM AsyncManager starting at {self.target_sample_rate:.1f} Hz target rate")
         
         while self.running:
+            loop_start_time = time.time()
+            
             try:
                 # Check for commands (non-blocking)
                 try:
@@ -75,16 +86,28 @@ class AsyncCVMManager:
                 if self.bus and self.initialized_devices:
                     try:
                         voltages = await self._read_all_voltages()
-                        self.result_queue.put(('voltages', voltages))
+                        # Use timestamp for data flow tracking
+                        self.result_queue.put(('voltages', voltages, time.time()))
+                        self.sample_count += 1
+                        
+                        # Log actual achieved sample rate periodically
+                        if time.time() - self.last_rate_log_time >= self.rate_log_interval:
+                            actual_rate = self.sample_count / self.rate_log_interval
+                            print(f"📊 CVM Actual Rate: {actual_rate:.1f} Hz (target: {self.target_sample_rate:.1f} Hz)")
+                            self.sample_count = 0
+                            self.last_rate_log_time = time.time()
+                            
                     except Exception as e:
-                        self.result_queue.put(('error', f"Read error: {e}"))
+                        self.result_queue.put(('error', f"Read error: {e}", time.time()))
                 
-                # Sleep to control polling rate
-                await asyncio.sleep(0.1)  # 10Hz check rate
+                # Calculate adaptive sleep time to maintain target rate
+                loop_duration = time.time() - loop_start_time
+                sleep_time = max(0.001, self.target_sleep_time - loop_duration)  # Minimum 1ms sleep
+                await asyncio.sleep(sleep_time)
                 
             except Exception as e:
                 print(f"❌ AsyncCVMManager error: {e}")
-                self.result_queue.put(('error', str(e)))
+                self.result_queue.put(('error', str(e), time.time()))
                 await asyncio.sleep(1.0)
     
     async def _handle_command(self, command):
@@ -516,7 +539,7 @@ class CVM24PService:
             print(f"   → Found {len(available_ports)} available ports: {available_ports}")
             
             # Start async manager thread
-            self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue)
+            self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue, self.sample_rate)
             # Pass cached mapping to async manager for fast connection
             self.async_manager.cached_mapping = self.cached_module_mapping
             self.async_thread = threading.Thread(
@@ -542,7 +565,7 @@ class CVM24PService:
                     
                     # Wait for result with longer timeout (discovery + initialization can take 30+ seconds)
                     try:
-                        result_type, result_data = self.result_queue.get(timeout=45.0)
+                        result_type, result_data, timestamp = self.result_queue.get(timeout=45.0)
                         
                         if result_type == 'connect_result' and result_data:
                             print(f"   → Success on {selected_port}!")
@@ -641,16 +664,19 @@ class CVM24PService:
         print("✅ CVM-24P polling stopped")
     
     def _poll_data(self):
-        """Simplified polling thread function"""
+        """Optimized polling thread function for high-rate voltage data"""
+        print(f"🔋 CVM-24P polling started at {self.sample_rate:.1f} Hz")
+        
         while self.polling and self.connected:
             try:
+                # Use optimized hardware data reading
                 voltage_readings = self._read_hardware_data()
                 
-                # Update global state
+                # Update global state with latest readings
                 self.state.update_sensor_values(cell_voltages=voltage_readings)
-                self.latest_voltages = voltage_readings
                 
-                # Sleep for sample rate
+                # Sleep for sample rate - this controls how often we update the state
+                # The async manager handles the actual hardware sampling rate
                 time.sleep(1.0 / self.sample_rate)
                 
             except Exception as e:
@@ -658,21 +684,31 @@ class CVM24PService:
                 break
     
     def _read_hardware_data(self) -> List[float]:
-        """Read voltage data from hardware - simplified"""
+        """Read voltage data from hardware - optimized for high-rate sampling"""
         try:
-            # Check for new voltage data from async manager
+            # Check for newest voltage data from async manager - process ALL queued data to avoid lag
+            latest_voltages = None
+            data_count = 0
+            
             while True:
                 try:
-                    result_type, result_data = self.result_queue.get_nowait()
+                    result_type, result_data, timestamp = self.result_queue.get_nowait()
                     
                     if result_type == 'voltages':
-                        return result_data
+                        latest_voltages = result_data
+                        data_count += 1
                     elif result_type == 'error':
                         print(f"⚠️  Hardware reading error: {result_data}")
-                        return self.latest_voltages
                         
                 except queue.Empty:
                     break
+            
+            # If we got new data, use it and update latest readings
+            if latest_voltages is not None:
+                self.latest_voltages = latest_voltages
+                if data_count > 1:
+                    print(f"📊 Processed {data_count} queued voltage readings (catching up)")
+                return latest_voltages
             
             # No new data, return latest readings
             return self.latest_voltages
