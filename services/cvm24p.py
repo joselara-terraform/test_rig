@@ -65,6 +65,10 @@ class AsyncCVMManager:
         self.last_rate_log_time = 0
         self.rate_log_interval = 5.0  # Log actual rate every 5 seconds
         
+        # Performance analysis
+        self.total_read_time = 0.0
+        self.read_count = 0
+        
     async def run(self):
         """Main async loop - handles commands and polling"""
         self.running = True
@@ -85,16 +89,34 @@ class AsyncCVMManager:
                 # If connected, read voltages and update result queue
                 if self.bus and self.initialized_devices:
                     try:
+                        # Measure voltage reading performance
+                        read_start = time.time()
                         voltages = await self._read_all_voltages()
+                        read_duration = time.time() - read_start
+                        
+                        # Track performance statistics
+                        self.total_read_time += read_duration
+                        self.read_count += 1
+                        
                         # Use timestamp for data flow tracking
                         self.result_queue.put(('voltages', voltages, time.time()))
                         self.sample_count += 1
                         
-                        # Log actual achieved sample rate periodically
+                        # Log actual achieved sample rate and performance periodically
                         if time.time() - self.last_rate_log_time >= self.rate_log_interval:
                             actual_rate = self.sample_count / self.rate_log_interval
-                            print(f"📊 CVM Actual Rate: {actual_rate:.1f} Hz (target: {self.target_sample_rate:.1f} Hz)")
+                            avg_read_time = self.total_read_time / max(self.read_count, 1) * 1000  # Convert to ms
+                            theoretical_max = 1.0 / (avg_read_time / 1000.0) if avg_read_time > 0 else 0
+                            
+                            print(f"📊 CVM Performance:")
+                            print(f"   → Actual Rate: {actual_rate:.1f} Hz (target: {self.target_sample_rate:.1f} Hz)")
+                            print(f"   → Avg Read Time: {avg_read_time:.1f} ms")
+                            print(f"   → Theoretical Max: {theoretical_max:.1f} Hz")
+                            
+                            # Reset counters
                             self.sample_count = 0
+                            self.total_read_time = 0.0
+                            self.read_count = 0
                             self.last_rate_log_time = time.time()
                             
                     except Exception as e:
@@ -102,8 +124,19 @@ class AsyncCVMManager:
                 
                 # Calculate adaptive sleep time to maintain target rate
                 loop_duration = time.time() - loop_start_time
-                sleep_time = max(0.001, self.target_sleep_time - loop_duration)  # Minimum 1ms sleep
-                await asyncio.sleep(sleep_time)
+                
+                # More aggressive timing for high-rate sampling
+                if loop_duration < self.target_sleep_time:
+                    sleep_time = self.target_sleep_time - loop_duration
+                    # Only sleep if we have significant time left (>0.5ms)
+                    if sleep_time > 0.0005:
+                        await asyncio.sleep(sleep_time)
+                    else:
+                        # Just yield control for very short delays
+                        await asyncio.sleep(0)
+                else:
+                    # We're already over budget, just yield control
+                    await asyncio.sleep(0)
                 
             except Exception as e:
                 print(f"❌ AsyncCVMManager error: {e}")
@@ -433,11 +466,13 @@ class AsyncCVMManager:
                 channel_start += CVM24PConfig.CHANNELS_PER_MODULE
             self.debug_channel_assignment_printed = True
         
-        for serial, module_info in sorted_modules:
+        # OPTIMIZATION: Read all modules in parallel instead of sequentially
+        async def read_module_voltages(serial: str, module_info: dict) -> List[float]:
+            """Read voltages from a single module"""
             try:
                 if serial in self.initialized_devices:
                     device = self.initialized_devices[serial]
-                    # Use same method as CVM_test.py
+                    # Use same method as CVM_test.py but in parallel
                     cell_voltages = await device.read_and_get_reg_by_name("ch_V")
                     
                     # Take expected number of channels
@@ -447,15 +482,34 @@ class AsyncCVMManager:
                     while len(module_voltages) < CVM24PConfig.CHANNELS_PER_MODULE:
                         module_voltages.append(0.0)
                     
-                    all_voltages.extend(module_voltages)
+                    return module_voltages
                 else:
-                    # Add zeros for uninitialized module
-                    all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
+                    # Return zeros for uninitialized module
+                    return [0.0] * CVM24PConfig.CHANNELS_PER_MODULE
                     
             except Exception as e:
                 print(f"⚠️  Error reading module {serial}: {e}")
-                # Add zeros for failed module
-                all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
+                # Return zeros for failed module
+                return [0.0] * CVM24PConfig.CHANNELS_PER_MODULE
+        
+        # Read all modules simultaneously using asyncio.gather for maximum speed
+        try:
+            voltage_tasks = [
+                read_module_voltages(serial, module_info) 
+                for serial, module_info in sorted_modules
+            ]
+            
+            # Execute all reads in parallel - this is the key optimization!
+            module_voltage_lists = await asyncio.gather(*voltage_tasks)
+            
+            # Combine all module results in order
+            for module_voltages in module_voltage_lists:
+                all_voltages.extend(module_voltages)
+                
+        except Exception as e:
+            print(f"⚠️  Error in parallel voltage reading: {e}")
+            # Fallback: return zeros for all channels
+            all_voltages = [0.0] * (len(sorted_modules) * CVM24PConfig.CHANNELS_PER_MODULE)
         
         return all_voltages
     
