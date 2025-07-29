@@ -249,41 +249,21 @@ class ChannelSelector(tk.Toplevel):
         ttk.Button(button_frame, text="Select All", command=self._select_all_voltage).pack(side="left", padx=2)
         ttk.Button(button_frame, text="Deselect All", command=self._deselect_all_voltage).pack(side="left", padx=2)
 
-        # Create frame for scrollable area
-        scroll_container = ttk.Frame(col3_frame)
-        scroll_container.pack(fill="both", expand=True)
-
         # Scrollable frame
-        canvas = tk.Canvas(scroll_container, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(col3_frame)
+        scrollbar = ttk.Scrollbar(col3_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
 
-        # Configure scroll region when frame size changes
-        def on_frame_configure(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-        
-        scrollable_frame.bind("<Configure>", on_frame_configure)
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
 
-        # Configure canvas scrolling
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Pack canvas and scrollbar
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
-
-        # Mouse wheel binding for scrolling
-        def on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        def bind_to_mousewheel(event):
-            canvas.bind_all("<MouseWheel>", on_mousewheel)
-        
-        def unbind_from_mousewheel(event):
-            canvas.unbind_all("<MouseWheel>")
-        
-        canvas.bind('<Enter>', bind_to_mousewheel)
-        canvas.bind('<Leave>', unbind_from_mousewheel)
 
         # --- Voltage Channels (120 cell voltages) ---
         for i in range(120):
@@ -300,10 +280,6 @@ class ChannelSelector(tk.Toplevel):
             chk.pack(anchor="w", padx=10, pady=1)
             self.voltage_vars.append(var)
             self.voltage_labels.append(chk)
-
-        # Force scroll region update after all widgets are added
-        scrollable_frame.update_idletasks()
-        canvas.configure(scrollregion=canvas.bbox("all"))
 
     def _update_all_values(self):
         """Update all channel values displayed in all columns."""
