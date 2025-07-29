@@ -7,6 +7,12 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# DEBUG:   Module 158458 (0xA1) → Channels 1-24
+# DEBUG:   Module 158453 (0xA4) → Channels 25-48
+# DEBUG:   Module 158436 (0xA6) → Channels 49-72
+# DEBUG:   Module 158435 (0xA7) → Channels 73-96
+# DEBUG:   Module 158340 (0xA9) → Channels 97-120
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
@@ -25,7 +31,7 @@ ni_cdaq:
     
     # Individual Sensor Channels with Calibrated Zero Offsets
     channels:
-      pt01:
+      pressure_1:
         channel: "ai0"
         name: "PT01"
         units: "PSI"
@@ -34,7 +40,7 @@ ni_cdaq:
         zero_offset: -0.035  # Corrects +0.035 PSI bias to achieve true 0 PSI
         description: "Hydrogen side pressure measurement"
         
-      pt02:
+      pressure_2:
         channel: "ai1" 
         name: "PT02"
         units: "PSI"
@@ -52,7 +58,7 @@ ni_cdaq:
         zero_offset: 0.0  # No bias correction needed for current sensor
         description: "Electrolyzer stack current measurement"
         
-      pt03:
+      pressure_pt01:
         channel: "ai3"
         name: "PT03"
         units: "PSI"
@@ -60,7 +66,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Pressure transducer 01 (4-20mA)"
         
-      pt04:
+      pressure_pt02:
         channel: "ai4"
         name: "PT04"  
         units: "PSI"
@@ -68,7 +74,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Pressure transducer 02 (4-20mA)"
         
-      pt05:
+      pressure_pt03:
         channel: "ai5"
         name: "PT05"
         units: "PSI"
@@ -84,7 +90,7 @@ ni_cdaq:
         zero_offset: 0.0
         description: "Gas flowrate measurement"
         
-      pt06:
+      pressure_pt05:
         channel: "ai7"
         name: "PT06"
         units: "PSI"
