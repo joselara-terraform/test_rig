@@ -18,11 +18,17 @@ import os
 class CSVLogger:
     """Real-time CSV data logger for test sessions"""
     
-    def __init__(self, log_interval: float = 1.0):
+    def __init__(self, log_interval: float = None):
         self.state = get_global_state()
         self.session_manager = get_session_manager()
         self.device_config = get_device_config()
-        self.log_interval = log_interval  # seconds between log entries
+        
+        # Use configurable log interval from devices.yaml
+        if log_interval is None:
+            csv_log_rate = self.device_config.get_csv_log_rate('default')  # 10Hz by default
+            self.log_interval = 1.0 / csv_log_rate
+        else:
+            self.log_interval = log_interval
         
         # Logging control
         self.logging = False

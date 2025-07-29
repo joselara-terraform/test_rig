@@ -26,7 +26,7 @@ def test_cvm24p_performance():
     print(f"Configuration loaded:")
     print(f"  Target sample rate: {device_config.get_cvm24p_target_sample_rate()} Hz")
     print(f"  Max sample rate: {device_config.get_cvm24p_max_sample_rate()} Hz")
-    print(f"  AppStatus enabled: {device_config.is_cvm24p_app_status_enabled()}")
+    print(f"  CSV log rate: {device_config.get_csv_log_rate('default')} Hz")
     print(f"  Latency minimized: {device_config.is_cvm24p_latency_minimized()}")
     print(f"  Performance logging: {device_config.is_cvm24p_performance_logging_enabled()}")
     print()

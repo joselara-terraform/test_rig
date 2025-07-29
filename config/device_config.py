@@ -182,15 +182,25 @@ class DeviceConfig:
         """Get sample rate for specific device"""
         return self.get_sample_rates().get(device, 1.0)
     
+    def get_csv_log_rates(self) -> Dict[str, float]:
+        """Get CSV logging rates configuration"""
+        return self.config.get('system', {}).get('csv_log_rates', {
+            'default': 10,
+            'high_speed': 50,
+            'standard': 1
+        })
+    
+    def get_csv_log_rate(self, rate_type: str = 'default') -> float:
+        """Get CSV logging rate for specific type"""
+        return self.get_csv_log_rates().get(rate_type, 10)
+    
     # CVM24P Performance Configuration Methods
     def get_cvm24p_performance_config(self) -> Dict[str, Any]:
         """Get CVM24P performance configuration for high-speed sampling"""
         return self.config.get('cvm24p', {}).get('performance', {
             'target_sample_rate': 100,
             'max_sample_rate': 500,
-            'use_app_status_command': True,
             'minimize_polling_latency': True,
-            'batch_module_requests': True,
             'log_actual_sample_rate': True,
             'sample_rate_window': 100,
             'performance_report_interval': 30
@@ -204,17 +214,9 @@ class DeviceConfig:
         """Get maximum sample rate for CVM24P (Hz)"""
         return self.get_cvm24p_performance_config().get('max_sample_rate', 500)
     
-    def is_cvm24p_app_status_enabled(self) -> bool:
-        """Check if AppStatus (0xA0) command is enabled for efficient polling"""
-        return self.get_cvm24p_performance_config().get('use_app_status_command', True)
-    
     def is_cvm24p_latency_minimized(self) -> bool:
         """Check if polling latency minimization is enabled"""
         return self.get_cvm24p_performance_config().get('minimize_polling_latency', True)
-    
-    def is_cvm24p_batch_requests_enabled(self) -> bool:
-        """Check if batch module requests are enabled"""
-        return self.get_cvm24p_performance_config().get('batch_module_requests', True)
     
     def is_cvm24p_performance_logging_enabled(self) -> bool:
         """Check if actual sample rate logging is enabled"""

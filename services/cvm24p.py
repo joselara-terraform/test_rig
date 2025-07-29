@@ -79,13 +79,8 @@ class AsyncCVMManager:
                     except Exception as e:
                         self.result_queue.put(('error', f"Read error: {e}"))
                 
-                # Sleep to control polling rate - use configurable sample rate
-                if self.minimize_latency:
-                    # Minimal sleep for maximum throughput
-                    await asyncio.sleep(1.0 / self.sample_rate)
-                else:
-                    # Conservative sleep
-                    await asyncio.sleep(0.1)
+                # Sleep to control polling rate
+                await asyncio.sleep(0.1)  # 10Hz check rate
                 
             except Exception as e:
                 print(f"❌ AsyncCVMManager error: {e}")
@@ -398,18 +393,7 @@ class AsyncCVMManager:
         start_time = time.time()
         all_voltages = []
         
-        # Try AppStatus command first if enabled
-        if self.use_app_status:
-            try:
-                app_status_voltages = await self._read_voltages_app_status()
-                if app_status_voltages:
-                    self._update_performance_metrics(start_time)
-                    return app_status_voltages
-            except Exception as e:
-                if self.enable_perf_logging:
-                    print(f"⚠️  AppStatus command failed, falling back to individual reads: {e}")
-        
-        # Fallback to individual module reads
+        # Fallback to individual module reads (AppStatus disabled for now)
         # Sort by address for consistent ordering  
         sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
         
@@ -451,37 +435,7 @@ class AsyncCVMManager:
         self._update_performance_metrics(start_time)
         return all_voltages
     
-    async def _read_voltages_app_status(self) -> Optional[List[float]]:
-        """Attempt to read voltages using AppStatus (0xA0) command for efficient multi-channel polling"""
-        try:
-            # This is where we would implement the AppStatus command if available in XC2 library
-            # For now, check if the XC2 library supports it
-            sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
-            
-            if not sorted_modules:
-                return None
-                
-            # Try to use a more efficient command if available
-            # Check if first device has app_status or similar method
-            first_serial, _ = sorted_modules[0]
-            if first_serial in self.initialized_devices:
-                device = self.initialized_devices[first_serial]
-                
-                # Check if device has AppStatus-like methods
-                if hasattr(device, 'read_app_status') or hasattr(device, 'app_status'):
-                    if self.enable_perf_logging:
-                        print(f"📡 Using AppStatus command for efficient multi-channel polling")
-                    # Implementation would go here if available
-                    # For now, return None to fall back to individual reads
-                    pass
-            
-            return None  # Not implemented yet - fall back to individual reads
-            
-        except Exception as e:
-            if self.enable_perf_logging:
-                print(f"⚠️  AppStatus command error: {e}")
-            return None
-    
+
     def _update_performance_metrics(self, start_time: float):
         """Update performance monitoring metrics"""
         if not self.enable_perf_logging:
@@ -556,9 +510,7 @@ class CVM24PService:
         self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
         
         # Performance optimization settings
-        self.use_app_status = self.device_config.is_cvm24p_app_status_enabled()
         self.minimize_latency = self.device_config.is_cvm24p_latency_minimized()
-        self.batch_requests = self.device_config.is_cvm24p_batch_requests_enabled()
         
         # Performance monitoring
         self.enable_perf_logging = self.device_config.is_cvm24p_performance_logging_enabled()
@@ -630,9 +582,6 @@ class CVM24PService:
             self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue)
             # Pass cached mapping to async manager for fast connection
             self.async_manager.cached_mapping = self.cached_module_mapping
-            # Pass performance settings to async manager
-            self.async_manager.sample_rate = self.sample_rate
-            self.async_manager.minimize_latency = self.minimize_latency
             self.async_thread = threading.Thread(
                 target=lambda: asyncio.run(self.async_manager.run()), 
                 daemon=True
@@ -747,9 +696,7 @@ class CVM24PService:
         if self.enable_perf_logging:
             print(f"📊 Performance optimization enabled:")
             print(f"   Target sample rate: {self.sample_rate} Hz (max: {self.max_sample_rate} Hz)")
-            print(f"   AppStatus command: {'✓' if self.use_app_status else '✗'}")
             print(f"   Latency minimization: {'✓' if self.minimize_latency else '✗'}")
-            print(f"   Batch requests: {'✓' if self.batch_requests else '✗'}")
             print(f"   Performance reporting every {self.perf_report_interval}s")
         
         return True
@@ -826,9 +773,7 @@ class CVM24PService:
                 'efficiency': f"{(self.actual_sample_rate/self.sample_rate)*100:.1f}%",
                 'total_samples': self.total_samples_collected,
                 'optimizations': {
-                    'app_status_enabled': self.use_app_status,
-                    'latency_minimized': self.minimize_latency,
-                    'batch_requests': self.batch_requests
+                    'latency_minimized': self.minimize_latency
                 }
             })
         
