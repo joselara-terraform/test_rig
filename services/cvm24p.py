@@ -163,20 +163,17 @@ class AsyncCVMManager:
             cached_mapping = getattr(self, 'cached_mapping', {})
             discovered_modules = {}
             
-            # Phase 1: Try cached addresses first (FAST - 2-5 seconds)
+            # Ultra-Fast Path: Assume cached addresses are correct (ULTRA-FAST - 2-3 seconds)
             if cached_mapping:
-                discovered_modules = await self._try_cached_modules(cached_mapping)
-                
-                # If we found all expected modules, skip discovery
-                if len(discovered_modules) >= CVM24PConfig.EXPECTED_MODULES:
-                    print(f"      → ✅ All modules found via cached addresses - skipping discovery!")
-                else:
-                    missing_count = CVM24PConfig.EXPECTED_MODULES - len(discovered_modules)
-                    print(f"      → ⚠️  {missing_count} modules missing - falling back to discovery...")
-                    
-                    # Phase 2: Discovery for missing modules (SLOW - fallback only)
-                    missing_modules = await self._discover_modules()
-                    discovered_modules.update(missing_modules)
+                print(f"      → Using ultra-fast initialization with cached addresses...")
+                # Create discovered_modules directly from cached mapping (skip verification)
+                for serial, address in cached_mapping.items():
+                    discovered_modules[serial] = {
+                        'address': address,
+                        'type': 'CVM24P',  # Assume type
+                        'serial': serial
+                    }
+                print(f"      → ✅ Created module map for {len(discovered_modules)} cached modules - proceeding to initialization")
             else:
                 print(f"      → No cached mapping available - using full discovery...")
                 discovered_modules = await self._discover_modules()
@@ -199,17 +196,47 @@ class AsyncCVMManager:
             initialized_count = await self._initialize_modules(discovered_modules)
             
             if initialized_count == 0:
-                print(f"      → No modules successfully initialized")
-                # SerialBus doesn't have disconnect method - just clear reference
-                self.bus = None
-                return False
+                # If ultra-fast path failed and we used cached mapping, try fallback
+                if cached_mapping and len(discovered_modules) == len(cached_mapping):
+                    print(f"      → Ultra-fast initialization failed - falling back to verification/discovery...")
+                    
+                    # Fallback: Try cached addresses with verification
+                    discovered_modules = await self._try_cached_modules(cached_mapping)
+                    
+                    # If still missing modules, use full discovery
+                    if len(discovered_modules) < CVM24PConfig.EXPECTED_MODULES:
+                        missing_count = CVM24PConfig.EXPECTED_MODULES - len(discovered_modules)
+                        print(f"      → ⚠️  {missing_count} modules still missing - using full discovery...")
+                        missing_modules = await self._discover_modules()
+                        discovered_modules.update(missing_modules)
+                    
+                    # Try initialization again with verified modules
+                    if discovered_modules:
+                        print(f"      → Retrying initialization with {len(discovered_modules)} verified modules...")
+                        initialized_count = await self._initialize_modules(discovered_modules)
+                
+                if initialized_count == 0:
+                    print(f"      → No modules successfully initialized after fallback")
+                    # SerialBus doesn't have disconnect method - just clear reference
+                    self.bus = None
+                    return False
             
             # Success criteria: at least some modules initialized
-            success_rate = initialized_count / found_count if found_count > 0 else 0
-            print(f"   → Success! {initialized_count}/{found_count} modules initialized ({success_rate:.1%} success rate)")
+            final_found_count = len(discovered_modules)  # Update count in case fallback was used
+            success_rate = initialized_count / final_found_count if final_found_count > 0 else 0
             
-            if found_count < expected_count:
-                print(f"   → ⚠️  Note: Only {found_count}/{expected_count} expected modules were discovered")
+            # Determine which path was successful
+            if cached_mapping and final_found_count == len(cached_mapping) and initialized_count > 0:
+                path_used = "ultra-fast cached"
+            elif cached_mapping:
+                path_used = "cached with fallback"
+            else:
+                path_used = "full discovery"
+            
+            print(f"   → Success! {initialized_count}/{final_found_count} modules initialized via {path_used} path ({success_rate:.1%} success rate)")
+            
+            if final_found_count < expected_count:
+                print(f"   → ⚠️  Note: Only {final_found_count}/{expected_count} expected modules were discovered")
             
             return True
             
