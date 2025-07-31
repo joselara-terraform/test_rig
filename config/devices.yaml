@@ -284,7 +284,44 @@ bga244:
 cvm24p:
   device_type: "CVM-24P"
   connection: "USB"
-  protocol: "Modbus RTU"
+  protocol: "XC2"
+  
+  # Physical Module Mapping
+  modules:
+    # Module 1: Physical position 1
+    '158458':
+      address: 0xA1
+      name: "Module 1"
+      channels: [1, 24]  # Channels 1-24
+      description: "CVM24P Module 1 - First physical module"
+    
+    # Module 2: Physical position 2  
+    '158436':
+      address: 0xA6
+      name: "Module 2"
+      channels: [25, 48]  # Channels 25-48
+      description: "CVM24P Module 2 - Second physical module"
+    
+    # Module 3: Physical position 3
+    '158435':
+      address: 0xA7
+      name: "Module 3"
+      channels: [49, 72]  # Channels 49-72
+      description: "CVM24P Module 3 - Third physical module"
+    
+    # Module 4: Physical position 4
+    '158453':
+      address: 0xA4
+      name: "Module 4"
+      channels: [73, 96]  # Channels 73-96
+      description: "CVM24P Module 4 - Fourth physical module"
+    
+    # Module 5: Physical position 5
+    '158340':
+      address: 0xA9
+      name: "Module 5"
+      channels: [97, 120]  # Channels 97-120
+      description: "CVM24P Module 5 - Fifth physical module"
   
   # Cell Voltage Configuration
   cells:
@@ -293,7 +330,7 @@ cvm24p:
     voltage_range: [0, 5]  # Volts
       
   communication:
-    baud_rate: 115200
+    baud_rate: 1000000  # 1MHz - XC2 protocol standard
     data_bits: 8
     stop_bits: 1
     parity: "None"

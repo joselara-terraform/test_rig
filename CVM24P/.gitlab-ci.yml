@@ -1,0 +1,87 @@
+stages: # List of stages for jobs, and their order of execution
+  - preparation
+  - static-analysis
+
+.linux-script-before: &linux-script-before
+  - python --version
+  - python -c "import sys; print(sys.executable)"
+  - python -m venv env
+  - source env/bin/activate
+  - python --version
+  - python -c "import sys; print(sys.executable)"
+
+.windows-script-before: &windows-script-before
+  - python --version
+  - python -c "import sys; print(sys.executable)"
+  - python -m venv env
+  - .\env\Scripts\activate
+  - python --version
+  - python -c "import sys; print(sys.executable)" 
+
+.ruff-job: &ruff-job
+  - pip install ruff
+  - echo "Linting code by Ruff"
+  - python -m ruff check . --show-source
+
+ruff-job-linux:
+  stage: static-analysis
+  allow_failure: true
+  tags:
+    - raspberrypi
+  script:
+    - *linux-script-before
+    - *ruff-job
+
+# ruff-job-windows:
+#   stage: static-analysis
+#   allow_failure: true
+#   tags:
+#     - windows
+#   script:
+#     - *windows-script-before
+#     - *ruff-job
+
+.pyright-job: &pyright-job
+  - pip install pyright
+  - echo "Check types by pyright"
+  - python -m pyright
+
+pyright-job-linux:
+  stage: static-analysis
+  allow_failure: true
+  tags:
+    - raspberrypi
+  script:
+    - *linux-script-before
+    - *pyright-job
+
+# pyright-job-windows:
+#   stage: static-analysis
+#   allow_failure: true
+#   tags:
+#     - windows
+#   script:
+#     - *windows-script-before
+#     - *pyright-job
+
+.check-black-job: &check-black-job  
+    - pip install black
+    - python -m black . --check
+
+check-black-job-linux:
+  stage: static-analysis
+  allow_failure: true
+  tags:
+    - raspberrypi
+  script:
+    - *linux-script-before
+    - *check-black-job
+
+# check-black-job-windows:
+#   stage: static-analysis
+#   allow_failure: true
+#   tags:
+#     - windows
+#   script:
+#     - *windows-script-before
+#     - *check-black-job

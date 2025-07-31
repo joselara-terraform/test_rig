@@ -1,0 +1,4 @@
+crcmod==1.7
+icmplib==3.0.4
+pyserial==3.5
+pyserial-asyncio==0.6

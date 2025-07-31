@@ -49,7 +49,7 @@ class CVM24PConfig:
 class AsyncCVMManager:
     """Async manager for CVM hardware operations - runs in dedicated thread"""
     
-    def __init__(self, command_queue: queue.Queue, result_queue: queue.Queue):
+    def __init__(self, command_queue: queue.Queue, result_queue: queue.Queue, expected_modules: int = 5):
         self.command_queue = command_queue
         self.result_queue = result_queue
         self.bus = None
@@ -57,6 +57,7 @@ class AsyncCVMManager:
         self.initialized_devices = {}  # Dict of serial -> XC2Cvm24p device
         self.running = False
         self.debug_channel_assignment_printed = False  # DEBUG: Flag to print channel assignment only once
+        self.expected_modules = expected_modules  # Configurable expected modules count
         
     async def run(self):
         """Main async loop - handles commands and polling"""
@@ -188,7 +189,7 @@ class AsyncCVMManager:
             self.modules = discovered_modules
             
             # Check module count
-            expected_count = CVM24PConfig.EXPECTED_MODULES
+            expected_count = self.expected_modules
             found_count = len(discovered_modules)
             
             if found_count < expected_count:
@@ -207,8 +208,8 @@ class AsyncCVMManager:
                     discovered_modules = await self._try_cached_modules(cached_mapping)
                     
                     # If still missing modules, use full discovery
-                    if len(discovered_modules) < CVM24PConfig.EXPECTED_MODULES:
-                        missing_count = CVM24PConfig.EXPECTED_MODULES - len(discovered_modules)
+                    if len(discovered_modules) < self.expected_modules:
+                        missing_count = self.expected_modules - len(discovered_modules)
                         print(f"      → ⚠️  {missing_count} modules still missing - using full discovery...")
                         missing_modules = await self._discover_modules()
                         discovered_modules.update(missing_modules)
@@ -259,15 +260,15 @@ class AsyncCVMManager:
         consecutive_same_count = 0
         last_module_count = 0
         
-        print(f"      → Starting robust discovery process (expecting {CVM24PConfig.EXPECTED_MODULES} modules)...")
+        print(f"      → Starting robust discovery process (expecting {self.expected_modules} modules)...")
         
-        while len(found_modules) < CVM24PConfig.EXPECTED_MODULES:
+        while len(found_modules) < self.expected_modules:
             attempt += 1
             
             # Check maximum discovery time
             elapsed_time = asyncio.get_event_loop().time() - discovery_start_time
             if elapsed_time > CVM24PConfig.MAX_DISCOVERY_TIME:
-                print(f"      → Discovery timeout after {elapsed_time:.1f}s - found {len(found_modules)}/{CVM24PConfig.EXPECTED_MODULES} modules")
+                print(f"      → Discovery timeout after {elapsed_time:.1f}s - found {len(found_modules)}/{self.expected_modules} modules")
                 break
             
             # Vary timing slightly to avoid sync issues
@@ -326,7 +327,7 @@ class AsyncCVMManager:
                             pass  # Skip failed direct identification
                 
                 current_count = len(found_modules)
-                print(f"total: {current_count}/{CVM24PConfig.EXPECTED_MODULES} modules")
+                print(f"total: {current_count}/{self.expected_modules} modules")
                 
                 # Track if we're making progress
                 if current_count == last_module_count:
@@ -336,8 +337,8 @@ class AsyncCVMManager:
                     last_module_count = current_count
                 
                 # If we found all expected modules, we're done
-                if current_count >= CVM24PConfig.EXPECTED_MODULES:
-                    print(f"      → ✅ Found all {CVM24PConfig.EXPECTED_MODULES} expected modules after {attempt} attempts")
+                if current_count >= self.expected_modules:
+                    print(f"      → ✅ Found all {self.expected_modules} expected modules after {attempt} attempts")
                     break
                 
                 # If we're stuck at the same count for too many attempts, try a longer delay
@@ -351,8 +352,8 @@ class AsyncCVMManager:
                 continue
         
         # Final summary
-        if len(found_modules) < CVM24PConfig.EXPECTED_MODULES:
-            print(f"      → ⚠️  Warning: Only found {len(found_modules)}/{CVM24PConfig.EXPECTED_MODULES} expected modules")
+        if len(found_modules) < self.expected_modules:
+            print(f"      → ⚠️  Warning: Only found {len(found_modules)}/{self.expected_modules} expected modules")
             print(f"      → Discovered modules: {list(found_modules.keys())}")
         else:
             print(f"      → ✅ Successfully discovered all {len(found_modules)} modules")
@@ -457,17 +458,30 @@ class CVM24PService:
         # CVM24P configuration from device config
         self.device_name = "CVM-24P"
         self.sample_rate = self.device_config.get_sample_rate('cvm24p')
-        self.expected_modules = 5  # Expect 5 modules for 120 channels (5 * 24 = 120)
+        # Get expected modules count from devices.yaml (will be updated after module mapping is loaded)
+        self.expected_modules = 5  # Default fallback
         self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
         
-        # Known module mapping for fast initialization (constant serial numbers and addresses)
-        self.cached_module_mapping = {
-            '158458': 0xA1,  # Channels 1-24
-            '158453': 0xA4,  # Channels 25-48
-            '158436': 0xA6,  # Channels 49-72
-            '158435': 0xA7,  # Channels 73-96
-            '158340': 0xA9,  # Channels 97-120
-        }
+        # Get module mapping from devices.yaml (source of truth)
+        self.cached_module_mapping = self.device_config.get_cvm24p_module_mapping()
+        self.module_names = self.device_config.get_cvm24p_module_names()
+        
+        # Validate module configuration
+        if not self.cached_module_mapping:
+            print("⚠️  Warning: No CVM24P module mapping found in devices.yaml")
+        else:
+            expected_count = self.device_config.get_cvm24p_expected_modules()
+            print(f"   → Loaded {len(self.cached_module_mapping)} module mappings from devices.yaml")
+            
+            # Debug: Show configured module mapping
+            print(f"   → Physical connection order:")
+            for serial, address in self.cached_module_mapping.items():
+                module_name = self.module_names.get(serial, f'Module {serial}')
+                print(f"      {module_name} - {serial} (0x{address:X})")
+        
+        # Update expected modules count based on devices.yaml
+        self.expected_modules = self.device_config.get_cvm24p_expected_modules()
+        self.total_channels = self.expected_modules * CVM24PConfig.CHANNELS_PER_MODULE
         
         # Async communication - simplified pattern
         self.command_queue = queue.Queue()
@@ -516,7 +530,7 @@ class CVM24PService:
             print(f"   → Found {len(available_ports)} available ports: {available_ports}")
             
             # Start async manager thread
-            self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue)
+            self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue, self.expected_modules)
             # Pass cached mapping to async manager for fast connection
             self.async_manager.cached_mapping = self.cached_module_mapping
             self.async_thread = threading.Thread(

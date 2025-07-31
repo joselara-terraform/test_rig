@@ -1,0 +1,2 @@
+class XCTError(Exception):
+    pass

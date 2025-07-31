@@ -1,0 +1,13 @@
+{
+  "exclude": ["**/db_manipulation_library", "**/env", "**/scpi_controller", "**/xc2_library"],
+  "reportGeneralTypeIssues": "none",
+  "reportMissingImports": true,
+  "reportUnusedImport": true,
+  "reportUnusedVariable": true,
+  "venvPath": "env",
+  "typeCheckingMode": "basic",
+  "ignore":
+    [
+        "reportSelfClsParameterName"
+    ]
+}

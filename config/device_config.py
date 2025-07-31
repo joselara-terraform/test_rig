@@ -168,6 +168,38 @@ class DeviceConfig:
         """Get calibrated zero offset for specific voltage group (disabled)"""
         return 0.0
     
+    def get_cvm24p_module_mapping(self) -> Dict[str, int]:
+        """Get CVM24P module serial number to address mapping (physical connection order)"""
+        modules_config = self.get_cvm24p_config().get('modules', {})
+        mapping = {}
+        
+        for serial, module_info in modules_config.items():
+            address = module_info.get('address')
+            if address is not None:
+                mapping[serial] = address
+        
+        return mapping
+    
+    def get_cvm24p_module_names(self) -> Dict[str, str]:
+        """Get CVM24P module serial number to name mapping"""
+        modules_config = self.get_cvm24p_config().get('modules', {})
+        names = {}
+        
+        for serial, module_info in modules_config.items():
+            name = module_info.get('name', f'Module {serial}')
+            names[serial] = name
+        
+        return names
+    
+    def get_cvm24p_module_info(self) -> Dict[str, Dict[str, Any]]:
+        """Get complete CVM24P module information"""
+        return self.get_cvm24p_config().get('modules', {})
+    
+    def get_cvm24p_expected_modules(self) -> int:
+        """Get expected number of CVM24P modules"""
+        modules_config = self.get_cvm24p_config().get('modules', {})
+        return len(modules_config)
+    
     # System Configuration Methods
     def get_sample_rates(self) -> Dict[str, float]:
         """Get data acquisition sample rates for all devices"""

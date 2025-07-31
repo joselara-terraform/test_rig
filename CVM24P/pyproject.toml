@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "XC2-library"
+version = "2.0.1.5"
+authors = [
+  { name="Tadeas Navratil", email="tadeas.navratil@kolibrik.net" },
+  { name="Jan Pecina", email="jan.pecina@kolibrik.net" },
+]
+dependencies = [
+    "crcmod",
+    "pyserial",
+]
+description = "Library used for XC2 devices"
+readme = "README.md"
+requires-python = ">=3.11"
+
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://gl.kolibrik.net/testing/xc2_library"
+"Bug Tracker" = "https://gl.kolibrik.net/testing/xc2_library/-/issues"
+
+[tool.black]
+include = '\.pyi?$'
+line-length = 160
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | env
+)/
+'''
+
+[tool.ruff]
+exclude = [
+  ".git",
+  ".hg",
+  ".mypy_cache",
+  ".tox",
+  ".venv",
+  "_build",
+  "buck-out",
+  "build",
+  "dist",
+  "env",
+]
+lint.ignore = ["E501","F821"]

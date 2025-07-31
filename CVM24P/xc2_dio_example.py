@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar  8 12:07:33 2023
+
+@author: peca
+"""
+from xc2.bus import SerialBus
+from xc2.utils import discover_serial_ports, discover_devices
+from xc2.consts import XC2Commands
+
+from xc2.xc2_dev_dio import XC2Dio
+
+if __name__ == "__main__":
+    my_ports = discover_serial_ports()
+    print(my_ports)
+
+    baud_rate = 115200
+    adr_dec = 0xA1
+    new_adr = 4
+
+    # set XC2 bus
+    my_bus = SerialBus(port=my_ports[0], log_bytes=False, baud_rate=baud_rate)
+    # discover all devices on the bus
+    my_devices = discover_devices(bus=my_bus)
+    print(my_devices)
+
+    # create XC2Xam object
+    my_device = XC2Dio(my_bus, adr_dec)
+    #
+
+    # my_device.send_app_readwrite(1,XC2Commands.SET)
+    # my_device.send_app_readwrite_all(4,[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0])
+    my_device.send_app_fuses(XC2Commands.RESET)
+    my_device.get_app_status()
+    print("stop")

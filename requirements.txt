@@ -6,4 +6,13 @@ PyYAML>=6.0
 # Data post-processing dependencies
 pandas>=2.0.0
 matplotlib>=3.7.0
-numpy>=1.24.0 
+numpy>=1.24.0
+
+# CVM24P XC2 Library dependencies
+crcmod==1.7
+pyserial==3.5
+pyserial-asyncio==0.6
+icmplib==3.0.4
+
+# Note: XC2-library must be installed separately using:
+# pip install ./CVM24P 
