@@ -58,6 +58,7 @@ class AsyncCVMManager:
         self.running = False
         self.debug_channel_assignment_printed = False  # DEBUG: Flag to print channel assignment only once
         self.expected_modules = expected_modules  # Configurable expected modules count
+        self.physical_module_order = []  # Physical connection order from devices.yaml
         
     async def run(self):
         """Main async loop - handles commands and polling"""
@@ -398,12 +399,20 @@ class AsyncCVMManager:
         """Read voltages from all modules (like CVM_test.py pattern)"""
         all_voltages = []
         
-        # Sort by address for consistent ordering  
-        sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
+        # Sort by physical connection order from devices.yaml (not address)
+        sorted_modules = []
+        if self.physical_module_order:
+            # Use physical connection order from devices.yaml
+            for serial in self.physical_module_order:
+                if serial in self.modules:
+                    sorted_modules.append((serial, self.modules[serial]))
+        else:
+            # Fallback to address sorting if no physical order defined
+            sorted_modules = sorted(self.modules.items(), key=lambda x: x[1]['address'])
         
         # DEBUG: Show sorting and channel assignment
         if not self.debug_channel_assignment_printed:
-            print(f"DEBUG: Voltage reading - module sorting and channel assignment:")
+            print(f"DEBUG: Voltage reading - module sorting and channel assignment (PHYSICAL ORDER):")
             channel_start = 0
             for i, (serial, module_info) in enumerate(sorted_modules):
                 channel_end = channel_start + CVM24PConfig.CHANNELS_PER_MODULE - 1
@@ -531,8 +540,10 @@ class CVM24PService:
             
             # Start async manager thread
             self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue, self.expected_modules)
-            # Pass cached mapping to async manager for fast connection
+            # Pass cached mapping and physical order to async manager for fast connection
             self.async_manager.cached_mapping = self.cached_module_mapping
+            # Pass physical connection order from devices.yaml
+            self.async_manager.physical_module_order = list(self.cached_module_mapping.keys())
             self.async_thread = threading.Thread(
                 target=lambda: asyncio.run(self.async_manager.run()), 
                 daemon=True
