@@ -1,0 +1,61 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+*.env
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# VSCode settings
+.vscode/
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy cache
+.mypy_cache/
+
+# Coverage reports
+htmlcov/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+
+# Profiling data
+*.prof
+*.log
+
+# Unit test / test database
+*.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Ignore secrets/configs (if present)
+*.pem
+*.key
+*.crt
+
+# Ignore compiled C extensions
+*.so
+
+# Ignore build artifacts
+build/
+dist/
+*.egg-info/
+
+# Ignore local debugging
+*.swp
+*.bak
+*.tmp
