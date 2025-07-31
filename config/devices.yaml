@@ -7,6 +7,44 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# → Starting CVM-24P service...
+#    → Loaded 5 module mappings from devices.yaml
+#    → Physical connection order:
+#       Module 1 - 158458 (0xA1)
+#       Module 2 - 158436 (0xA6)
+#       Module 3 - 158435 (0xA7)
+#       Module 4 - 158453 (0xA4)
+#       Module 5 - 158340 (0xA9)
+# 🔋 Connecting to CVM-24P cell voltage monitor...
+#    → Attempting hardware connection...
+#    → Found 1 available ports: ['COM5']
+#    → Trying port COM5 (1/1)...
+# DEBUG: ===== Starting CVM24P connection debug session =====
+#    → Connecting to COM5 at 1000000 baud...
+#       → Bus connected
+#       → Using ultra-fast initialization with cached addresses...
+#       → ✅ Created module map for 5 cached modules - proceeding to initialization
+#    → Initializing 5 modules...
+#    → DEBUG: Initialization order: ['158458', '158436', '158435', '158453', '158340']
+#    ✅ Module 158458 (0xA1) initialized
+#    ✅ Module 158436 (0xA6) initialized
+#    ✅ Module 158435 (0xA7) initialized
+#    ✅ Module 158453 (0xA4) initialized
+#    ✅ Module 158340 (0xA9) initialized
+#    → DEBUG: Successfully initialized modules: ['158458', '158436', '158435', '158453', '158340']
+#    → Success! 5/5 modules initialized via ultra-fast cached path (100.0% success rate)
+# DEBUG: Voltage reading - module sorting and channel assignment:
+# DEBUG:   Module 158458 (0xA1) → Channels 1-24
+#    → Success on COM5!
+# DEBUG:   Module 158453 (0xA4) → Channels 25-48
+# DEBUG:   Module 158436 (0xA6) → Channels 49-72
+# DEBUG:   Module 158435 (0xA7) → Channels 73-96
+# DEBUG:   Module 158340 (0xA9) → Channels 97-120
+# ✅ CVM-24P connected - Hardware mode with 5 modules
+# 🔋 Starting CVM-24P polling at 10 Hz...
+# ✅ CVM-24P polling started
+#    ✅ CVM-24P connected - 24-channel cell voltage monitor
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
