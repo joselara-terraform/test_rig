@@ -7,6 +7,40 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Loaded 5 module mappings from devices.yaml
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Physical connection order:
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Module 1 - 158458 (0xA1)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Module 2 - 158436 (0xA6)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Module 3 - 158435 (0xA7)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Module 4 - 158453 (0xA4)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Module 5 - 158340 (0xA9)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Connecting CVM modules on serial port
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Found 1 available ports: ['COM5']
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Trying port COM5 (1/1)
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Starting CVM24P connection debug session
+# [2025-08-01 14:04:19] INFO     [CVM24P]       - Connecting to COM5 at 1000000 baud
+# [2025-08-01 14:04:20] SUCCESS  [CVM24P]       - Bus connected
+# [2025-08-01 14:04:22] INFO     [CVM24P]       - Using ultra-fast initialization with cached addresses
+# [2025-08-01 14:04:22] SUCCESS  [CVM24P]       - Created module map for 5 cached modules - proceeding to initialization
+# [2025-08-01 14:04:22] INFO     [CVM24P]       - Initializing 5 modules
+# [2025-08-01 14:04:22] INFO     [CVM24P]       - Initialization order: ['158458', '158436', '158435', '158453', '158340']
+# [2025-08-01 14:04:23] SUCCESS  [CVM24P]       - Module 158458 (0xA1) initialized
+# [2025-08-01 14:04:24] SUCCESS  [CVM24P]       - Module 158436 (0xA6) initialized
+# [2025-08-01 14:04:25] SUCCESS  [CVM24P]       - Module 158435 (0xA7) initialized
+# [2025-08-01 14:04:26] SUCCESS  [CVM24P]       - Module 158453 (0xA4) initialized
+# [2025-08-01 14:04:27] SUCCESS  [CVM24P]       - Module 158340 (0xA9) initialized
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Successfully initialized modules: ['158458', '158436', '158435', '158453', '158340']
+# [2025-08-01 14:04:27] SUCCESS  [CVM24P]       - Success! 5/5 modules initialized via ultra-fast cached path (100.0% success rate)
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Voltage reading - module sorting and channel assignment (PHYSICAL ORDER):
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Module 158458 (0xA1) → Channels 1-24
+# [2025-08-01 14:04:27] SUCCESS  [CVM24P]       - Success on COM5!
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Module 158436 (0xA6) → Channels 25-48
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Module 158435 (0xA7) → Channels 49-72
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Module 158453 (0xA4) → Channels 73-96
+# [2025-08-01 14:04:27] INFO     [CVM24P]       - Module 158340 (0xA9) → Channels 97-120
+# [2025-08-01 14:04:28] SUCCESS  [CVM24P]       - All 5 modules initialized
+# [2025-08-01 14:04:28] SUCCESS  [CVM24P]       - Polling started at 10 Hz
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
