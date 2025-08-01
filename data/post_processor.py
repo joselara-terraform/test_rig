@@ -136,7 +136,7 @@ class DataPostProcessor:
     
     def load_csv_data(self) -> bool:
         """Load all CSV data files"""
-        print(f"📊 Loading CSV data from {self.csv_folder}")
+        # Loading CSV data silently
         
         # Expected CSV files
         csv_files = {
@@ -190,7 +190,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating pressure plot...")
+            # Generating pressure plot
             
             df = self.data['sensors']
             config = self.plot_config['pressure']
@@ -234,7 +234,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating gas purity plot...")
+            # Generating gas purity plot
             
             df = self.data['gas_analysis']
             config = self.plot_config['gas_purity']
@@ -279,7 +279,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating temperature plot...")
+            # Generating temperature plot
             
             df = self.data['sensors']
             config = self.plot_config['temperature']
@@ -328,7 +328,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating cell voltage plot...")
+            # Generating cell voltage plot
             
             df = self.data['cell_voltages']
             config = self.plot_config['cell_voltage']
@@ -382,7 +382,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating current plot...")
+            # Generating current plot
             
             df = self.data['sensors']
             config = self.plot_config['current']
@@ -423,7 +423,7 @@ class DataPostProcessor:
             return False
         
         try:
-            print("📊 Generating flowrate plot...")
+            # Generating flowrate plot
             
             df = self.data['sensors']
             config = self.plot_config['flowrate']

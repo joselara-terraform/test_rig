@@ -146,9 +146,7 @@ class CSVLogger:
         """Initialize CSV files with headers"""
         try:
             # Get base filename from session manager
-            print("      → Getting base filename from session manager...")
             base_filename = self.session_manager.get_base_filename("data")
-            print(f"      → Base filename: {base_filename}")
             
             # Create CSV files for different data types
             file_configs = {
@@ -158,26 +156,20 @@ class CSVLogger:
                 'actuator_states': f"{base_filename}_actuators.csv"
             }
             
-            print(f"      → Creating {len(file_configs)} CSV files...")
-            
             # Initialize each CSV file
             for file_type, filename in file_configs.items():
-                print(f"         • Creating {file_type}: {filename}")
-                
                 # Register file with session manager
                 file_path = self.session_manager.register_file(
                     filename, 
                     "csv", 
                     f"Real-time {file_type.replace('_', ' ')} data"
                 )
-                print(f"           → Full path: {file_path}")
                 
                 # Check if directory exists and is writable
                 file_path_obj = Path(file_path)
                 parent_dir = file_path_obj.parent
                 
                 if not parent_dir.exists():
-                    print(f"           → Creating directory: {parent_dir}")
                     parent_dir.mkdir(parents=True, exist_ok=True)
                 
                 if not parent_dir.is_dir():
@@ -188,13 +180,11 @@ class CSVLogger:
                     raise Exception(f"No write permission to directory: {parent_dir}")
                 
                 # Open file and create CSV writer
-                print(f"           → Opening file for writing...")
                 file_handle = open(file_path, 'w', newline='', encoding='utf-8')
                 csv_writer = csv.writer(file_handle)
                 
                 # Write header row
                 headers = self.column_definitions[file_type]
-                print(f"           → Writing {len(headers)} column headers")
                 csv_writer.writerow(headers)
                 file_handle.flush()
                 
@@ -202,22 +192,20 @@ class CSVLogger:
                 self.csv_files[file_type] = file_path
                 self.file_handles[file_type] = file_handle
                 self.csv_writers[file_type] = csv_writer
-                
-                print(f"           → ✅ {file_type} file created successfully")
             
-            print(f"      → ✅ All {len(file_configs)} CSV files initialized")
             return True
             
         except Exception as e:
-            print(f"❌ Error initializing CSV files: {e}")
+            log.error("DataLogger", f"Error initializing CSV files: {e}")
             import traceback
+            # Still print detailed traceback for debugging
             print(f"   → Error details: {traceback.format_exc()}")
             self._cleanup_files()
             return False
     
     def _logging_worker(self):
         """Main logging worker thread"""
-        print(f"📊 CSV logging worker started (interval: {self.log_interval}s)")
+        # CSV logging worker starts silently
         
         while self.logging and not self.stop_event.is_set():
             try:
@@ -245,7 +233,7 @@ class CSVLogger:
                 print(f"❌ CSV logging error: {e}")
                 break
         
-        print("📊 CSV logging worker stopped")
+        # CSV logging worker stops silently
     
     def _log_main_sensors(self, timestamp: str, elapsed: float):
         """Log main sensor data (pressure, current, flowrate, temperature)"""

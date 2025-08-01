@@ -9,15 +9,16 @@ import threading
 from typing import List, Tuple, Dict, Any
 from core.state import get_global_state
 from config.device_config import get_device_config
+from utils.logger import log
 
 # Try to import the required Pico libraries
 try:
     import ctypes
     PICO_AVAILABLE = True
-    print("✅ Pico TC-08 libraries available")
+    log.success("Libraries", "Pico TC-08 library loaded")
 except ImportError:
     PICO_AVAILABLE = False
-    print("❌ Pico TC-08 libraries not available - hardware connection will fail")
+    log.error("Libraries", "Pico TC-08 libraries not available - hardware connection will fail")
 
 
 class PicoTC08Config:
@@ -284,54 +285,46 @@ class PicoTC08Service:
         
     def connect(self) -> bool:
         """Connect to Pico TC-08 device"""
-        print("🌡️  Connecting to Pico TC-08 thermocouple logger...")
-        
         if not PICO_AVAILABLE:
-            print("❌ Pico libraries not available - cannot connect to hardware")
+            log.error("TC08", "Pico libraries not available - cannot connect to hardware")
             return False
         
         try:
             # Try to load DLL and connect to real hardware
-            print("   → Loading TC-08 DLL...")
             if self.hardware.load_dll():
-                print("   → DLL loaded successfully")
-                print("   → Connecting to hardware...")
-                
                 if self.hardware.connect():
-                    print(f"   → Hardware connected (handle: {self.hardware.handle})")
-                    print("   → Configuring channels...")
-                    
                     if self.hardware.configure_channels():
-                        print(f"   → Configured {self.num_channels} thermocouple channels:")
-                        
+                        # Prepare channel details
+                        channel_details = []
                         for ch, config in self.channel_config.items():
-                            print(f"     • CH{ch}: {config['name']}")
+                            channel_details.append(f"• CH{ch}: {config['name']}")
                         
                         self.connected = True
                         self.state.update_connection_status('pico_tc08', True)
                         
-                        print("✅ Pico TC-08 connected successfully")
+                        log.success("TC08", f"Pico TC-08 connected at 1 Hz polling", [
+                            f"→ Handle: {self.hardware.handle}",
+                            f"→ {self.num_channels} K-type channels configured"
+                        ] + channel_details)
                         return True
                     else:
-                        print("❌ Hardware channel configuration failed")
+                        log.error("TC08", "Hardware channel configuration failed")
                         self.hardware.disconnect()
                 else:
-                    print("❌ Hardware connection failed - no TC-08 device found")
+                    log.error("TC08", "Hardware connection failed - no TC-08 device found")
             else:
-                print("❌ TC-08 DLL not available")
+                log.error("TC08", "TC-08 DLL not available")
             
             return False
             
         except Exception as e:
-            print(f"❌ Failed to connect to Pico TC-08: {e}")
+            log.error("TC08", f"Failed to connect to Pico TC-08: {e}")
             self.connected = False
             self.state.update_connection_status('pico_tc08', False)
             return False
     
     def disconnect(self):
         """Disconnect from Pico TC-08"""
-        print("🌡️  Disconnecting from Pico TC-08...")
-        
         # Stop polling first
         if self.polling:
             self.stop_polling()
@@ -342,30 +335,28 @@ class PicoTC08Service:
         self.connected = False
         self.state.update_connection_status('pico_tc08', False)
         
-        print("✅ Pico TC-08 disconnected")
+        log.success("TC08", "Pico TC-08 disconnected")
     
     def start_polling(self) -> bool:
         """Start polling thermocouple data"""
         if not self.connected:
-            print("❌ Cannot start polling - Pico TC-08 not connected")
+            log.error("TC08", "Cannot start polling - Pico TC-08 not connected")
             return False
         
         if self.polling:
-            print("⚠️  Pico TC-08 polling already running")
+            log.warning("TC08", "Pico TC-08 polling already running")
             return True
-        
-        print(f"🌡️  Starting Pico TC-08 polling at {self.sample_rate} Hz...")
         
         # Start hardware streaming
         if not self.hardware.start_streaming():
-            print("❌ Failed to start hardware streaming")
+            log.error("TC08", "Failed to start hardware streaming")
             return False
         
         self.polling = True
         self.poll_thread = threading.Thread(target=self._poll_data, daemon=True)
         self.poll_thread.start()
         
-        print("✅ Pico TC-08 polling started")
+        log.success("TC08", f"Pico TC-08 polling started at {self.sample_rate} Hz")
         return True
     
     def stop_polling(self):
@@ -373,7 +364,6 @@ class PicoTC08Service:
         if not self.polling:
             return
         
-        print("🌡️  Stopping Pico TC-08 polling...")
         self.polling = False
         
         # Stop hardware streaming
@@ -382,7 +372,7 @@ class PicoTC08Service:
         if self.poll_thread and self.poll_thread.is_alive():
             self.poll_thread.join(timeout=2.0)
         
-        print("✅ Pico TC-08 polling stopped")
+        log.success("TC08", "Pico TC-08 polling stopped")
     
     def _poll_data(self):
         """Polling thread function"""

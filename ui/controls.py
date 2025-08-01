@@ -9,6 +9,7 @@ from core.state import get_global_state
 from core.timer import get_timer
 from services.controller_manager import get_controller_manager
 from config.device_config import get_device_config
+from utils.logger import log
 
 
 class ChannelSelector(tk.Toplevel):
@@ -649,17 +650,14 @@ class ControlPanel:
     def _on_connect_click(self):
         """Handle Connect button click"""
         if not self.controller.is_all_connected():
-            print("🔌 Connect button clicked")
+            log.info("UI", "Connect button clicked")
             
             # Use ControllerManager to start all services
             success = self.controller.start_all_services()
             
-            if success:
-                print("   ✅ All devices connected via ControllerManager")
-            else:
-                print("   ❌ Some devices failed to connect")
+            # Service connection messages are handled by individual services
         else:
-            print("🔌 Disconnect button clicked")
+            log.info("UI", "Disconnect button clicked")
             
             # Stop any running test first
             if self.state.test_running:
@@ -667,101 +665,74 @@ class ControlPanel:
             
             # Use ControllerManager to stop all services
             self.controller.stop_all_services()
-            print("   ✅ All devices disconnected via ControllerManager")
+            # Service disconnection messages are handled by individual services
     
     def _on_start_click(self):
         """Handle Start Test button click"""
         if not self.state.test_running:
-            print("▶️  Start Test button clicked")
-            print("   → Starting test sequence...")
+            log.info("UI", "Start Test button clicked")
             
             # Reset plots for new test
             if self.plot_reset_callback:
                 self.plot_reset_callback()
-                print("   → Plots reset for new test")
             
             # Use controller manager to start test with real CSV logging
             success = self.controller.start_test("UI_Test_Session")
             
-            if success:
-                # Check if CSV logging actually started by looking at the logger status
-                csv_logger_status = self.controller.csv_logger.get_status()
-                if csv_logger_status.get('logging', False):
-                    print("   ✅ Test started successfully with CSV data logging")
-                    print("   → CSV files are being created in session folder")
-                else:
-                    print("   ✅ Test started successfully but CSV logging failed")
-                    print("   → No data files will be created (check console for details)")
-            else:
-                print("   ❌ Failed to start test")
+            # Test start messages are handled by controller manager
         else:
-            print("⏹️  Stop Test button clicked")
+            log.info("UI", "Stop Test button clicked")
             self._stop_test()
     
     def _stop_test(self):
         """Stop the current test using controller manager"""
-        print("   → Stopping test sequence...")
-        
-        # Check if CSV logging was active before stopping
-        csv_was_logging = self.controller.csv_logger.get_status().get('logging', False)
-        
         # Use controller manager to stop test (this handles CSV logging and session finalization)
         final_session = self.controller.stop_test("completed")
         
-        if csv_was_logging:
-            print("   ✅ Test stopped - CSV data logging completed")
-            if final_session:
-                file_count = len(final_session.get('files', {}))
-                print(f"   → {file_count} files saved in session folder")
-        else:
-            print("   ✅ Test stopped - no CSV data was logged")
-            print("   → Session folder created but no data files")
+        # Test stop messages are handled by controller manager
     
     def _on_pause_click(self):
         """Handle Pause/Resume button click"""
         if not self.state.test_paused:
-            print("⏸️  Pause button clicked")
-            print("   → Pausing test...")
+            log.info("UI", "Pause button clicked")
             
             # Update GlobalState and pause timer
             with self.state._lock:
                 self.state.test_paused = True
             
             self.timer.pause()
-            print("   → Timer paused")
-            print("   → Data logging paused (mocked)")
-            print("   ✅ Test paused")
+            log.success("UI", "Test paused", [
+                "→ Timer paused",
+                "→ Data logging paused"
+            ])
         else:
-            print("▶️  Resume button clicked")
-            print("   → Resuming test...")
+            log.info("UI", "Resume button clicked")
             
             # Update GlobalState and resume timer
             with self.state._lock:
                 self.state.test_paused = False
             
             self.timer.resume()
-            print("   → Timer resumed")
-            print("   → Data logging resumed (mocked)")
-            print("   ✅ Test resumed")
+            log.success("UI", "Test resumed", [
+                "→ Timer resumed",
+                "→ Data logging resumed"
+            ])
     
     def _on_estop_click(self):
         """Handle Emergency Stop button click"""
-        print("🚨 EMERGENCY STOP ACTIVATED! 🚨")
-        print("   → Emergency stop initiated via controller manager")
+        log.error("UI", "EMERGENCY STOP ACTIVATED")
         
         # Use controller manager for emergency stop (handles CSV logging, sessions, and hardware safety)
         self.controller.emergency_stop()
         
-        print("   ✅ Emergency stop complete - system in safe state")
-        print("   ℹ️  Press Start Test to begin new test")
+        # Emergency stop messages are handled by controller manager
     
     def _on_purge_click(self):
         """Handle Purge button click"""
         current_purge = self.state.purge_mode
         new_purge = not current_purge
         
-        print(f"🧹 PURGE button clicked")
-        print(f"   → Changing purge mode: {'OFF' if current_purge else 'ON'} → {'ON' if new_purge else 'OFF'}")
+        log.info("UI", "PURGE button clicked")
         
         # Update GlobalState
         with self.state._lock:
@@ -775,18 +746,13 @@ class ControlPanel:
             
             if bga_service and hasattr(bga_service, 'set_purge_mode'):
                 bga_service.set_purge_mode(new_purge)
-                if new_purge:
-                    print("   → All BGA244 secondary gases changed to N2")
-                    print("   → Hardware devices reconfigured for purge mode")
-                else:
-                    print("   → BGA244 secondary gases restored to normal configuration")
-                    print("   → Hardware devices reconfigured for normal mode")
+                # Purge mode messages are handled by BGA244Service itself
             else:
-                print("   → BGA244 service not available (purge mode stored in state)")
+                log.warning("UI", "BGA244 service not available (purge mode stored in state)")
         except Exception as e:
-            print(f"   ⚠️  Error setting BGA purge mode: {e}")
+            log.error("UI", f"Error setting BGA purge mode: {e}")
         
-        print(f"   ✅ Purge mode {'ENABLED' if new_purge else 'DISABLED'}")
+        log.success("UI", f"Purge mode {'ENABLED' if new_purge else 'DISABLED'}")
     
     def _start_ui_updates(self):
         """Start periodic UI updates"""
