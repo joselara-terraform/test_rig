@@ -323,9 +323,7 @@ class BGA244Service:
                 
                 log.success("BGA244", f"Connected {connected_count}/{self.num_units} BGA244 devices", connection_details)
             else:
-                log.warning("BGA244", "No BGA244 hardware detected", [
-                    "→ All BGAs will show no data until connected"
-                ])
+                log.error("BGA244", "No BGA244 hardware detected")
             
             # Update overall connection status (true if any BGA connected)
             overall_connected = connected_count > 0
@@ -434,7 +432,6 @@ class BGA244Service:
         
         if connected_count == 0:
             # No BGAs connected - don't start polling
-            log.warning("BGA244", "No BGA244 hardware connected - polling disabled")
             return False
         
         self.polling = True
