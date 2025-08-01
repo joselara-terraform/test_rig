@@ -86,7 +86,7 @@ class AsyncCVMManager:
                 await asyncio.sleep(0.1)  # 10Hz check rate
                 
             except Exception as e:
-                print(f"❌ AsyncCVMManager error: {e}")
+                log.error("CVM24P", f"Error in AsyncCVMManager: {e}")
                 self.result_queue.put(('error', str(e)))
                 await asyncio.sleep(1.0)
     
@@ -110,7 +110,7 @@ class AsyncCVMManager:
     
     async def _try_cached_modules(self, cached_mapping: Dict[str, int]) -> Dict[str, Dict]:
         """Try to connect to modules using cached serial→address mapping (fast path)"""
-        print(f"      → Attempting fast connection using cached addresses...")
+        log.info("CVM24P", "Attempting fast connection using cached addresses")
         found_modules = {}
         
         for serial, cached_address in cached_mapping.items():
@@ -125,27 +125,26 @@ class AsyncCVMManager:
                         'type': actual_type,
                         'serial': serial
                     }
-                    print(f"      → ✅ {serial} found at cached address 0x{cached_address:X}")
+                    log.success("CVM24P", f"{serial} found at cached address 0x{cached_address:X}")
                 else:
-                    print(f"      → ⚠️  Address 0x{cached_address:X} has different serial: {actual_serial}")
+                    log.warning("CVM24P", f"Address 0x{cached_address:X} has different serial: {actual_serial}")
                     
             except Exception as e:
-                print(f"      → ❌ Failed to reach {serial} at cached address 0x{cached_address:X}: {e}")
+                log.error("CVM24P", f"Failed to reach {serial} at cached address 0x{cached_address:X}: {e}")
         
         success_count = len(found_modules)
-        expected_count = len(cached_mapping)
-        print(f"      → Fast connection result: {success_count}/{expected_count} modules found")
+        log.info("CVM24P", f"Fast connection result: {success_count}/{len(cached_mapping)} modules found")
         
         return found_modules
     
     async def _connect_to_port(self, port: str) -> bool:
         """Connect to CVM hardware on specified port (similar to CVM_test.py)"""
         try:
-            print(f"DEBUG: ===== Starting CVM24P connection debug session =====")
+            log.info("CVM24P", "Starting CVM24P connection debug session")
             
             bus_sn = get_serial_from_port(port)
             
-            print(f"   → Connecting to {port} at {CVM24PConfig.BAUD_RATE} baud...")
+            log.info("CVM24P", f"Connecting to {port} at {CVM24PConfig.BAUD_RATE} baud")
             
             # Create bus connection (like CVM_test.py)
             self.bus = SerialBus(
@@ -157,7 +156,7 @@ class AsyncCVMManager:
             
             # Connect to bus
             await self.bus.connect()
-            print(f"      → Bus connected")
+            log.success("CVM24P", "Bus connected")
             
             # Add stability pause (like CVM_test.py)
             await asyncio.sleep(2)
@@ -168,7 +167,7 @@ class AsyncCVMManager:
             
             # Ultra-Fast Path: Assume cached addresses are correct (ULTRA-FAST - 2-3 seconds)
             if cached_mapping:
-                print(f"      → Using ultra-fast initialization with cached addresses...")
+                log.info("CVM24P", "Using ultra-fast initialization with cached addresses")
                 # Create discovered_modules directly from cached mapping (skip verification)
                 for serial, address in cached_mapping.items():
                     discovered_modules[serial] = {
@@ -176,13 +175,13 @@ class AsyncCVMManager:
                         'type': 'CVM24P',  # Assume type
                         'serial': serial
                     }
-                print(f"      → ✅ Created module map for {len(discovered_modules)} cached modules - proceeding to initialization")
+                log.success("CVM24P", f"Created module map for {len(discovered_modules)} cached modules - proceeding to initialization")
             else:
-                print(f"      → No cached mapping available - using full discovery...")
+                log.info("CVM24P", "No cached mapping available - using full discovery")
                 discovered_modules = await self._discover_modules()
             
             if not discovered_modules:
-                print(f"      → No CVM24P modules found")
+                log.error("CVM24P", "No CVM24P modules found")
                 # SerialBus doesn't have disconnect method - just clear reference
                 self.bus = None
                 return False
@@ -195,8 +194,8 @@ class AsyncCVMManager:
             found_count = len(discovered_modules)
             
             if found_count < expected_count:
-                print(f"      → ⚠️  Warning: Found only {found_count}/{expected_count} expected modules")
-                print(f"      → Proceeding with initialization of found modules...")
+                log.warning("CVM24P", f"Warning: Found only {found_count}/{expected_count} expected modules")
+                log.info("CVM24P", "Proceeding with initialization of found modules")
             
             # Initialize modules
             initialized_count = await self._initialize_modules(discovered_modules)
@@ -204,7 +203,7 @@ class AsyncCVMManager:
             if initialized_count == 0:
                 # If ultra-fast path failed and we used cached mapping, try fallback
                 if cached_mapping and len(discovered_modules) == len(cached_mapping):
-                    print(f"      → Ultra-fast initialization failed - falling back to verification/discovery...")
+                    log.warning("CVM24P", "Ultra-fast initialization failed - falling back to verification/discovery")
                     
                     # Fallback: Try cached addresses with verification
                     discovered_modules = await self._try_cached_modules(cached_mapping)
@@ -212,19 +211,19 @@ class AsyncCVMManager:
                     # If still missing modules, use full discovery
                     if len(discovered_modules) < self.expected_modules:
                         missing_count = self.expected_modules - len(discovered_modules)
-                        print(f"      → ⚠️  {missing_count} modules still missing - using full discovery...")
+                        log.warning("CVM24P", f"{missing_count} modules still missing - using full discovery")
                         missing_modules = await self._discover_modules()
                         discovered_modules.update(missing_modules)
                     
                     # Try initialization again with verified modules
                     if discovered_modules:
-                        print(f"      → Retrying initialization with {len(discovered_modules)} verified modules...")
+                        log.info("CVM24P", f"Retrying initialization with {len(discovered_modules)} verified modules")
                         # CRITICAL: Update self.modules for fallback path too
                         self.modules = discovered_modules
                         initialized_count = await self._initialize_modules(discovered_modules)
                 
                 if initialized_count == 0:
-                    print(f"      → No modules successfully initialized after fallback")
+                    log.error("CVM24P", "No modules successfully initialized after fallback")
                     # SerialBus doesn't have disconnect method - just clear reference
                     self.bus = None
                     return False
@@ -241,15 +240,15 @@ class AsyncCVMManager:
             else:
                 path_used = "full discovery"
             
-            print(f"   → Success! {initialized_count}/{final_found_count} modules initialized via {path_used} path ({success_rate:.1%} success rate)")
+            log.success("CVM24P", f"Success! {initialized_count}/{final_found_count} modules initialized via {path_used} path ({success_rate:.1%} success rate)")
             
             if final_found_count < expected_count:
-                print(f"   → ⚠️  Note: Only {final_found_count}/{expected_count} expected modules were discovered")
+                log.warning("CVM24P", f"Note: Only {final_found_count}/{expected_count} expected modules were discovered")
             
             return True
             
         except Exception as e:
-            print(f"      → Connection error: {e}")
+            log.error("CVM24P", f"Connection error: {e}")
             # SerialBus doesn't have disconnect method - just clear reference
             self.bus = None
             return False
@@ -262,7 +261,7 @@ class AsyncCVMManager:
         consecutive_same_count = 0
         last_module_count = 0
         
-        print(f"      → Starting robust discovery process (expecting {self.expected_modules} modules)...")
+        log.info("CVM24P", f"Starting robust discovery process (expecting {self.expected_modules} modules)")
         
         while len(found_modules) < self.expected_modules:
             attempt += 1
@@ -270,7 +269,7 @@ class AsyncCVMManager:
             # Check maximum discovery time
             elapsed_time = asyncio.get_event_loop().time() - discovery_start_time
             if elapsed_time > CVM24PConfig.MAX_DISCOVERY_TIME:
-                print(f"      → Discovery timeout after {elapsed_time:.1f}s - found {len(found_modules)}/{self.expected_modules} modules")
+                log.warning("CVM24P", f"Discovery timeout after {elapsed_time:.1f}s - found {len(found_modules)}/{self.expected_modules} modules")
                 break
             
             # Vary timing slightly to avoid sync issues
@@ -279,17 +278,17 @@ class AsyncCVMManager:
             await asyncio.sleep(discovery_delay)
             
             try:
-                print(f"      → Discovery attempt {attempt}: ", end="", flush=True)
+                log.info("CVM24P", f"Discovery attempt {attempt}: ")
                 
                 # Get devices via broadcast echo
                 devices = await get_broadcast_echo(bus=self.bus)
-                print(f"echo found {len(devices)} devices, ", end="", flush=True)
+                log.info("CVM24P", f"echo found {len(devices)} devices")
                 
                 # Try to get device info via serial broadcast
                 device_info = {}
                 try:
                     device_info = await get_serial_broadcast(bus=self.bus)
-                    print(f"serial broadcast got {len(device_info)} responses, ", end="", flush=True)
+                    log.info("CVM24P", f"serial broadcast got {len(device_info)} responses")
                     
                     # Add modules by serial number from broadcast response
                     for addr, info in device_info.items():
@@ -304,10 +303,10 @@ class AsyncCVMManager:
                                     'type': device_type,
                                     'serial': serial
                                 }
-                                print(f"new module {serial} at 0x{addr:X}, ", end="", flush=True)
+                                log.info("CVM24P", f"new module {serial} at 0x{addr:X}")
                 
                 except Exception as e:
-                    print(f"serial broadcast failed ({e}), ", end="", flush=True)
+                    log.error("CVM24P", f"serial broadcast failed ({e})")
                 
                 # Try direct identification for devices that responded to echo but not serial broadcast
                 for addr in devices:
@@ -324,12 +323,12 @@ class AsyncCVMManager:
                                     'type': device_type,
                                     'serial': device_serial
                                 }
-                                print(f"direct ID found {device_serial} at 0x{addr:X}, ", end="", flush=True)
+                                log.info("CVM24P", f"direct ID found {device_serial} at 0x{addr:X}")
                         except Exception:
                             pass  # Skip failed direct identification
                 
                 current_count = len(found_modules)
-                print(f"total: {current_count}/{self.expected_modules} modules")
+                log.info("CVM24P", f"total: {current_count}/{self.expected_modules} modules")
                 
                 # Track if we're making progress
                 if current_count == last_module_count:
@@ -340,30 +339,30 @@ class AsyncCVMManager:
                 
                 # If we found all expected modules, we're done
                 if current_count >= self.expected_modules:
-                    print(f"      → ✅ Found all {self.expected_modules} expected modules after {attempt} attempts")
+                    log.success("CVM24P", f"Found all {self.expected_modules} expected modules after {attempt} attempts")
                     break
                 
                 # If we're stuck at the same count for too many attempts, try a longer delay
                 if consecutive_same_count >= 3:
-                    print(f"      → Stuck at {current_count} modules, trying extended discovery...")
+                    log.warning("CVM24P", f"Stuck at {current_count} modules, trying extended discovery")
                     await asyncio.sleep(3.0)  # Longer pause to let network settle
                     consecutive_same_count = 0
                 
             except Exception as e:
-                print(f"failed: {e}")
+                log.error("CVM24P", f"failed: {e}")
                 continue
         
         # Final summary
         if len(found_modules) < self.expected_modules:
-            print(f"      → ⚠️  Warning: Only found {len(found_modules)}/{self.expected_modules} expected modules")
-            print(f"      → Discovered modules: {list(found_modules.keys())}")
+            log.warning("CVM24P", f"Warning: Only found {len(found_modules)}/{self.expected_modules} expected modules")
+            log.info("CVM24P", f"Discovered modules: {list(found_modules.keys())}")
         else:
-            print(f"      → ✅ Successfully discovered all {len(found_modules)} modules")
+            log.success("CVM24P", f"Successfully discovered all {len(found_modules)} modules")
         
         # DEBUG: Show discovery order
-        print(f"      → DEBUG: Discovery order: {list(found_modules.keys())}")
+        log.info("CVM24P", f"Discovery order: {list(found_modules.keys())}")
         discovery_addresses = [(serial, f"0x{info['address']:X}") for serial, info in found_modules.items()]
-        print(f"      → DEBUG: Discovery addresses: {discovery_addresses}")
+        log.info("CVM24P", f"Discovery addresses: {discovery_addresses}")
         
         self.modules = found_modules
         return found_modules
@@ -372,11 +371,11 @@ class AsyncCVMManager:
         """Initialize discovered modules (like CVM_test.py)"""
         initialized_count = 0
         
-        print(f"   → Initializing {len(discovered_modules)} modules...")
+        log.info("CVM24P", f"Initializing {len(discovered_modules)} modules")
         
         # DEBUG: Show initialization order
         init_order = list(discovered_modules.keys())
-        print(f"   → DEBUG: Initialization order: {init_order}")
+        log.info("CVM24P", f"Initialization order: {init_order}")
         
         for serial, info in discovered_modules.items():
             try:
@@ -385,14 +384,14 @@ class AsyncCVMManager:
                 
                 self.initialized_devices[serial] = device
                 initialized_count += 1
-                print(f"   ✅ Module {serial} (0x{info['address']:X}) initialized")
+                log.success("CVM24P", f"Module {serial} (0x{info['address']:X}) initialized")
                 
             except Exception as e:
-                print(f"   ❌ Failed to initialize module {serial}: {e}")
+                log.error("CVM24P", f"Failed to initialize module {serial}: {e}")
         
         # DEBUG: Show final initialized modules
         initialized_serials = list(self.initialized_devices.keys())
-        print(f"   → DEBUG: Successfully initialized modules: {initialized_serials}")
+        log.info("CVM24P", f"Successfully initialized modules: {initialized_serials}")
         
         return initialized_count
     
@@ -413,11 +412,11 @@ class AsyncCVMManager:
         
         # DEBUG: Show sorting and channel assignment
         if not self.debug_channel_assignment_printed:
-            print(f"DEBUG: Voltage reading - module sorting and channel assignment (PHYSICAL ORDER):")
+            log.info("CVM24P", "Voltage reading - module sorting and channel assignment (PHYSICAL ORDER):")
             channel_start = 0
             for i, (serial, module_info) in enumerate(sorted_modules):
                 channel_end = channel_start + CVM24PConfig.CHANNELS_PER_MODULE - 1
-                print(f"DEBUG:   Module {serial} (0x{module_info['address']:X}) → Channels {channel_start+1}-{channel_end+1}")
+                log.info("CVM24P", f"Module {serial} (0x{module_info['address']:X}) → Channels {channel_start+1}-{channel_end+1}")
                 channel_start += CVM24PConfig.CHANNELS_PER_MODULE
             self.debug_channel_assignment_printed = True
         
@@ -441,7 +440,7 @@ class AsyncCVMManager:
                     all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
                     
             except Exception as e:
-                print(f"⚠️  Error reading module {serial}: {e}")
+                log.error("CVM24P", f"Error reading module {serial}: {e}")
                 # Add zeros for failed module
                 all_voltages.extend([0.0] * CVM24PConfig.CHANNELS_PER_MODULE)
         
@@ -478,16 +477,16 @@ class CVM24PService:
         
         # Validate module configuration
         if not self.cached_module_mapping:
-            print("⚠️  Warning: No CVM24P module mapping found in devices.yaml")
+            log.warning("CVM24P", "No CVM24P module mapping found in devices.yaml")
         else:
             expected_count = self.device_config.get_cvm24p_expected_modules()
-            print(f"   → Loaded {len(self.cached_module_mapping)} module mappings from devices.yaml")
+            log.info("CVM24P", f"Loaded {len(self.cached_module_mapping)} module mappings from devices.yaml")
             
             # Debug: Show configured module mapping
-            print(f"   → Physical connection order:")
+            log.info("CVM24P", "Physical connection order:")
             for serial, address in self.cached_module_mapping.items():
                 module_name = self.module_names.get(serial, f'Module {serial}')
-                print(f"      {module_name} - {serial} (0x{address:X})")
+                log.info("CVM24P", f"{module_name} - {serial} (0x{address:X})")
         
         # Update expected modules count based on devices.yaml
         self.expected_modules = self.device_config.get_cvm24p_expected_modules()
@@ -505,7 +504,7 @@ class CVM24PService:
         
     def connect(self) -> bool:
         """Connect to CVM24P modules"""
-        log.info("CVM24P", "Connecting 5 CVM modules on serial port")
+        log.info("CVM24P", "Connecting CVM modules on serial port")
         
         if not XC2_AVAILABLE:
             log.error("CVM24P", "XC2 libraries not available - cannot connect to hardware")
@@ -531,10 +530,10 @@ class CVM24PService:
             # Discover serial ports
             available_ports = discover_serial_ports()
             if not available_ports:
-                print("   → No serial ports found")
+                log.error("CVM24P", "No serial ports found")
                 return False
             
-            print(f"   → Found {len(available_ports)} available ports: {available_ports}")
+            log.info("CVM24P", f"Found {len(available_ports)} available ports: {available_ports}")
             
             # Start async manager thread
             self.async_manager = AsyncCVMManager(self.command_queue, self.result_queue, self.expected_modules)
@@ -558,7 +557,7 @@ class CVM24PService:
             # Try each port until one works
             for port_index, selected_port in enumerate(available_ports):
                 try:
-                    print(f"   → Trying port {selected_port} ({port_index+1}/{len(available_ports)})...")
+                    log.info("CVM24P", f"Trying port {selected_port} ({port_index+1}/{len(available_ports)})")
                     
                     # Send connect command to async manager
                     self.command_queue.put(('connect', selected_port))
@@ -568,7 +567,7 @@ class CVM24PService:
                         result_type, result_data = self.result_queue.get(timeout=45.0)
                         
                         if result_type == 'connect_result' and result_data:
-                            print(f"   → Success on {selected_port}!")
+                            log.success("CVM24P", f"Success on {selected_port}!")
                             
                             # Wait a moment for async manager to finish updating modules
                             time.sleep(1.0)
@@ -579,23 +578,23 @@ class CVM24PService:
                             
                             return True
                         else:
-                            print(f"      → Failed on {selected_port}")
+                            log.error("CVM24P", f"Failed on {selected_port}")
                             continue
                             
                     except queue.Empty:
-                        print(f"      → Timeout on {selected_port}")
+                        log.error("CVM24P", f"Timeout on {selected_port}")
                         continue
                         
                 except Exception as e:
-                    print(f"      → Error with port {selected_port}: {e}")
+                    log.error("CVM24P", f"Error with port {selected_port}: {e}")
                     continue
             
-            print("   → All ports failed")
+            log.error("CVM24P", "All ports failed")
             self._stop_async_manager()
             return False
             
         except Exception as e:
-            print(f"   → Hardware connection error: {e}")
+            log.error("CVM24P", f"Hardware connection error: {e}")
             self._stop_async_manager()
             return False
     
@@ -607,7 +606,7 @@ class CVM24PService:
                 if self.async_thread and self.async_thread.is_alive():
                     self.async_thread.join(timeout=3.0)
             except Exception as e:
-                print(f"⚠️  Error stopping async manager: {e}")
+                log.error("CVM24P", f"Error stopping async manager: {e}")
             
             self.async_manager = None
             self.async_thread = None
@@ -671,7 +670,7 @@ class CVM24PService:
                 time.sleep(1.0 / self.sample_rate)
                 
             except Exception as e:
-                print(f"❌ CVM-24P polling error: {e}")
+                log.error("CVM24P", f"CVM-24P polling error: {e}")
                 break
     
     def _read_hardware_data(self) -> List[float]:
@@ -685,7 +684,7 @@ class CVM24PService:
                     if result_type == 'voltages':
                         return result_data
                     elif result_type == 'error':
-                        print(f"⚠️  Hardware reading error: {result_data}")
+                        log.error("CVM24P", f"Hardware reading error: {result_data}")
                         return self.latest_voltages
                         
                 except queue.Empty:
@@ -695,7 +694,7 @@ class CVM24PService:
             return self.latest_voltages
             
         except Exception as e:
-            print(f"⚠️  Hardware reading error: {e}")
+            log.error("CVM24P", f"Hardware reading error: {e}")
             return self.latest_voltages
     
     def get_status(self) -> Dict[str, Any]:
