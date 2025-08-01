@@ -10,6 +10,7 @@ import threading
 from typing import Dict, Any, List, Optional
 from core.state import get_global_state
 from config.device_config import get_device_config
+from utils.logger import log
 
 
 class BGA244Config:
@@ -299,43 +300,42 @@ class BGA244Service:
         
     def connect(self) -> bool:
         """Connect to BGA244 gas analyzers"""
-        print("⚗️  Connecting to BGA244 gas analyzers...")
-        
         try:
             # Try to connect to real hardware
-            print("   → Attempting hardware connection...")
             connected_count = self._connect_hardware()
+            
+            # Prepare connection status details
+            connection_details = []
             
             # Report connection results
             if connected_count > 0:
-                print(f"✅ Connected {connected_count}/{self.num_units} BGA244 devices")
-                
                 # Report individual connection status
                 connected_units = [unit_id for unit_id, connected in self.individual_connections.items() if connected]
                 disconnected_units = [unit_id for unit_id, connected in self.individual_connections.items() if not connected]
                 
                 if connected_units:
                     unit_names = [self.device_config.get_bga_unit_config(uid).get('name', uid) for uid in connected_units]
-                    print(f"   → Hardware connected: {', '.join(unit_names)}")
+                    connection_details.append(f"→ Hardware connected: {', '.join(unit_names)}")
                 
                 if disconnected_units:
                     unit_names = [self.device_config.get_bga_unit_config(uid).get('name', uid) for uid in disconnected_units]
-                    print(f"   → Disconnected (no data): {', '.join(unit_names)}")
+                    connection_details.append(f"→ Disconnected (no data): {', '.join(unit_names)}")
                 
+                log.success("BGA244", f"Connected {connected_count}/{self.num_units} BGA244 devices", connection_details)
             else:
-                print("⚠️  No BGA244 hardware detected")
-                print("   → All BGAs will show no data until connected")
+                log.warning("BGA244", "No BGA244 hardware detected", [
+                    "→ All BGAs will show no data until connected"
+                ])
             
             # Update overall connection status (true if any BGA connected)
             overall_connected = connected_count > 0
             self.connected = overall_connected
             self.state.update_connection_status('bga244', overall_connected)
             
-            print(f"✅ BGA244 service ready ({connected_count} devices connected)")
             return True
             
         except Exception as e:
-            print(f"❌ Failed to connect to BGA244: {e}")
+            log.error("BGA244", f"Failed to connect to BGA244: {e}")
             self.connected = False
             self.state.update_connection_status('bga244', False)
             return False
@@ -426,16 +426,14 @@ class BGA244Service:
     def start_polling(self) -> bool:
         """Start polling gas analysis data"""
         if self.polling:
-            print("⚠️  BGA244 polling already running")
+            log.warning("BGA244", "BGA244 polling already running")
             return True
-        
-        print(f"⚗️  Starting BGA244 polling at {self.sample_rate} Hz...")
         
         self.polling = True
         self.poll_thread = threading.Thread(target=self._poll_data, daemon=True)
         self.poll_thread.start()
         
-        print("✅ BGA244 polling started")
+        log.success("BGA244", f"BGA244 polling started at {self.sample_rate} Hz")
         return True
     
     def stop_polling(self):
@@ -443,13 +441,12 @@ class BGA244Service:
         if not self.polling:
             return
         
-        print("⚗️  Stopping BGA244 polling...")
         self.polling = False
         
         if self.poll_thread and self.poll_thread.is_alive():
             self.poll_thread.join(timeout=3.0)
         
-        print("✅ BGA244 polling stopped")
+        log.success("BGA244", "BGA244 polling stopped")
     
     def set_purge_mode(self, purge_enabled: bool):
         """Set purge mode - changes all secondary gases to N2"""

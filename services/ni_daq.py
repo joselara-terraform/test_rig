@@ -15,6 +15,7 @@ import time
 import threading
 from core.state import get_global_state
 from config.device_config import get_device_config
+from utils.logger import log
 
 # Try to import real NI-DAQmx library
 try:
@@ -22,10 +23,10 @@ try:
     from nidaqmx.constants import LineGrouping, AcquisitionType
     from nidaqmx import Task
     NIDAQMX_AVAILABLE = True
-    print("✅ NI-DAQmx library available")
+    log.success("Libraries", "NI-DAQmx library loaded")
 except ImportError:
     NIDAQMX_AVAILABLE = False
-    print("❌ NI-DAQmx library not found - hardware connection will fail")
+    log.error("Libraries", "NI-DAQmx library not found - hardware connection will fail")
 
 
 class NIDAQService:
@@ -73,45 +74,43 @@ class NIDAQService:
     def connect(self):
         """Connect to NI cDAQ device"""
         if self.connected:
-            print("⚠️  NI DAQ already connected")
+            log.warning("DAQ", "NI DAQ already connected")
             return True
         
         if not NIDAQMX_AVAILABLE:
-            print("❌ NI-DAQmx library not available - cannot connect to hardware")
+            log.error("DAQ", "NI-DAQmx library not available - cannot connect to hardware")
             return False
         
         try:
-            print("🔌 Connecting to NI cDAQ...")
+            log.info("DAQ", "Connecting to NI cDAQ...")
             return self._connect_real()
         except Exception as e:
-            print(f"❌ NI cDAQ connection failed: {e}")
+            log.error("DAQ", f"NI cDAQ connection failed: {e}")
             self.connected = False
             return False
     
     def _connect_real(self):
         """Connect to real NI cDAQ hardware"""
-        print("   → Connecting to NI-DAQmx hardware")
-        
         # Test device detection
         system = nidaqmx.system.System.local()
         devices = system.devices
         cdaq_found = False
+        device_info = []
         
-        print(f"   → Scanning for cDAQ devices...")
         for device in devices:
             if "cDAQ" in device.product_type:
                 cdaq_found = True
-                print(f"     • Found: {device.name} ({device.product_type})")
+                device_info.append(f"• Found: {device.name}")
         
         if not cdaq_found:
             raise Exception("No cDAQ chassis detected")
         
         # Setup analog input task
-        print("   → Configuring analog input channels:")
+        channel_info = []
         self.ai_task = Task()
         for ch_name, ch_config in self.analog_channels.items():
             channel = ch_config["channel"]
-            print(f"     • {ch_config['name']}: {channel} (4-20mA, calibrated {self.min_current_ma}-{self.max_current_ma}mA)")
+            channel_info.append(f"• {ch_config['name']}: {channel} (4-20mA, calibrated {self.min_current_ma}-{self.max_current_ma}mA)")
             
             # Add current input channel using configured range
             self.ai_task.ai_channels.add_ai_current_chan(
@@ -130,13 +129,13 @@ class NIDAQService:
         )
         
         # Setup digital output tasks
-        print("   → Configuring digital output channels:")
+        digital_info = []
         for ch_name, ch_config in self.digital_channels.items():
             module = ch_config["module"]
             line = ch_config["line"]
             channel = f"{module}/port0/line{line}"
             
-            print(f"     • {ch_config['name']}: {channel}")
+            digital_info.append(f"• {ch_config['name']}: {channel}")
             
             task = Task()
             task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
@@ -148,16 +147,18 @@ class NIDAQService:
         self.connected = True
         self.state.update_connection_status('ni_daq', True)
         
-        print("✅ Real NI cDAQ connected successfully")
+        # Log successful connection with all details
+        log.success("DAQ", f"NI cDAQ connected and polling at {self.sample_rate} Hz", 
+                   device_info + [f"→ {len(channel_info)} analog channels configured"] + 
+                   channel_info + [f"→ {len(digital_info)} digital outputs configured"] + 
+                   digital_info)
         return True
     
     def disconnect(self):
         """Disconnect from NI cDAQ device"""
         if not self.connected:
-            print("⚠️  NI DAQ already disconnected")
+            log.warning("DAQ", "NI DAQ already disconnected")
             return
-        
-        print("🔌 Disconnecting from NI cDAQ...")
         
         # Stop polling first
         self.stop_polling()
@@ -183,19 +184,17 @@ class NIDAQService:
         self.connected = False
         self.state.update_connection_status('ni_daq', False)
         
-        print("✅ NI cDAQ disconnected")
+        log.success("DAQ", "NI cDAQ disconnected")
     
     def start_polling(self):
         """Start continuous data acquisition"""
         if not self.connected:
-            print("❌ Cannot start polling - NI DAQ not connected")
+            log.error("DAQ", "Cannot start polling - NI DAQ not connected")
             return False
         
         if self.polling:
-            print("⚠️  NI DAQ polling already running")
+            log.warning("DAQ", "NI DAQ polling already running")
             return True
-        
-        print(f"📊 Starting NI DAQ polling at {self.sample_rate} Hz...")
         
         self._stop_event.clear()
         self.polling = True
@@ -204,16 +203,14 @@ class NIDAQService:
         self.polling_thread = threading.Thread(target=self._polling_loop, daemon=True)
         self.polling_thread.start()
         
-        print("✅ NI DAQ polling started")
+        log.success("DAQ", f"NI DAQ polling started at {self.sample_rate} Hz")
         return True
     
     def stop_polling(self):
         """Stop continuous data acquisition"""
         if not self.polling:
-            print("⚠️  NI DAQ polling already stopped")
+            log.warning("DAQ", "NI DAQ polling already stopped")
             return
-        
-        print("📊 Stopping NI DAQ polling...")
         
         self._stop_event.set()
         self.polling = False
@@ -222,7 +219,7 @@ class NIDAQService:
         if self.polling_thread and self.polling_thread.is_alive():
             self.polling_thread.join(timeout=2.0)
         
-        print("✅ NI DAQ polling stopped")
+        log.success("DAQ", "NI DAQ polling stopped")
     
     def _polling_loop(self):
         """Main data acquisition loop"""

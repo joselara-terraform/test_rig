@@ -17,6 +17,7 @@ from .controls import ControlPanel
 from .status_indicators import StatusIndicators
 from .plots import PressurePlot, VoltagePlot, TemperaturePlot, CurrentPlot
 from core.state import get_global_state
+from utils.logger import log
 
 
 class Dashboard:
@@ -104,12 +105,13 @@ class Dashboard:
         try:
             # Windows maximization
             self.root.state('zoomed')
-            print("✅ Dashboard window maximized")
+            log.success("System", "Dashboard window maximized")
             
         except Exception as e:
             # Fallback to large window if maximization fails
-            print(f"⚠️  Could not maximize window: {e}")
-            print("   → Using fallback large window size")
+            log.warning("System", f"Could not maximize window: {e}", [
+                "→ Using fallback large window size"
+            ])
             self.root.geometry("1400x900")
     
     def _set_window_icon(self):
@@ -122,7 +124,7 @@ class Dashboard:
             icon_path_ico = os.path.join(script_dir, "assets", "favicon.ico")
             if os.path.exists(icon_path_ico):
                 self.root.iconbitmap(icon_path_ico)
-                print(f"✅ Window icon loaded: {icon_path_ico}")
+                log.success("System", f"Window icon loaded: {icon_path_ico}")
                 return
             
             # Method 2: For .png files (cross-platform)
@@ -132,7 +134,7 @@ class Dashboard:
                 self.root.iconphoto(True, icon_image)
                 # Keep a reference to prevent garbage collection
                 self.root.icon_image = icon_image
-                print(f"✅ Window icon loaded: {icon_path_png}")
+                log.success("System", f"Window icon loaded: {icon_path_png}")
                 return
                 
             # Method 3: Try other common names
@@ -142,13 +144,13 @@ class Dashboard:
                     icon_image = PhotoImage(file=icon_path)
                     self.root.iconphoto(True, icon_image)
                     self.root.icon_image = icon_image
-                    print(f"✅ Window icon loaded: {icon_path}")
+                    log.success("System", f"Window icon loaded: {icon_path}")
                     return
             
-            print("⚠️  No icon file found in assets/ directory")
+            log.warning("System", "No icon file found in assets/ directory")
             
         except Exception as e:
-            print(f"⚠️  Error loading window icon: {e}")
+            log.error("System", f"Error loading window icon: {e}")
     
     def _on_closing(self):
         """Handle window close event with test running check"""
@@ -163,15 +165,16 @@ class Dashboard:
             )
             
             if result:
-                print("🔔 User confirmed closing during active test")
+                log.info("System", "User confirmed closing during active test")
                 # Stop the test gracefully
                 if hasattr(self.control_panel, '_stop_test'):
                     self.control_panel._stop_test()
-                print("   → Test stopped due to application closure")
-                print("   → Final CSV generated")
+                log.info("System", "Test stopped due to application closure", [
+                    "→ Final CSV generated"
+                ])
                 self._close_application()
             else:
-                print("🔔 User cancelled closing - test continues")
+                log.info("System", "User cancelled closing - test continues")
                 # Don't close the window
                 return
         else:
@@ -180,7 +183,7 @@ class Dashboard:
     
     def _close_application(self):
         """Clean up and close the application"""
-        print("🔔 Closing AWE Test Rig Dashboard...")
+        log.info("System", "Closing AWE Test Rig Dashboard")
         self.cleanup()
         self.root.destroy()
     
@@ -354,7 +357,7 @@ class Dashboard:
         """Toggle valve state when clicked"""
         if not self.state.connections.get('ni_daq', False):
             valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
-            print(f"⚠️  Cannot control {valve_names[valve_index]} - NI DAQ not connected")
+            log.warning("Actuators", f"Cannot control {valve_names[valve_index]} - NI DAQ not connected")
             return
         
         # Get current state and toggle it
@@ -365,12 +368,12 @@ class Dashboard:
         self.state.set_actuator_state('valve', new_state, valve_index)
         
         valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
-        print(f"🔧 {valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
+        log.info("Actuators", f"{valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
     
     def _toggle_pump(self):
         """Toggle pump state when clicked"""
         if not self.state.connections.get('ni_daq', False):
-            print("⚠️  Cannot control DI Fill Pump - NI DAQ not connected")
+            log.warning("Actuators", "Cannot control DI Fill Pump - NI DAQ not connected")
             return
         
         # Get current state and toggle it
@@ -380,12 +383,12 @@ class Dashboard:
         # Update state (NI DAQ service will automatically update hardware)
         self.state.set_actuator_state('pump', new_state)
         
-        print(f"🔧 DI Fill Pump {'ON' if new_state else 'OFF'}")
+        log.info("Actuators", f"DI Fill Pump {'ON' if new_state else 'OFF'}")
     
     def _toggle_koh_pump(self):
         """Toggle KOH pump state when clicked"""
         if not self.state.connections.get('ni_daq', False):
-            print("⚠️  Cannot control KOH Fill Pump - NI DAQ not connected")
+            log.warning("Actuators", "Cannot control KOH Fill Pump - NI DAQ not connected")
             return
         
         # Get current state and toggle it
@@ -395,7 +398,7 @@ class Dashboard:
         # Update state (NI DAQ service will automatically update hardware)
         self.state.set_actuator_state('koh_pump', new_state)
         
-        print(f"🔧 KOH Fill Pump {'ON' if new_state else 'OFF'}")
+        log.info("Actuators", f"KOH Fill Pump {'ON' if new_state else 'OFF'}")
     
     def reset_plots(self):
         """Reset all plots when starting a new test"""
@@ -498,62 +501,66 @@ class Dashboard:
     
     def cleanup(self):
         """Clean up resources and stop all services"""
-        print("🧹 Cleaning up dashboard resources...")
+        log.info("System", "Cleaning up dashboard resources")
+        
+        cleanup_details = []
         
         # Cancel UI update timer
         if self.update_job:
             self.root.after_cancel(self.update_job)
-            print("   → UI update timer cancelled")
+            cleanup_details.append("→ UI update timer cancelled")
         
         # Stop all services through controller manager
         try:
             from services.controller_manager import get_controller_manager
             controller = get_controller_manager()
             if controller.services_running:
-                print("   → Stopping all hardware services...")
                 controller.stop_all_services()
-                print("   → All services stopped")
+                cleanup_details.append("→ All hardware services stopped")
         except Exception as e:
-            print(f"   ⚠️  Error stopping services: {e}")
+            log.warning("System", f"Error stopping services: {e}")
         
         # Clean up plots
         if self.pressure_plot:
             try:
                 self.pressure_plot.destroy()
-                print("   → Pressure plot destroyed")
+                cleanup_details.append("→ Pressure plot destroyed")
             except Exception as e:
-                print(f"   ⚠️  Error destroying pressure plot: {e}")
+                log.warning("System", f"Error destroying pressure plot: {e}")
                 
         if self.voltage_plot:
             try:
                 self.voltage_plot.destroy()
-                print("   → Voltage plot destroyed")
+                cleanup_details.append("→ Voltage plot destroyed")
             except Exception as e:
-                print(f"   ⚠️  Error destroying voltage plot: {e}")
+                log.warning("System", f"Error destroying voltage plot: {e}")
                 
         if self.temperature_plot:
             try:
                 self.temperature_plot.destroy()
-                print("   → Temperature plot destroyed")
+                cleanup_details.append("→ Temperature plot destroyed")
             except Exception as e:
-                print(f"   ⚠️  Error destroying temperature plot: {e}")
+                log.warning("System", f"Error destroying temperature plot: {e}")
                 
         if self.current_plot:
             try:
                 self.current_plot.destroy()
-                print("   → Current plot destroyed")
+                cleanup_details.append("→ Current plot destroyed")
             except Exception as e:
-                print(f"   ⚠️  Error destroying current plot: {e}")
+                log.warning("System", f"Error destroying current plot: {e}")
         
         # Clean up control panel
         if hasattr(self.control_panel, 'cleanup'):
             try:
                 self.control_panel.cleanup()
-                print("   → Control panel cleaned up")
+                cleanup_details.append("→ Control panel cleaned up")
             except Exception as e:
-                print(f"   ⚠️  Error cleaning up control panel: {e}")
+                log.warning("System", f"Error cleaning up control panel: {e}")
         
-        print("✅ Dashboard cleanup complete")
+        if cleanup_details:
+            log.success("System", "Dashboard cleanup complete", cleanup_details)
+        else:
+            log.success("System", "Dashboard cleanup complete")
 
 
 def main():

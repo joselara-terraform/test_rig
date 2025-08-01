@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, List
 from core.state import get_global_state
 from data.session_manager import get_session_manager
 from config.device_config import get_device_config
+from utils.logger import log
 import os
 
 
@@ -71,29 +72,21 @@ class CSVLogger:
     def start_logging(self) -> bool:
         """Start logging data to CSV files"""
         if self.logging:
-            print("⚠️  CSV logging already running")
+            log.warning("DataLogger", "CSV logging already running")
             return True
         
         # Check if there's an active session
         current_session = self.session_manager.get_current_session()
         if not current_session:
-            print("❌ Cannot start logging - no active test session")
-            print("   → Call session_manager.start_new_session() first")
+            log.error("DataLogger", "Cannot start logging - no active test session", [
+                "→ Call session_manager.start_new_session() first"
+            ])
             return False
-        
-        print("📊 Starting CSV data logging...")
-        print(f"   → Session: {current_session['session_id']}")
-        print(f"   → Session folder: {current_session['folder_path']}")
-        
-        # Show absolute path for debugging
-        session_path = Path(current_session['folder_path'])
-        print(f"   → Absolute path: {session_path.resolve()}")
         
         try:
             # Initialize CSV files
-            print("   → Initializing CSV files...")
             if not self._initialize_csv_files():
-                print("❌ Failed to initialize CSV files")
+                log.error("DataLogger", "Failed to initialize CSV files")
                 return False
             
             # Start logging thread
@@ -105,18 +98,23 @@ class CSVLogger:
             self.log_thread = threading.Thread(target=self._logging_worker, daemon=True)
             self.log_thread.start()
             
-            print(f"✅ CSV logging started successfully")
-            print(f"   → Log interval: {self.log_interval}s")
-            print(f"   → Files created: {len(self.csv_files)}")
+            # Prepare file details for logging
+            file_details = []
             for file_type, file_path in self.csv_files.items():
                 abs_path = Path(file_path).resolve()
-                print(f"      • {file_type}: {abs_path}")
+                file_details.append(f"• {file_type}: {abs_path}")
+            
+            log.success("DataLogger", f"CSV logging started successfully", [
+                f"→ Log interval: {self.log_interval}s",
+                f"→ Files created: {len(self.csv_files)}"
+            ] + file_details)
             
             return True
             
         except Exception as e:
-            print(f"❌ Failed to start CSV logging: {e}")
+            log.error("DataLogger", f"Failed to start CSV logging: {e}")
             import traceback
+            # Still print detailed traceback for debugging
             print(f"   → Error details: {traceback.format_exc()}")
             self._cleanup_files()
             return False
@@ -124,10 +122,8 @@ class CSVLogger:
     def stop_logging(self) -> Dict[str, Any]:
         """Stop logging and finalize CSV files"""
         if not self.logging:
-            print("⚠️  CSV logging not running")
+            log.warning("DataLogger", "CSV logging not running")
             return {}
-        
-        print("📊 Stopping CSV data logging...")
         
         # Signal stop and wait for thread
         self.stop_event.set()
@@ -139,9 +135,10 @@ class CSVLogger:
         # Finalize and close files
         stats = self._finalize_files()
         
-        print(f"✅ CSV logging stopped")
-        print(f"   → Log entries: {self.log_count}")
-        print(f"   → Duration: {stats.get('duration_formatted', 'Unknown')}")
+        log.success("DataLogger", "CSV logging stopped", [
+            f"→ Log entries: {self.log_count}",
+            f"→ Duration: {stats.get('duration_formatted', 'Unknown')}"
+        ])
         
         return stats
     

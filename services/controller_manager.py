@@ -14,6 +14,7 @@ from .ni_daq import NIDAQService
 from .pico_tc08 import PicoTC08Service
 from .bga244 import BGA244Service
 from .cvm24p import CVM24PService
+from utils.logger import log
 
 
 class ControllerManager:
@@ -45,10 +46,10 @@ class ControllerManager:
     def start_all_services(self):
         """Start all hardware services"""
         if self.services_running:
-            print("⚠️  Services already running")
+            log.warning("System", "Services already running")
             return False
         
-        print("🔌 Starting all hardware services...")
+        log.info("System", "Starting all hardware services")
         
         # Start each service using their actual implementations
         success_count = 0
@@ -72,20 +73,18 @@ class ControllerManager:
         # Check if all services started successfully
         if success_count == 4:
             self.services_running = True
-            print(f"✅ All {success_count}/4 services started successfully")
+            log.success("System", f"All {success_count} services started successfully")
             return True
         else:
-            print(f"❌ Only {success_count}/4 services started - stopping all")
+            log.error("System", f"Only {success_count}/4 services started - stopping all")
             self.stop_all_services()
             return False
     
     def stop_all_services(self):
         """Stop all hardware services"""
         if not self.services_running:
-            print("⚠️  Services already stopped")
+            log.warning("System", "Services already stopped")
             return
-        
-        print("🔌 Stopping all hardware services...")
         
         # Stop each service using their actual implementations
         self._stop_ni_daq()
@@ -94,7 +93,7 @@ class ControllerManager:
         self._stop_cvm24p()
         
         self.services_running = False
-        print("✅ All services stopped")
+        log.success("System", "All services stopped")
     
     def start_test(self, session_name: Optional[str] = None) -> bool:
         """
@@ -107,16 +106,15 @@ class ControllerManager:
             True if test started successfully
         """
         if self.test_running:
-            print("⚠️  Test already running")
+            log.warning("TestRunner", "Test already running")
             return False
         
         # Ensure services are connected first
         if not self.services_running:
-            print("❌ Cannot start test - services not running")
-            print("   → Please connect to hardware first")
+            log.error("TestRunner", "Cannot start test - services not running", [
+                "→ Please connect to hardware first"
+            ])
             return False
-        
-        print("🧪 Starting new test session...")
         
         try:
             # Start new session with timestamped folder
@@ -125,7 +123,6 @@ class ControllerManager:
             # Reset and start timer for plotting
             self.timer.reset()
             self.timer.start()
-            print("   → Timer started from 0")
             
             # Update test state
             self.test_running = True
@@ -143,26 +140,28 @@ class ControllerManager:
             self._save_test_configuration(config_path)
             
             # Start CSV data logging
-            print("   → Starting CSV data logging...")
             logging_started = self.csv_logger.start_logging()
             
-            print(f"✅ Test session started: {self.current_session['session_id']}")
-            print(f"   → Session folder: {self.current_session['folder_path']}")
-            print(f"   → Configuration saved: {config_file}")
-            print(f"   → Timer: ✅ Started")
+            session_details = [
+                f"→ Session name: {self.current_session['session_id']}",
+                f"→ Configuration saved: {config_file}",
+                f"→ Timer: Started"
+            ]
             
             if logging_started:
-                print(f"   → CSV logging: ✅ Started - Files will be created")
-                print(f"   → Log files: sensors.csv, gas_analysis.csv, cell_voltages.csv, actuators.csv")
+                session_details.append("→ CSV logging: 4 files created (1.0s interval)")
             else:
-                print(f"   → CSV logging: ❌ FAILED - No CSV files will be created")
-                print(f"   → Check session folder and file permissions")
-                print(f"   → Test will continue without data logging")
+                session_details.extend([
+                    "→ CSV logging: FAILED - No CSV files will be created",
+                    "→ Check session folder and file permissions",
+                    "→ Test will continue without data logging"
+                ])
             
+            log.success("TestRunner", "Starting test session", session_details)
             return True
             
         except Exception as e:
-            print(f"❌ Failed to start test session: {e}")
+            log.error("TestRunner", f"Failed to start test session: {e}")
             import traceback
             print(f"   → Error details: {traceback.format_exc()}")
             self.test_running = False
@@ -181,15 +180,12 @@ class ControllerManager:
             Final session metadata or None if no test was running
         """
         if not self.test_running:
-            print("⚠️  No test running to stop")
+            log.warning("TestRunner", "No test running to stop")
             return None
-        
-        print("🧪 Stopping test session...")
         
         try:
             # Stop timer
             self.timer.reset()
-            print("   → Timer stopped and reset")
             
             # Stop CSV logging first
             logging_stats = self.csv_logger.stop_logging()
@@ -199,7 +195,6 @@ class ControllerManager:
             
             # Run post-processing on the completed session (skip for emergency stops)
             if final_session and logging_stats.get('log_count', 0) > 0 and status != "emergency_stop":
-                print("   → Starting post-processing...")
                 try:
                     from data.post_processor import process_session_data
                     
@@ -212,19 +207,12 @@ class ControllerManager:
                         active_channels
                     )
                     
-                    if post_success:
-                        print("   ✅ Post-processing completed - plots generated")
-                    else:
-                        print("   ⚠️  Post-processing failed - no plots generated")
+                    # Post-processing messages are handled in post_processor.py
                         
                 except Exception as e:
-                    print(f"   ❌ Post-processing error: {e}")
-                    print("   → Test session saved successfully, but plots not generated")
-            else:
-                if status == "emergency_stop":
-                    print("   → Skipping post-processing (emergency stop)")
-                else:
-                    print("   → Skipping post-processing (no data logged)")
+                    log.error("PostProcessor", f"Post-processing error: {e}", [
+                        "→ Test session saved successfully, but plots not generated"
+                    ])
             
             # Update test state
             self.test_running = False
@@ -233,18 +221,19 @@ class ControllerManager:
             # Clear current session
             self.current_session = None
             
-            print(f"✅ Test session stopped")
-            print(f"   → Final status: {status}")
+            # Build final summary
+            stop_details = [f"→ Duration: {final_session.get('duration_formatted', 'Unknown') if final_session else 'Unknown'}"]
             if final_session:
-                print(f"   → Duration: {final_session.get('duration_formatted', 'Unknown')}")
-                print(f"   → Files created: {len(final_session.get('files', {}))}")
+                stop_details.append(f"→ Files created: {len(final_session.get('files', {}))}")
             if logging_stats:
-                print(f"   → Data logged: {logging_stats.get('log_count', 0)} entries")
+                stop_details.append(f"→ Entries logged: {logging_stats.get('log_count', 0)}")
+            
+            log.info("TestRunner", f"Stopping test session", stop_details)
             
             return final_session
             
         except Exception as e:
-            print(f"❌ Error stopping test session: {e}")
+            log.error("TestRunner", f"Error stopping test session: {e}")
             self.test_running = False
             self.state.update_test_status(running=False)
             self.timer.reset()
