@@ -367,15 +367,16 @@ class ControllerManager:
             # Create and connect actual service
             self.bga244_service = BGA244Service()
             if self.bga244_service.connect():
-                if self.bga244_service.start_polling():
-                    self.services['bga244']['connected'] = True
-                    self.services['bga244']['service'] = self.bga244_service
-                    # Service connection message is handled by BGA244Service itself
-                    return True
-                else:
-                    log.error("System", "BGA244 polling failed to start")
-                    self.bga244_service.disconnect()
-                    return False
+                # Attempt to start polling
+                polling_started = self.bga244_service.start_polling()
+                
+                # BGA244 service is considered operational even if no individual BGAs are connected
+                # (polling_started will be False if no BGAs connected, but service is still functional)
+                self.services['bga244']['connected'] = True
+                self.services['bga244']['service'] = self.bga244_service
+                
+                # Service messages are handled by BGA244Service itself
+                return True
             else:
                 log.error("System", "BGA244 connection failed")
                 return False

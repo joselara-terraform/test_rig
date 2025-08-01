@@ -60,7 +60,7 @@ class BGA244Device:
     def connect(self) -> bool:
         """Connect to BGA244 device"""
         try:
-            log.info("BGA244", f"Connecting to {self.unit_config['name']} on {self.port}...")
+            log.info("BGA244", f"Connecting to {self.unit_config['name']} on {self.port}")
             
             self.serial_conn = serial.Serial(
                 port=self.port,
@@ -111,7 +111,7 @@ class BGA244Device:
             return False
         
         try:
-            log.info("BGA244", f"Configuring {self.unit_config['name']}...")
+            log.info("BGA244", f"Configuring {self.unit_config['name']}")
             
             # Store purge mode state for this device
             self.purge_mode = purge_mode
@@ -127,12 +127,12 @@ class BGA244Device:
             primary_cas = BGA244Config.GAS_CAS_NUMBERS[primary_gas]
             self._send_command(f"GASP {primary_cas}")
             mode_str = "PURGE MODE" if purge_mode else "NORMAL MODE"
-            log.info("BGA244", f"   {mode_str}: Primary gas: {primary_gas} ({primary_cas})")
+            log.info("BGA244", f"{mode_str}: Primary gas: {primary_gas} ({primary_cas})")
             
             # Configure secondary gas
             secondary_cas = BGA244Config.GAS_CAS_NUMBERS[secondary_gas]
             self._send_command(f"GASS {secondary_cas}")
-            log.info("BGA244", f"   {mode_str}: Secondary gas: {secondary_gas} ({secondary_cas})")
+            log.info("BGA244", f"{mode_str}: Secondary gas: {secondary_gas} ({secondary_cas})")
             
             log.success("BGA244", f"Gas configuration complete for {self.unit_config['name']}")
             return True
@@ -196,7 +196,7 @@ class BGA244Device:
                     # Check for overflow values - treat as 0 for gas concentrations
                     if primary_val > 1e30:  # Handle 9.9E37 and similar overflow values
                         measurements['primary_gas_concentration'] = 0.0
-                        log.warning("BGA244", f"   ⚠️  {self.unit_config['name']}: Primary gas reading overflow ({ratio_response}) - treated as 0")
+                        log.warning("BGA244", f"{self.unit_config['name']}: Primary gas reading overflow ({ratio_response}) - treated as 0")
                     else:
                         measurements['primary_gas_concentration'] = primary_val
                     
@@ -213,7 +213,7 @@ class BGA244Device:
                     # Check for overflow values - treat as 0 for gas concentrations
                     if secondary_val > 1e30:  # Handle 9.9E37 and similar overflow values
                         measurements['secondary_gas_concentration'] = 0.0
-                        log.warning("BGA244", f"   ⚠️  {self.unit_config['name']}: Secondary gas reading overflow ({ratio2_response}) - treated as 0")
+                        log.warning("BGA244", f"{self.unit_config['name']}: Secondary gas reading overflow ({ratio2_response}) - treated as 0")
                     else:
                         measurements['secondary_gas_concentration'] = secondary_val
                     
@@ -344,7 +344,7 @@ class BGA244Service:
         """Connect to real BGA244 hardware using configured ports only"""
         connected_count = 0
         
-        log.info("BGA244", "Connecting BGAs to configured ports...")
+        log.info("BGA244", "Connecting BGAs to configured ports")
         
         # Connect each BGA to its configured port
         bga_units = self.device_config.get_bga244_config().get('units', {})
@@ -353,17 +353,17 @@ class BGA244Service:
             configured_port = unit_config.get('port')
             
             if configured_port:
-                log.info("BGA244", f"   → Trying to connect {unit_config['name']} to {configured_port}...")
+                log.info("BGA244", f"Trying to connect {unit_config['name']} to {configured_port}")
                 
                 if self._try_connect_bga_to_port(unit_id, configured_port):
                     # Assign this port to this BGA
                     self.bga_port_mapping[unit_id] = configured_port
                     connected_count += 1
-                    log.success("BGA244", f"   ✅ {unit_config['name']} connected to {configured_port}")
+                    log.success("BGA244", f"{unit_config['name']} connected to {configured_port}")
                 else:
-                    log.error("BGA244", f"   ❌ {unit_config['name']} failed to connect to {configured_port}")
+                    log.error("BGA244", f"{unit_config['name']} failed to connect to {configured_port}")
             else:
-                log.error("BGA244", f"   ❌ No port configured for {unit_config['name']}")
+                log.error("BGA244", f"No port configured for {unit_config['name']}")
         
         return connected_count
     
@@ -380,20 +380,20 @@ class BGA244Service:
                 else:
                     device.disconnect()
                     self.individual_connections[unit_id] = False
-                    log.error("BGA244", f"      ❌ Gas configuration failed for {device.unit_config['name']}")
+                    log.error("BGA244", f"Gas configuration failed for {device.unit_config['name']}")
             else:
                 self.individual_connections[unit_id] = False
                 
         except Exception as e:
             self.individual_connections[unit_id] = False
             unit_name = self.device_config.get_bga_unit_config(unit_id).get('name', unit_id)
-            log.error("BGA244", f"      ❌ Device error for {unit_name} on {port}: {e}")
+            log.error("BGA244", f"Device error for {unit_name} on {port}: {e}")
         
         return False
     
     def disconnect(self):
         """Disconnect from BGA244 analyzers but preserve port mappings"""
-        log.info("BGA244", "Disconnecting from BGA244 analyzers...")
+        log.info("BGA244", "Disconnecting from BGA244 analyzers")
         
         # Stop polling first
         if self.polling:
@@ -415,7 +415,7 @@ class BGA244Service:
     
     def reset_port_mappings(self):
         """Reset BGA-to-port mappings (for troubleshooting)"""
-        log.info("BGA244", "Resetting BGA port mappings...")
+        log.info("BGA244", "Resetting BGA port mappings")
         self.bga_port_mapping = {
             'bga_1': None,
             'bga_2': None,
@@ -428,6 +428,14 @@ class BGA244Service:
         if self.polling:
             log.warning("BGA244", "BGA244 polling already running")
             return True
+        
+        # Check if any BGAs are actually connected
+        connected_count = sum(1 for connected in self.individual_connections.values() if connected)
+        
+        if connected_count == 0:
+            # No BGAs connected - don't start polling
+            log.warning("BGA244", "No BGA244 hardware connected - polling disabled")
+            return False
         
         self.polling = True
         self.poll_thread = threading.Thread(target=self._poll_data, daemon=True)
@@ -465,32 +473,32 @@ class BGA244Service:
             log.warning("BGA244", "No connected BGA devices to reconfigure")
             return
         
-        log.info("BGA244", f"   → Reconfiguring {len(connected_devices)} connected BGA devices...")
+        log.info("BGA244", f"Reconfiguring {len(connected_devices)} connected BGA devices")
         
         # Reconfigure all connected devices
         for unit_id, device in self.devices.items():
             if device.is_connected:
                 unit_name = device.unit_config['name']
-                log.info("BGA244", f"   → Reconfiguring {unit_name}...")
+                log.info("BGA244", f"Reconfiguring {unit_name}")
                 
                 try:
                     success = device.configure_gases(self.purge_mode)
                     if success:
                         if purge_enabled:
-                            log.success("BGA244", f"     ✅ {unit_name}: Secondary gas → N2 (Nitrogen)")
+                            log.success("BGA244", f"{unit_name}: Secondary gas → N2 (Nitrogen)")
                         else:
                             normal_secondary = device.unit_config['secondary_gas']
-                            log.success("BGA244", f"     ✅ {unit_name}: Secondary gas → {normal_secondary}")
+                            log.success("BGA244", f"{unit_name}: Secondary gas → {normal_secondary}")
                     else:
-                        log.error("BGA244", f"     ❌ {unit_name}: Configuration failed")
+                        log.error("BGA244", f"{unit_name}: Configuration failed")
                 except Exception as e:
-                    log.error("BGA244", f"     ❌ {unit_name}: Error during reconfiguration: {e}")
+                    log.error("BGA244", f"{unit_name}: Error during reconfiguration: {e}")
         
         log.success("BGA244", "Purge mode reconfiguration complete")
         
         # Provide guidance on expected results
         if purge_enabled:
-            log.info("BGA244", "   Expected: All BGAs should now show N2 as secondary gas in readings")
+            log.info("BGA244", "Expected: All BGAs should now show N2 as secondary gas in readings")
         else:
             log.info("BGA244", "   Expected: BGAs should show normal secondary gases (H2/O2) in readings")
     
