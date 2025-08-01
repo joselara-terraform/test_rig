@@ -7,6 +7,7 @@ Loads devices.yaml and provides access to hardware settings including calibrated
 import os
 from typing import Dict, Any, Optional, List
 import yaml
+from utils.logger import log
 
 
 class DeviceConfig:
@@ -25,7 +26,7 @@ class DeviceConfig:
     def load_config(self):
         """Load configuration from YAML file"""
         try:
-            print(f"🔍 Loading configuration from: {self.config_file}")
+            log.info("ConfigLoader", f"Loading config: {os.path.basename(self.config_file)}")
             
             if not os.path.exists(self.config_file):
                 raise FileNotFoundError(f"Configuration file not found: {self.config_file}")
@@ -36,29 +37,42 @@ class DeviceConfig:
             if not self.config:
                 raise ValueError("Configuration file is empty or invalid")
             
-            print(f"✅ Device configuration loaded from {self.config_file}")
-            print(f"   Calibration date: {self.get_calibration_date()}")
+            # Count devices for success message
+            device_count = 0
+            device_count += len(self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {}))
+            device_count += len(self.config.get('pico_tc08', {}).get('channels', {}))
+            device_count += len(self.config.get('bga244', {}).get('units', {}))
+            device_count += len(self.config.get('cvm24p', {}).get('modules', {}))
+            
+            log.success("ConfigLoader", f"Loaded {device_count} devices from config", [
+                f"→ Calibration date: {self.get_calibration_date()}"
+            ])
             
             # Debug: Show which BGAs were loaded
             bga_units = self.config.get('bga244', {}).get('units', {})
-            print(f"   🔍 Loaded BGA units: {list(bga_units.keys())}")
-            for unit_id, unit_config in bga_units.items():
-                normal_mode = unit_config.get('normal_mode', {})
-                primary = normal_mode.get('primary_gas', 'Unknown')
-                secondary = normal_mode.get('secondary_gas', 'Unknown')
-                port = unit_config.get('port', 'Unknown')
-                print(f"     {unit_id} ({port}): {primary}/{secondary}")
+            if bga_units:
+                bga_info = []
+                for unit_id, unit_config in bga_units.items():
+                    normal_mode = unit_config.get('normal_mode', {})
+                    primary = normal_mode.get('primary_gas', 'Unknown')
+                    secondary = normal_mode.get('secondary_gas', 'Unknown')
+                    port = unit_config.get('port', 'Unknown')
+                    bga_info.append(f"• {unit_id} ({port}): {primary}/{secondary}")
+                
+                log.info("ConfigLoader", "BGA analyzers configured", bga_info)
             
         except FileNotFoundError as e:
-            print(f"❌ Configuration file not found: {self.config_file}")
-            print("   Please ensure devices.yaml exists in the config directory")
+            log.error("ConfigLoader", f"Configuration file not found: {os.path.basename(self.config_file)}", [
+                "→ Please ensure devices.yaml exists in the config directory"
+            ])
             raise e
         except yaml.YAMLError as e:
-            print(f"❌ Error parsing YAML configuration: {e}")
-            print("   Please check devices.yaml for syntax errors")
+            log.error("ConfigLoader", f"Error parsing YAML configuration: {e}", [
+                "→ Please check devices.yaml for syntax errors"
+            ])
             raise e
         except Exception as e:
-            print(f"❌ Error loading configuration: {e}")
+            log.error("ConfigLoader", f"Error loading configuration: {e}")
             raise e
     
     # NI cDAQ Configuration Methods

@@ -10,6 +10,7 @@ import queue
 from typing import Dict, Any, List, Optional
 from core.state import get_global_state
 from config.device_config import get_device_config
+from utils.logger import log
 
 # XC2 protocol imports for CVM24P communication
 try:
@@ -21,7 +22,7 @@ try:
     XC2_AVAILABLE = True
 except ImportError:
     XC2_AVAILABLE = False
-    print("❌ XC2 libraries not available - CVM24P hardware connection will fail")
+    log.error("Libraries", "XC2 libraries not available - CVM24P hardware connection will fail")
 
 
 class CVM24PConfig:
@@ -504,27 +505,24 @@ class CVM24PService:
         
     def connect(self) -> bool:
         """Connect to CVM24P modules"""
-        print("🔋 Connecting to CVM-24P cell voltage monitor...")
+        log.info("CVM24P", "Connecting 5 CVM modules on serial port")
         
         if not XC2_AVAILABLE:
-            print("❌ XC2 libraries not available - cannot connect to hardware")
+            log.error("CVM24P", "XC2 libraries not available - cannot connect to hardware")
             return False
         
         try:
-            # Try to connect to hardware
-            print("   → Attempting hardware connection...")
-            
             if self._connect_hardware():
                 self.connected = True
                 self.state.update_connection_status('cvm24p', True)
-                print(f"✅ CVM-24P connected - Hardware mode with {len(self.modules_info)} modules")
+                log.success("CVM24P", f"All {len(self.modules_info)} modules initialized")
                 return True
             else:
-                print("❌ Hardware connection failed")
+                log.error("CVM24P", "Hardware connection failed")
                 return False
                 
         except Exception as e:
-            print(f"❌ Failed to connect to CVM-24P: {e}")
+            log.error("CVM24P", f"Connection failed: {e}")
             return False
     
     def _connect_hardware(self) -> bool:
@@ -616,8 +614,6 @@ class CVM24PService:
     
     def disconnect(self):
         """Disconnect from CVM24P"""
-        print("🔋 Disconnecting from CVM-24P...")
-        
         # Stop polling first
         if self.polling:
             self.stop_polling()
@@ -632,19 +628,17 @@ class CVM24PService:
         self.connected = False
         self.state.update_connection_status('cvm24p', False)
         
-        print("✅ CVM-24P disconnected")
+        log.success("CVM24P", "Disconnected")
     
     def start_polling(self) -> bool:
         """Start polling cell voltage data"""
         if not self.connected:
-            print("❌ Cannot start polling - CVM-24P not connected")
+            log.error("CVM24P", "Cannot start polling - not connected")
             return False
         
         if self.polling:
-            print("⚠️  CVM-24P polling already running")
+            log.warning("CVM24P", "Polling already running")
             return True
-        
-        print(f"🔋 Starting CVM-24P polling at {self.sample_rate} Hz...")
         
         self.polling = True
         
@@ -652,7 +646,7 @@ class CVM24PService:
         polling_thread = threading.Thread(target=self._poll_data, daemon=True)
         polling_thread.start()
         
-        print("✅ CVM-24P polling started")
+        log.success("CVM24P", f"Polling started at {self.sample_rate} Hz")
         return True
     
     def stop_polling(self):
@@ -660,10 +654,8 @@ class CVM24PService:
         if not self.polling:
             return
         
-        print("🔋 Stopping CVM-24P polling...")
         self.polling = False
-        
-        print("✅ CVM-24P polling stopped")
+        log.info("CVM24P", "Polling stopped")
     
     def _poll_data(self):
         """Simplified polling thread function"""

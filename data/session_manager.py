@@ -9,6 +9,7 @@ import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 from core.state import get_global_state
+from utils.logger import log
 
 
 class SessionManager:
@@ -38,14 +39,15 @@ class SessionManager:
     
     def _ensure_directories(self):
         """Create necessary directory structure"""
-        print(f"📁 Initializing session directories:")
-        print(f"   → Base data directory: {self.base_data_dir}")
-        print(f"   → Sessions directory: {self.sessions_dir}")
+        log.info("SessionMgr", "Initializing session directory", [
+            f"→ Base: {self.base_data_dir}",
+            f"→ Sessions: {self.sessions_dir}"
+        ])
         
         self.base_data_dir.mkdir(exist_ok=True)
         self.sessions_dir.mkdir(exist_ok=True)
         
-        print(f"   → ✅ Directory structure ready")
+        log.success("SessionMgr", "Directory structure ready")
     
     def start_new_session(self, session_name: Optional[str] = None) -> Dict[str, Any]:
         """
@@ -103,9 +105,10 @@ class SessionManager:
         self._save_session_metadata()
         
         # Log session start
-        print(f"📁 New test session started: {folder_name}")
-        print(f"   → Session path: {self.current_session_path}")
-        print(f"   → Start time: {self.session_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        log.info("SessionMgr", f"Starting test session: {folder_name}", [
+            f"→ Session path: {self.current_session_path}",
+            f"→ Start time: {self.session_start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        ])
         
         return self.current_session.copy()
     
@@ -245,10 +248,11 @@ class SessionManager:
         # Save final metadata
         self._save_session_metadata()
         
-        print(f"📁 Session ended: {self.current_session['session_id']}")
-        print(f"   → Duration: {self.current_session['duration_formatted']}")
-        print(f"   → Status: {status}")
-        print(f"   → Files created: {len(self.current_session['files'])}")
+        log.info("SessionMgr", f"Session ended: {self.current_session['session_id']}", [
+            f"→ Duration: {self.current_session['duration_formatted']}",
+            f"→ Status: {status}",
+            f"→ Files created: {len(self.current_session['files'])}"
+        ])
         
         # Return copy before clearing
         final_session = self.current_session.copy()

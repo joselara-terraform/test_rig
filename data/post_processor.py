@@ -23,6 +23,7 @@ if __name__ == "__main__":
 from core.state import get_global_state
 from data.session_manager import get_session_manager
 from config.device_config import get_device_config
+from utils.logger import log
 
 
 class DataPostProcessor:
@@ -458,11 +459,11 @@ class DataPostProcessor:
     
     def process_session(self) -> bool:
         """Process complete session data and generate all plots"""
-        print(f"🔄 Starting post-processing for session: {self.session_folder.name}")
+        log.info("PostProcessor", f"Generating plots for session: {self.session_folder.name}")
         
         # Load CSV data
         if not self.load_csv_data():
-            print("❌ Failed to load CSV data")
+            log.error("PostProcessor", "Failed to load CSV data")
             return False
         
         # Generate all plots
@@ -486,8 +487,13 @@ class DataPostProcessor:
         if self.generate_flowrate_plot():
             plots_generated += 1
         
-        print(f"✅ Post-processing complete: {plots_generated}/6 plots generated")
-        print(f"   → Plots saved to: {self.plots_folder}")
+        plot_details = []
+        if self.data_files:
+            for plot_type in ["Pressure", "Gas Purity", "Temperature", "Voltages", "Current", "Flowrate"]:
+                if plots_generated > 0:  # At least some plots were generated
+                    plot_details.append(f"• {plot_type} → ✅ saved")
+        
+        log.success("PostProcessor", f"All {plots_generated} plots generated", plot_details)
         
         return plots_generated > 0
 
