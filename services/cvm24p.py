@@ -45,6 +45,9 @@ class CVM24PService:
         self.bus = None
         self.devices = {}  # serial -> XC2Cvm24p device
         self.voltage_data = [0.0] * self.total_channels
+        
+        # Async handling
+        self.loop = None
         self.polling_thread = None
         
     def connect(self) -> bool:
@@ -64,6 +67,9 @@ class CVM24PService:
                 log.error("CVM24P", "No serial ports found")
                 return False
             
+            # Create event loop for async operations
+            self.loop = asyncio.new_event_loop()
+            
             # Try each port
             for port in ports:
                 if self._connect_to_port(port):
@@ -71,18 +77,24 @@ class CVM24PService:
                     self.state.update_connection_status('cvm24p', True)
                     log.success("CVM24P", f"Connected to {self.expected_modules} modules")
                     return True
-                    
+            
+            # Clean up loop if all ports failed
+            self.loop.close()
+            self.loop = None
             log.error("CVM24P", "Failed to connect on any port")
             return False
             
         except Exception as e:
             log.error("CVM24P", f"Connection failed: {e}")
+            if self.loop:
+                self.loop.close()
+                self.loop = None
             return False
     
     def _connect_to_port(self, port: str) -> bool:
         """Connect to modules on specified port"""
         try:
-            # Create and connect bus
+            # Create bus
             bus_sn = get_serial_from_port(port)
             self.bus = SerialBus(
                 bus_sn, 
@@ -91,38 +103,44 @@ class CVM24PService:
                 protocol_type=ProtocolEnum.XC2
             )
             
-            # Run async connection in sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # Connect and initialize in the event loop
+            self.loop.run_until_complete(self._async_connect())
             
-            try:
-                loop.run_until_complete(self.bus.connect())
+            # Verify we got all expected modules
+            if len(self.devices) != self.expected_modules:
+                raise Exception(f"Expected {self.expected_modules} modules, got {len(self.devices)}")
                 
-                # Initialize each module using cached addresses
-                for serial, address in self.module_mapping.items():
-                    device = XC2Cvm24p(self.bus, address)
-                    loop.run_until_complete(device.initial_structure_reading())
-                    self.devices[serial] = device
+            return True
                 
-                # Verify we got all expected modules
-                if len(self.devices) != self.expected_modules:
-                    raise Exception(f"Expected {self.expected_modules} modules, got {len(self.devices)}")
-                    
-                return True
-                
-            finally:
-                loop.close()
-                
-        except Exception as e:
+        except Exception:
             self.bus = None
             self.devices.clear()
             return False
+    
+    async def _async_connect(self):
+        """Async connection and initialization"""
+        # Connect bus
+        await self.bus.connect()
+        
+        # Stability pause (critical for reliable communication)
+        await asyncio.sleep(2)
+        
+        # Initialize each module using cached addresses
+        for serial, address in self.module_mapping.items():
+            device = XC2Cvm24p(self.bus, address)
+            await device.initial_structure_reading()
+            self.devices[serial] = device
     
     def disconnect(self):
         """Disconnect from CVM24P"""
         if self.polling:
             self.stop_polling()
-            
+        
+        # Clean up async resources
+        if self.loop and not self.loop.is_closed():
+            self.loop.close()
+        
+        self.loop = None
         self.bus = None
         self.devices.clear()
         self.voltage_data = [0.0] * self.total_channels
@@ -159,29 +177,29 @@ class CVM24PService:
         log.info("CVM24P", "Polling stopped")
     
     def _poll_data(self):
-        """Polling thread - reads voltage data"""
-        # Create event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
+        """Polling thread - uses the existing event loop"""
+        asyncio.set_event_loop(self.loop)
         
-        try:
-            while self.polling and self.connected:
-                try:
-                    # Read all voltages
-                    voltages = loop.run_until_complete(self._read_all_voltages())
-                    
-                    # Update state
-                    self.voltage_data = voltages
-                    self.state.update_sensor_values(cell_voltages=voltages)
-                    
-                    # Sleep for sample rate
-                    time.sleep(1.0 / self.sample_rate)
-                    
-                except Exception as e:
-                    log.error("CVM24P", f"Polling error: {e}")
-                    break
-        finally:
-            loop.close()
+        # Run polling in the existing loop
+        self.loop.run_until_complete(self._async_poll())
+    
+    async def _async_poll(self):
+        """Async polling loop"""
+        while self.polling and self.connected:
+            try:
+                # Read all voltages
+                voltages = await self._read_all_voltages()
+                
+                # Update state
+                self.voltage_data = voltages
+                self.state.update_sensor_values(cell_voltages=voltages)
+                
+                # Sleep for sample rate
+                await asyncio.sleep(1.0 / self.sample_rate)
+                
+            except Exception as e:
+                log.error("CVM24P", f"Polling error: {e}")
+                break
     
     async def _read_all_voltages(self) -> List[float]:
         """Read voltages from all modules in physical order"""
