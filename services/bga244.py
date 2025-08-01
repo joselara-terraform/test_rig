@@ -166,6 +166,13 @@ class BGA244Service:
         self.devices = {}
         self.purge_mode = False
         
+        # Individual connection status for dashboard
+        self.individual_connections = {
+            'bga_1': False,
+            'bga_2': False,
+            'bga_3': False
+        }
+        
         # Get configuration
         self.bga_config = self.device_config.get_bga244_config()
         self.sample_rate = self.device_config.get_sample_rate('bga244')
@@ -174,6 +181,10 @@ class BGA244Service:
         """Connect to BGA244 gas analyzers"""
         try:
             connected_count = 0
+            
+            # Reset individual connections
+            for unit_id in self.individual_connections:
+                self.individual_connections[unit_id] = False
             
             # Connect each BGA to its configured port
             for unit_id, unit_config in self.bga_config.get('units', {}).items():
@@ -187,6 +198,7 @@ class BGA244Service:
                     gas_config = self.device_config.get_bga_gas_config(unit_id, self.purge_mode)
                     if device.configure_gases(gas_config):
                         self.devices[unit_id] = device
+                        self.individual_connections[unit_id] = True
                         connected_count += 1
                         log.success("BGA244", f"{unit_config['name']} connected to {port}")
                     else:
@@ -225,6 +237,10 @@ class BGA244Service:
         self.devices.clear()
         self.connected = False
         self.state.update_connection_status('bga244', False)
+        
+        # Reset individual connections
+        for unit_id in self.individual_connections:
+            self.individual_connections[unit_id] = False
         
         log.success("BGA244", "BGA244 analyzers disconnected")
     
@@ -336,3 +352,7 @@ class BGA244Service:
             except Exception as e:
                 log.error("BGA244", f"BGA244 polling error: {e}")
                 break
+    
+    def get_individual_connection_status(self) -> Dict[str, bool]:
+        """Get individual connection status for each BGA unit"""
+        return self.individual_connections.copy()
