@@ -7,6 +7,23 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# [2025-08-01 13:20:12] INFO     [BGA244]       - Connecting BGAs to configured ports
+# [2025-08-01 13:20:12] INFO     [BGA244]       - Trying to connect BGA01 to COM8
+# [2025-08-01 13:20:12] INFO     [BGA244]       - Connecting to BGA01 on COM8
+# [2025-08-01 13:20:13] ERROR    [BGA244]       - No response from device on COM8
+# [2025-08-01 13:20:13] SUCCESS  [BGA244]       - Disconnected from COM8
+# [2025-08-01 13:20:13] ERROR    [BGA244]       - BGA01 failed to connect to COM8
+# [2025-08-01 13:20:13] INFO     [BGA244]       - Trying to connect BGA02 to COM3
+# [2025-08-01 13:20:13] INFO     [BGA244]       - Connecting to BGA02 on COM3
+# [2025-08-01 13:20:14] ERROR    [BGA244]       - No response from device on COM3
+# [2025-08-01 13:20:14] SUCCESS  [BGA244]       - Disconnected from COM3
+# [2025-08-01 13:20:14] ERROR    [BGA244]       - BGA02 failed to connect to COM3
+# [2025-08-01 13:20:14] INFO     [BGA244]       - Trying to connect BGA03 to COM9
+# [2025-08-01 13:20:14] INFO     [BGA244]       - Connecting to BGA03 on COM9
+# [2025-08-01 13:20:14] ERROR    [BGA244]       - Connection failed on COM9: could not open port 'COM9': FileNotFoundError(2, 'The system cannot find the file specified.', None, 2)
+# [2025-08-01 13:20:14] ERROR    [BGA244]       - BGA03 failed to connect to COM9
+# [2025-08-01 13:20:14] ERROR    [BGA244]       - No BGA244 hardware detected
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
