@@ -7,17 +7,6 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
-# [2025-08-05 15:38:02] ERROR    [DAQ]          - Read error: Requested value is not a supported value for this property. The property value may be invalid because it conflicts with another property.
-
-# Property: DAQmx_SampQuant_SampPerChan
-# Requested Value: 1
-# Maximum Value: 8589934590
-# Minimum Value: 2
-
-# Device: cDAQ9187-23E902C
-
-# Task Name: _unnamedTask<0>
-
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
@@ -25,7 +14,7 @@ ni_cdaq:
   # NI-9253 Analog Input Module (4-20mA Current Inputs)
   analog_inputs:
     module: "cDAQ9187-23E902CMod1"
-    sample_rate: 100  # Hz
+    sample_rate: 250  # Hz
     
     # 4-20mA Signal Conditioning
     current_range:
