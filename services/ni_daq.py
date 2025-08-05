@@ -53,6 +53,9 @@ class NIDAQService:
             return False
         
         try:
+            # Get NI config first
+            ni_config = self.device_config.get_ni_cdaq_config()
+            
             # Setup analog inputs
             self._setup_analog_inputs()
             
@@ -67,7 +70,7 @@ class NIDAQService:
             
             # Log connection with minimal details
             ai_count = len(self.device_config.get_ni_cdaq_config()['analog_inputs']['channels'])
-            do_count = len(self.device_config.get_valve_pump_config()['valves']) + 2  # valves + pumps
+            do_count = len(ni_config.get('digital_outputs', {}))
             
             log.success("DAQ", f"NI cDAQ connected ({ai_count} AI, {do_count} DO)")
             return True
@@ -157,30 +160,31 @@ class NIDAQService:
     
     def _setup_digital_outputs(self):
         """Configure digital output channels"""
-        # Get valve/pump config
-        valve_config = self.device_config.get_valve_pump_config()
+        # Get NI cDAQ config which contains digital outputs
+        ni_config = self.device_config.get_ni_cdaq_config()
+        digital_outputs = ni_config.get('digital_outputs', {})
         
-        # Setup valve outputs
-        for i, valve in enumerate(valve_config['valves']):
-            if valve['enabled']:
-                channel = f"{self.do_module1}/port0/line{valve['relay_channel']}"
+        # Map of output names to state keys
+        output_mapping = {
+            'valve_1': ('valve', 0),
+            'valve_2': ('valve', 1),
+            'valve_3': ('valve', 2),
+            'valve_4': ('valve', 3),
+            'valve_5': ('valve', 4),
+            'pump': ('pump', None),
+            'pump_2': ('koh_pump', None)
+        }
+        
+        # Setup each digital output
+        for name, config in digital_outputs.items():
+            if name in output_mapping:
+                module = config['module']
+                line = config['line']
+                channel = f"{module}/port0/line{line}"
+                
                 task = nidaqmx.Task()
                 task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-                self.do_tasks[f'valve_{i+1}'] = task
-        
-        # Setup pump outputs
-        pumps = valve_config['pumps']
-        if pumps['main']['enabled']:
-            channel = f"{self.do_module1}/port0/line{pumps['main']['relay_channel']}"
-            task = nidaqmx.Task()
-            task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-            self.do_tasks['pump'] = task
-        
-        if pumps['koh']['enabled']:
-            channel = f"{self.do_module1}/port0/line{pumps['koh']['relay_channel']}"
-            task = nidaqmx.Task()
-            task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-            self.do_tasks['pump_2'] = task
+                self.do_tasks[name] = task
     
     def _polling_loop(self):
         """Main data acquisition loop"""
