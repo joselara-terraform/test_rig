@@ -34,8 +34,9 @@ class NIDAQService:
         self.current_range = self.device_config.get_current_range_config()
         self.sample_rate = 100  # Hz
         
-        # Hardware modules
-        self.chassis = "cDAQ9187-23E902C"
+        # Hardware modules from config
+        ni_config = self.device_config.get_ni_cdaq_config()
+        self.chassis = ni_config['chassis']
         self.ai_module = f"{self.chassis}Mod1"
         self.do_module1 = f"{self.chassis}Mod2"
         self.do_module2 = f"{self.chassis}Mod3"
@@ -161,17 +162,34 @@ class NIDAQService:
     
     def _setup_digital_outputs(self):
         """Configure digital output channels"""
-        # Hardcoded digital outputs mapping (from original code)
-        # This matches the known hardware configuration
-        digital_channels = {
-            'valve_1': {'module': self.do_module1, 'line': 0},
-            'valve_2': {'module': self.do_module1, 'line': 1},
-            'valve_3': {'module': self.do_module1, 'line': 2},
-            'valve_4': {'module': self.do_module1, 'line': 3},
-            'valve_5': {'module': self.do_module1, 'line': 5},
-            'pump': {'module': self.do_module1, 'line': 4},
-            'pump_2': {'module': self.do_module1, 'line': 6}
-        }
+        # Get digital output config from devices.yaml
+        ni_config = self.device_config.get_ni_cdaq_config()
+        valves_config = ni_config['digital_outputs']['valves']
+        pumps_config = ni_config['digital_outputs']['pump']
+        
+        # Create mapping for all digital outputs
+        digital_channels = {}
+        
+        # Add valves (valve_1, valve_2, etc.)
+        valve_index = 1
+        for valve_name, valve_config in valves_config.items():
+            key = f'valve_{valve_index}'
+            module = valve_config['module']
+            line = valve_config['line']
+            digital_channels[key] = {'module': module, 'line': line}
+            valve_index += 1
+        
+        # Add pumps (pump, pump_2)
+        pump_index = 1
+        for pump_name, pump_config in pumps_config.items():
+            if pump_index == 1:
+                key = 'pump'
+            else:
+                key = f'pump_{pump_index}'
+            module = pump_config['module']
+            line = pump_config['line']
+            digital_channels[key] = {'module': module, 'line': line}
+            pump_index += 1
         
         # Create tasks for each output
         for name, config in digital_channels.items():
@@ -188,18 +206,30 @@ class NIDAQService:
                 # Read analog inputs
                 analog_data = self._read_analog_inputs()
                 
+                # Get sensor mapping from config
+                channels_config = self.device_config.get_ni_cdaq_config()['analog_inputs']['channels']
+                
+                # Build pressure values array dynamically
+                pressure_values = []
+                pressure_sensors = [name for name in channels_config.keys() if name.startswith('pt')]
+                pressure_sensors.sort()  # Ensure consistent ordering
+                for sensor_name in pressure_sensors:
+                    pressure_values.append(analog_data.get(sensor_name, 0.0))
+                
+                # Get current and flowrate from config
+                current_value = 0.0
+                flowrate_value = 0.0
+                for name, config in channels_config.items():
+                    if config.get('units') == 'A':
+                        current_value = analog_data.get(name, 0.0)
+                    elif config.get('units') == 'SLM':
+                        flowrate_value = analog_data.get(name, 0.0)
+                
                 # Update state
                 self.state.update_sensor_values(
-                    pressure_values=[
-                        analog_data.get('pt01', 0.0),
-                        analog_data.get('pt02', 0.0),
-                        analog_data.get('pt03', 0.0),
-                        analog_data.get('pt04', 0.0),
-                        analog_data.get('pt05', 0.0),
-                        analog_data.get('pt06', 0.0)
-                    ],
-                    current_value=analog_data.get('current', 0.0),
-                    flowrate_value=analog_data.get('flowrate', 0.0)
+                    pressure_values=pressure_values,
+                    current_value=current_value,
+                    flowrate_value=flowrate_value
                 )
                 
                 # Update digital outputs
@@ -268,17 +298,31 @@ class NIDAQService:
     def _update_digital_outputs(self):
         """Update digital outputs from state"""
         try:
-            # Update valves
-            for i, state in enumerate(self.state.valve_states):
-                key = f'valve_{i+1}'
-                if key in self.do_tasks:
-                    self.do_tasks[key].write(bool(state))
+            # Get digital output config for mapping
+            ni_config = self.device_config.get_ni_cdaq_config()
+            valves_config = ni_config['digital_outputs']['valves']
+            pumps_config = ni_config['digital_outputs']['pump']
             
-            # Update pumps
-            if 'pump' in self.do_tasks:
-                self.do_tasks['pump'].write(bool(self.state.pump_state))
-            if 'pump_2' in self.do_tasks:
-                self.do_tasks['pump_2'].write(bool(self.state.koh_pump_state))
+            # Update valves using config order
+            valve_index = 1
+            for valve_name in valves_config.keys():
+                key = f'valve_{valve_index}'
+                if key in self.do_tasks and valve_index <= len(self.state.valve_states):
+                    self.do_tasks[key].write(bool(self.state.valve_states[valve_index - 1]))
+                valve_index += 1
+            
+            # Update pumps using config order
+            pump_index = 1
+            for pump_name in pumps_config.keys():
+                if pump_index == 1:
+                    key = 'pump'
+                    if key in self.do_tasks:
+                        self.do_tasks[key].write(bool(self.state.pump_state))
+                elif pump_index == 2:
+                    key = 'pump_2'
+                    if key in self.do_tasks:
+                        self.do_tasks[key].write(bool(self.state.koh_pump_state))
+                pump_index += 1
                 
         except Exception as e:
             log.error("DAQ", f"Output update error: {e}")
