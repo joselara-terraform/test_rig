@@ -7,6 +7,16 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# [2025-08-05 15:28:17] ERROR    [DAQ]          - Read error: Task contains physical channels on one or more devices that require you to specify the Sample Clock rate. Use the Sample Clock Timing function/VI to specify a Sample Clock rate.
+
+# You cannot specify a Sample Clock rate if Mode is set to On Demand.
+
+# Device: cDAQ9187-23E902C
+
+# Task Name: _unnamedTask<0>
+
+# Status Code: -201087
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
