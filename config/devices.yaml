@@ -7,6 +7,22 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
+# [2025-08-05 15:22:00] SUCCESS  [DAQ]          - NI cDAQ connected (8 AI, 7 DO)
+# [2025-08-05 15:22:00] SUCCESS  [DAQ]          - Polling started (100 Hz)
+# [2025-08-05 15:22:11] ERROR    [DAQ]          - Read error: The application is not able to keep up with the hardware acquisition.
+
+# Increasing the buffer size, reading the data more frequently, or specifying a fixed number of samples to read instead of reading all available samples might correct the problem.
+
+# Property: DAQmx_Read_RelativeTo
+# Corresponding Value: DAQmx_Val_CurrReadPos
+# Property: DAQmx_Read_Offset
+# Corresponding Value: 0
+
+# Task Name: _unnamedTask<0>
+
+# Status Code: -200279
+# [2025-08-05 15:22:11] ERROR    [DAQ]          - Polling error: cannot access local variable 'channels' where it is not associated with a value
+
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
