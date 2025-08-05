@@ -152,8 +152,12 @@ class NIDAQService:
                 max_val=self.current_range['max_ma'] / 1000.0
             )
         
-        # Use on-demand sampling (no clock, no buffer)
-        # This is simpler and avoids buffer overflow issues
+        # Configure finite acquisition - read 1 sample at a time
+        self.ai_task.timing.cfg_samp_clk_timing(
+            rate=1000,
+            sample_mode=AcquisitionType.FINITE,
+            samps_per_chan=1
+        )
     
     def _setup_digital_outputs(self):
         """Configure digital output channels"""
@@ -211,16 +215,20 @@ class NIDAQService:
     def _read_analog_inputs(self):
         """Read and scale analog inputs"""
         try:
-            # Read single sample per channel (on-demand)
-            raw_data = self.ai_task.read()
+            # Read single sample per channel (finite mode)
+            raw_data = self.ai_task.read(number_of_samples_per_channel=1)
             
             # Scale to engineering units
             scaled_data = {}
             channel_names = list(self.ai_channels.keys())
             
-            # Ensure raw_data is a list
-            if not isinstance(raw_data, list):
+            # With finite acquisition and multiple channels, handle data structure
+            if len(channel_names) == 1:
+                # Single channel: data is a single value
                 raw_data = [raw_data]
+            elif isinstance(raw_data[0], list):
+                # Multiple channels: extract first sample from each channel
+                raw_data = [ch[0] for ch in raw_data]
             
             for i, ch_name in enumerate(channel_names):
                 ch_config = self.ai_channels[ch_name]
