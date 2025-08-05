@@ -70,7 +70,7 @@ class NIDAQService:
             
             # Log connection with minimal details
             ai_count = len(self.device_config.get_ni_cdaq_config()['analog_inputs']['channels'])
-            do_count = len(ni_config.get('digital_outputs', {}))
+            do_count = len(self.do_tasks)
             
             log.success("DAQ", f"NI cDAQ connected ({ai_count} AI, {do_count} DO)")
             return True
@@ -160,31 +160,25 @@ class NIDAQService:
     
     def _setup_digital_outputs(self):
         """Configure digital output channels"""
-        # Get NI cDAQ config which contains digital outputs
-        ni_config = self.device_config.get_ni_cdaq_config()
-        digital_outputs = ni_config.get('digital_outputs', {})
-        
-        # Map of output names to state keys
-        output_mapping = {
-            'valve_1': ('valve', 0),
-            'valve_2': ('valve', 1),
-            'valve_3': ('valve', 2),
-            'valve_4': ('valve', 3),
-            'valve_5': ('valve', 4),
-            'pump': ('pump', None),
-            'pump_2': ('koh_pump', None)
+        # Hardcoded digital outputs mapping (from original code)
+        # This matches the known hardware configuration
+        digital_channels = {
+            'valve_1': {'module': self.do_module1, 'line': 0},
+            'valve_2': {'module': self.do_module1, 'line': 1},
+            'valve_3': {'module': self.do_module1, 'line': 2},
+            'valve_4': {'module': self.do_module1, 'line': 3},
+            'valve_5': {'module': self.do_module1, 'line': 5},
+            'pump': {'module': self.do_module1, 'line': 4},
+            'pump_2': {'module': self.do_module1, 'line': 6}
         }
         
-        # Setup each digital output
-        for name, config in digital_outputs.items():
-            if name in output_mapping:
-                module = config['module']
-                line = config['line']
-                channel = f"{module}/port0/line{line}"
-                
-                task = nidaqmx.Task()
-                task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
-                self.do_tasks[name] = task
+        # Create tasks for each output
+        for name, config in digital_channels.items():
+            channel = f"{config['module']}/port0/line{config['line']}"
+            
+            task = nidaqmx.Task()
+            task.do_channels.add_do_chan(channel, line_grouping=LineGrouping.CHAN_PER_LINE)
+            self.do_tasks[name] = task
     
     def _polling_loop(self):
         """Main data acquisition loop"""
