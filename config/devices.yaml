@@ -7,29 +7,6 @@
 # - Device communication settings
 # - CALIBRATED ZERO OFFSETS for pressure/current sensors
 
-# [2025-08-05 15:07:56] INFO     [DAQ]          - Connecting to NI cDAQ...
-#    → Setting all outputs to safe state (OFF)
-# [2025-08-05 15:07:58] SUCCESS  [DAQ]          - NI cDAQ connected and polling at 100 Hz
-#     • Found: cDAQ9187-23E902C
-#     → 8 analog channels configured
-#     • PT01: cDAQ9187-23E902CMod1/ai0 (4-20mA, calibrated 4.0-20.0mA)
-#     • PT02: cDAQ9187-23E902CMod1/ai1 (4-20mA, calibrated 4.0-20.0mA)
-#     • Current: cDAQ9187-23E902CMod1/ai2 (4-20mA, calibrated 4.0-20.0mA)
-#     • PT03: cDAQ9187-23E902CMod1/ai3 (4-20mA, calibrated 4.0-20.0mA)
-#     • PT04: cDAQ9187-23E902CMod1/ai4 (4-20mA, calibrated 4.0-20.0mA)
-#     • PT05: cDAQ9187-23E902CMod1/ai5 (4-20mA, calibrated 4.0-20.0mA)
-#     • Flowrate: cDAQ9187-23E902CMod1/ai6 (4-20mA, calibrated 4.0-20.0mA)
-#     • PT06: cDAQ9187-23E902CMod1/ai7 (4-20mA, calibrated 4.0-20.0mA)
-#     → 7 digital outputs configured
-#     • KOH Storage: cDAQ9187-23E902CMod2/port0/line0
-#     • DI Storage: cDAQ9187-23E902CMod2/port0/line1
-#     • Stack Drain: cDAQ9187-23E902CMod2/port0/line2
-#     • N2 Purge: cDAQ9187-23E902CMod2/port0/line3
-#     • O2 Purge: cDAQ9187-23E902CMod2/port0/line5
-#     • Pump: cDAQ9187-23E902CMod2/port0/line4
-#     • KOH Pump: cDAQ9187-23E902CMod2/port0/line6
-# [2025-08-05 15:07:58] SUCCESS  [DAQ]          - NI DAQ polling started at 100 Hz
-
 # NI cDAQ Configuration
 ni_cdaq:
   chassis: "cDAQ9187-23E902C"
