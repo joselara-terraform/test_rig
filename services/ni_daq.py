@@ -152,11 +152,11 @@ class NIDAQService:
                 max_val=self.current_range['max_ma'] / 1000.0
             )
         
-        # Configure finite acquisition - read 1 sample at a time
+        # Configure finite acquisition - minimum 2 samples required
         self.ai_task.timing.cfg_samp_clk_timing(
             rate=1000,
             sample_mode=AcquisitionType.FINITE,
-            samps_per_chan=1
+            samps_per_chan=2
         )
     
     def _setup_digital_outputs(self):
@@ -215,24 +215,24 @@ class NIDAQService:
     def _read_analog_inputs(self):
         """Read and scale analog inputs"""
         try:
-            # Read single sample per channel (finite mode)
-            raw_data = self.ai_task.read(number_of_samples_per_channel=1)
+            # Read 2 samples per channel (minimum required)
+            raw_data = self.ai_task.read(number_of_samples_per_channel=2)
             
             # Scale to engineering units
             scaled_data = {}
             channel_names = list(self.ai_channels.keys())
             
-            # With finite acquisition and multiple channels, handle data structure
+            # Process data structure and average the 2 samples
             if len(channel_names) == 1:
-                # Single channel: data is a single value
-                raw_data = [raw_data]
-            elif isinstance(raw_data[0], list):
-                # Multiple channels: extract first sample from each channel
-                raw_data = [ch[0] for ch in raw_data]
+                # Single channel: data is a list of 2 samples
+                avg_data = [sum(raw_data) / len(raw_data)]
+            else:
+                # Multiple channels: average 2 samples per channel
+                avg_data = [sum(ch) / len(ch) for ch in raw_data]
             
             for i, ch_name in enumerate(channel_names):
                 ch_config = self.ai_channels[ch_name]
-                current_a = raw_data[i] if i < len(raw_data) else 0.0
+                current_a = avg_data[i] if i < len(avg_data) else 0.0
                 current_ma = current_a * 1000
                 
                 # Check signal validity
