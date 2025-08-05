@@ -138,10 +138,10 @@ class NIDAQService:
         self.ai_task = nidaqmx.Task()
         
         # Get channel config from devices.yaml
-        channels = self.device_config.get_ni_cdaq_config()['analog_inputs']['channels']
+        self.ai_channels = self.device_config.get_ni_cdaq_config()['analog_inputs']['channels']
         
         # Add each channel to task
-        for ch_name, ch_config in channels.items():
+        for ch_name, ch_config in self.ai_channels.items():
             channel_path = f"{self.ai_module}/{ch_config['channel']}"
             
             # Add as current channel (4-20mA)
@@ -152,11 +152,8 @@ class NIDAQService:
                 max_val=self.current_range['max_ma'] / 1000.0
             )
         
-        # Configure single sample read (simpler than finite acquisition)
-        self.ai_task.timing.cfg_samp_clk_timing(
-            rate=1000,
-            sample_mode=AcquisitionType.CONTINUOUS
-        )
+        # Use on-demand sampling (no clock, no buffer)
+        # This is simpler and avoids buffer overflow issues
     
     def _setup_digital_outputs(self):
         """Configure digital output channels"""
@@ -214,19 +211,20 @@ class NIDAQService:
     def _read_analog_inputs(self):
         """Read and scale analog inputs"""
         try:
-            # Read single sample per channel
+            # Read single sample per channel (on-demand)
             raw_data = self.ai_task.read()
-            
-            # Get channel configs
-            channels = self.device_config.get_ni_cdaq_config()['analog_inputs']['channels']
             
             # Scale to engineering units
             scaled_data = {}
-            channel_names = list(channels.keys())
+            channel_names = list(self.ai_channels.keys())
+            
+            # Ensure raw_data is a list
+            if not isinstance(raw_data, list):
+                raw_data = [raw_data]
             
             for i, ch_name in enumerate(channel_names):
-                ch_config = channels[ch_name]
-                current_a = raw_data[i] if isinstance(raw_data, list) else raw_data
+                ch_config = self.ai_channels[ch_name]
+                current_a = raw_data[i] if i < len(raw_data) else 0.0
                 current_ma = current_a * 1000
                 
                 # Check signal validity
@@ -257,7 +255,7 @@ class NIDAQService:
             
         except Exception as e:
             log.error("DAQ", f"Read error: {e}")
-            return {ch: 0.0 for ch in channels.keys()}
+            return {ch: 0.0 for ch in self.ai_channels.keys()}
     
     def _update_digital_outputs(self):
         """Update digital outputs from state"""
