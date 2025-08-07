@@ -609,4 +609,126 @@ class CurrentPlot:
         self.canvas.get_tk_widget().destroy()
 
 
+def test_pressure_plot():
+    """Test the pressure, gas concentration, voltage, and temperature plots independently"""
+    import threading
+    from services.controller_manager import get_controller_manager
+    
+    # Create test window
+    root = tk.Tk()
+    root.title("Test All Plots - Pressure, Gas, Voltage & Temperature")
+    root.geometry("1600x900")
+    
+    # Create frames for all plots in a 2x2 grid
+    main_frame = ttk.Frame(root)
+    main_frame.pack(fill='both', expand=True, padx=10, pady=10)
+    
+    # Configure grid weights
+    main_frame.columnconfigure(0, weight=1)
+    main_frame.columnconfigure(1, weight=1)
+    main_frame.rowconfigure(0, weight=1)
+    main_frame.rowconfigure(1, weight=1)
+    
+    # Top-left: Pressure & Gas plot
+    pressure_frame = ttk.LabelFrame(main_frame, text="Pressure & Gas Concentrations", padding="5")
+    pressure_frame.grid(row=0, column=0, padx=(0, 5), pady=(0, 5), sticky='nsew')
+    
+    # Top-right: Voltage plot
+    voltage_frame = ttk.LabelFrame(main_frame, text="Cell Voltages", padding="5")
+    voltage_frame.grid(row=0, column=1, padx=(5, 0), pady=(0, 5), sticky='nsew')
+    
+    # Bottom-left: Temperature plot
+    temperature_frame = ttk.LabelFrame(main_frame, text="Temperatures", padding="5")
+    temperature_frame.grid(row=1, column=0, padx=(0, 5), pady=(5, 0), sticky='nsew')
+    
+    # Bottom-right: Info panel
+    info_frame = ttk.LabelFrame(main_frame, text="Plot Information", padding="5")
+    info_frame.grid(row=1, column=1, padx=(5, 0), pady=(5, 0), sticky='nsew')
+    
+    # Create all three plots
+    pressure_plot = PressurePlot(pressure_frame)
+    voltage_plot = VoltagePlot(voltage_frame)
+    temperature_plot = TemperaturePlot(temperature_frame)
+    
+    # Create info display
+    info_text = tk.Text(info_frame, wrap=tk.WORD, font=("Courier", 8))
+    info_text.pack(fill='both', expand=True)
+    
+    info_content = """PLOT TESTING - ALL LIVE PLOTS
+    
+🔥 Pressure & Gas (Y: 0-1):
+   • Blue solid: Pressure 1
+   • Red solid: Pressure 2  
+   • Green dashed: H₂ (H-side)
+   • Magenta dashed: O₂ (O-side)
+   • Green dotted: H₂ (mixed)
+
+⚡ Cell Voltages (Y: 0-5V):
+   • Blue: Group 1 (cells 1-20)
+   • Green: Group 2 (cells 21-40)
+   • Red: Group 3 (cells 41-60)
+   • Magenta: Group 4 (cells 61-80)
+   • Cyan: Group 5 (cells 81-100)
+   • Yellow: Group 6 (cells 101-120)
+
+🌡️  Temperatures (Y: 0-100°C):
+   • Blue: Inlet water temp
+   • Red: Outlet water temp
+   • Green: Stack temp 1
+   • Magenta: Stack temp 2
+   • Cyan dashed: Ambient temp
+   • Yellow dashed: Cooling temp
+   • Orange: Gas output temp
+   • Brown: Case temp
+
+ARCHITECTURE:
+✅ Static Y-axis, dynamic X-axis
+✅ Same deque() storage pattern
+✅ Same update throttling (10Hz)
+✅ Same state checking logic
+✅ Thread-safe operations
+✅ Reset functionality
+
+Close window when done testing..."""
+    
+    info_text.insert('1.0', info_content)
+    info_text.config(state='disabled')
+    
+    # Start all services via ControllerManager to generate test data
+    controller = get_controller_manager()
+    if controller.start_all_services():
+        print("✅ All services started for plot testing")
+    
+    def cleanup():
+        if controller.is_all_connected():
+            controller.stop_all_services()
+        pressure_plot.destroy()
+        voltage_plot.destroy()
+        temperature_plot.destroy()
+        root.destroy()
+    
+    root.protocol("WM_DELETE_WINDOW", cleanup)
+    
+    print("=" * 70)
+    print("ALL PLOTS TEST: PRESSURE, GAS, VOLTAGE & TEMPERATURE")
+    print("=" * 70)
+    print("✅ Live pressure & gas concentration plot created")
+    print("✅ Live cell voltage plot created (120 cells, 6 groups)")
+    print("✅ Live temperature plot created (8 thermocouples)")
+    print("✅ Data updating from GlobalState")
+    print("✅ Static Y-axis, dynamic X-axis for all plots")
+    print("\nPressure & Gas Plot (Y: 0-1):")
+    print("   • 2 pressure sensors + 3 gas concentrations")
+    print("\nVoltage Plot (Y: 0-5V):")
+    print("   • 6 group averages (20 cells each)")
+    print("\nTemperature Plot (Y: 0-100°C):")
+    print("   • 8 thermocouple channels")
+    print("   • Inlet, outlet, stack, ambient, cooling, gas, case temps")
+    print("\nAll plots follow same proven architecture!")
+    print("Close window when done testing...")
+    
+    root.mainloop()
+
+
+if __name__ == "__main__":
     test_pressure_plot() 
