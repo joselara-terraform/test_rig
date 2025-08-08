@@ -332,7 +332,7 @@ class ChannelSelector(tk.Toplevel):
                     gas_conc = self.state.gas_concentrations[i].get('O2', 0.0)
                 else:
                     gas_conc = self.state.gas_concentrations[i].get('H2', 0.0)
-            new_text = f"{gas_names[i]} - {gas_conc:.1f}%"
+            new_text = f"{gas_names[i]} - {gas_conc:.3f}%"
             self.gas_labels[i].configure(text=new_text)
 
         # Update temperature values
