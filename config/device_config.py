@@ -286,8 +286,8 @@ class DeviceConfig:
     def get_ni_daq_channel_names(self) -> List[str]:
         """Get ordered list of NI-DAQ channel names from devices.yaml"""
         channels = self.config.get('ni_cdaq', {}).get('analog_inputs', {}).get('channels', {})
-        # Maintain channel order as defined in YAML structure
-        ordered_channels = ['pt01', 'pt02', 'current', 'pt03', 'pt04', 'pt05', 'flowrate', 'pt06']
+        # Order: All pressure sensors first, then current and flowrate
+        ordered_channels = ['pt01', 'pt02', 'pt03', 'pt04', 'pt05', 'pt06', 'current', 'flowrate']
         return [channels.get(ch, {}).get('name', ch) for ch in ordered_channels if ch in channels]
     
     def get_pressure_channel_names(self) -> List[str]:

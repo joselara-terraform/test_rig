@@ -209,12 +209,15 @@ class NIDAQService:
                 # Get sensor mapping from config
                 channels_config = self.device_config.get_ni_cdaq_config()['analog_inputs']['channels']
                 
-                # Build pressure values array dynamically
+                # Build pressure values array in correct order to match CSV headers
                 pressure_values = []
-                pressure_sensors = [name for name in channels_config.keys() if name.startswith('pt')]
-                pressure_sensors.sort()  # Ensure consistent ordering
-                for sensor_name in pressure_sensors:
-                    pressure_values.append(analog_data.get(sensor_name, 0.0))
+                # Use the exact order from device config that matches CSV headers
+                ordered_pressure_sensors = ['pt01', 'pt02', 'pt03', 'pt04', 'pt05', 'pt06']
+                for sensor_name in ordered_pressure_sensors:
+                    if sensor_name in channels_config:
+                        pressure_values.append(analog_data.get(sensor_name, 0.0))
+                    else:
+                        pressure_values.append(0.0)
                 
                 # Get current and flowrate from config
                 current_value = 0.0

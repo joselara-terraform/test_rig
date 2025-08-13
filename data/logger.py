@@ -245,16 +245,17 @@ class CSVLogger:
             temp_vals = self.state.temperature_values[:8]
             
             # Ensure we have the right number of values
-            while len(pressure_vals) < 5:
+            while len(pressure_vals) < 6:
                 pressure_vals.append(0.0)
             while len(temp_vals) < 8:
                 temp_vals.append(0.0)
             
-            # Create row data
+            # Create row data in exact header order: PT01-PT06, Current, Flowrate, TC01-TC08
             row = [
                 timestamp, round(elapsed, 3),
                 round(pressure_vals[0], 3), round(pressure_vals[1], 3), round(pressure_vals[2], 3), 
-                round(pressure_vals[3], 3), round(pressure_vals[4], 3), round(current_val, 1), round(flowrate_val, 2),
+                round(pressure_vals[3], 3), round(pressure_vals[4], 3), round(pressure_vals[5], 3), 
+                round(current_val, 1), round(flowrate_val, 2),
                 round(temp_vals[0], 1), round(temp_vals[1], 1), round(temp_vals[2], 1), round(temp_vals[3], 1),
                 round(temp_vals[4], 1), round(temp_vals[5], 1), round(temp_vals[6], 1), round(temp_vals[7], 1)
             ]
