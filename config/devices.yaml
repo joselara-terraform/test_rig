@@ -129,6 +129,12 @@ ni_cdaq:
         name: "O2 Purge Valve"
         description: "Controls oxygen purge valve for system cleanup"
         
+      h2_deoxo:
+        module: "cDAQ9187-23E902CMod2"
+        line: 7
+        name: "H2 Deoxo Valve"
+        description: "Controls diverting H2 flow to deoxo"
+        
     pump:
       di_fill_pump:
         module: "cDAQ9187-23E902CMod2"

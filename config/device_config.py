@@ -111,6 +111,14 @@ class DeviceConfig:
         else:
             return {}
     
+    def get_valve_configs(self) -> Dict[str, Dict[str, Any]]:
+        """Get all valve configurations"""
+        return self.config.get('ni_cdaq', {}).get('digital_outputs', {}).get('valves', {})
+    
+    def get_pump_configs(self) -> Dict[str, Dict[str, Any]]:
+        """Get all pump configurations"""
+        return self.config.get('ni_cdaq', {}).get('digital_outputs', {}).get('pump', {})
+    
     # Pico TC-08 Configuration Methods
     def get_pico_tc08_config(self) -> Dict[str, Any]:
         """Get complete Pico TC-08 configuration"""

@@ -69,7 +69,7 @@ class GlobalState:
     ])
     
     # Actuator states
-    valve_states: List[bool] = field(default_factory=lambda: [False] * 5)  # 5 solenoid valves
+    valve_states: List[bool] = field(default_factory=lambda: [False] * 6)  # 6 solenoid valves
     pump_state: bool = False
     koh_pump_state: bool = False
     

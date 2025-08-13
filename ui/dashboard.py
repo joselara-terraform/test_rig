@@ -17,6 +17,7 @@ from .controls import ControlPanel
 from .status_indicators import StatusIndicators
 from .plots import PressurePlot, VoltagePlot, TemperaturePlot, CurrentPlot
 from core.state import get_global_state
+from config.device_config import get_device_config
 from utils.logger import log
 
 
@@ -25,6 +26,7 @@ class Dashboard:
     
     def __init__(self, root):
         self.root = root
+        self.device_config = get_device_config()
         self.root.title("AWE Electrolyzer Test Rig - Dashboard")
         
         # Set window icon
@@ -263,16 +265,27 @@ class Dashboard:
         purge_title = ttk.Label(parent_frame, text="Purge Valves", font=("Arial", 10, "bold"))
         purge_title.grid(row=0, column=4, sticky='w', padx=5, pady=2)
         
-        # Fluid valve names (excluding purge valves)
-        fluid_valve_names = ["KOH Storage", "DI Storage", "Stack Drain"]
+        # Get valve configurations from device config
+        valve_configs = self.device_config.get_valve_configs()
         
-        # Purge valve names  
-        purge_valve_names = ["H2 Purge", "O2 Purge"]
+        # Categorize valves based on naming convention
+        fluid_valve_names = []
+        purge_valve_names = []
+        
+        # Sort valves by line number to maintain consistent UI order
+        sorted_valves = sorted(valve_configs.items(), key=lambda x: x[1].get('line', 0))
+        
+        for valve_key, valve_config in sorted_valves:
+            valve_name = valve_config.get('name', valve_key)
+            if 'purge' in valve_key.lower():
+                purge_valve_names.append(valve_name)
+            else:
+                fluid_valve_names.append(valve_name)
         
         # Create fluid valve controls
         self.valve_labels = []
         
-        # Fluid valves (indices 0, 1, 2)
+        # Fluid valves 
         for i, valve_name in enumerate(fluid_valve_names):
             # Valve label
             valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
@@ -293,13 +306,14 @@ class Dashboard:
             valve_button.grid(row=i+1, column=1, padx=10, pady=2)
             self.valve_labels.append(valve_button)
         
-        # Purge valves (indices 3, 4)
+        # Purge valves (continue from where fluid valves left off)
+        fluid_valve_count = len(fluid_valve_names)
         for i, valve_name in enumerate(purge_valve_names):
             # Valve label
             valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
             valve_label.grid(row=i+1, column=4, sticky='w', padx=5, pady=2)
             
-            # Valve toggle button (original indices 3, 4)
+            # Valve toggle button (indices continue from fluid valves)
             valve_button = tk.Button(
                 parent_frame,
                 text="OFF",
@@ -308,7 +322,7 @@ class Dashboard:
                 width=12,
                 relief=tk.RAISED,
                 font=("Arial", 9),
-                command=lambda valve_idx=i+3: self._toggle_valve(valve_idx),
+                command=lambda valve_idx=i+fluid_valve_count: self._toggle_valve(valve_idx),
                 cursor="hand2"
             )
             valve_button.grid(row=i+1, column=5, padx=10, pady=2)
@@ -356,8 +370,13 @@ class Dashboard:
     def _toggle_valve(self, valve_index):
         """Toggle valve state when clicked"""
         if not self.state.connections.get('ni_daq', False):
-            valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
-            log.warning("Actuators", f"Cannot control {valve_names[valve_index]} - NI DAQ not connected")
+            # Get valve names from config
+            valve_configs = self.device_config.get_valve_configs()
+            sorted_valves = sorted(valve_configs.items(), key=lambda x: x[1].get('line', 0))
+            valve_names = [valve_config.get('name', valve_key) for valve_key, valve_config in sorted_valves]
+            
+            if valve_index < len(valve_names):
+                log.warning("Actuators", f"Cannot control {valve_names[valve_index]} - NI DAQ not connected")
             return
         
         # Get current state and toggle it
@@ -367,8 +386,13 @@ class Dashboard:
         # Update state (NI DAQ service will automatically update hardware)
         self.state.set_actuator_state('valve', new_state, valve_index)
         
-        valve_names = ["KOH Storage", "DI Storage", "Stack Drain", "H2 Purge", "O2 Purge"]
-        log.info("Actuators", f"{valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
+        # Get valve names from config for logging
+        valve_configs = self.device_config.get_valve_configs()
+        sorted_valves = sorted(valve_configs.items(), key=lambda x: x[1].get('line', 0))
+        valve_names = [valve_config.get('name', valve_key) for valve_key, valve_config in sorted_valves]
+        
+        if valve_index < len(valve_names):
+            log.info("Actuators", f"{valve_names[valve_index]} {'ON' if new_state else 'OFF'}")
     
     def _toggle_pump(self):
         """Toggle pump state when clicked"""

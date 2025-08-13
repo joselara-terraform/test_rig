@@ -64,7 +64,7 @@ class CSVLogger:
             
             'actuator_states': [
                 'timestamp', 'elapsed_seconds',
-                'koh_storage', 'di_storage', 'stack_drain', 'h2_purge', 'o2_purge',
+                'koh_storage', 'di_storage', 'stack_drain', 'h2_purge', 'o2_purge', 'h2_deoxo',
                 'pump_di_fill', 'pump_koh_fill'
             ]
         }
@@ -355,18 +355,18 @@ class CSVLogger:
         """Log actuator states (valves and pumps)"""
         try:
             # Get actuator states
-            valve_states = self.state.valve_states[:5]
+            valve_states = self.state.valve_states[:6]
             pump_state = self.state.pump_state
             koh_pump_state = self.state.koh_pump_state
             
-            # Ensure we have 5 valve states
-            while len(valve_states) < 5:
+            # Ensure we have 6 valve states
+            while len(valve_states) < 6:
                 valve_states.append(False)
             
             # Create row data (convert boolean to int for CSV)
             row = [
                 timestamp, round(elapsed, 3),
-                int(valve_states[0]), int(valve_states[1]), int(valve_states[2]), int(valve_states[3]), int(valve_states[4]),
+                int(valve_states[0]), int(valve_states[1]), int(valve_states[2]), int(valve_states[3]), int(valve_states[4]), int(valve_states[5]),
                 int(pump_state), int(koh_pump_state)
             ]
             
