@@ -190,39 +190,49 @@ class PicoTC08Hardware:
             print(f"   → Error starting TC-08 streaming: {e}")
             return False
     
-    def read_temperatures(self) -> List[Tuple[str, float, bool]]:
-        """Read temperatures from all channels"""
+    def read_temperatures(self, enabled_channels: set = None) -> List[Tuple[str, float, bool]]:
+        """Read temperatures from enabled channels only to avoid ground loops"""
         if not self.is_streaming:
             return []
+        
+        # Default to all channels if none specified (backward compatibility)
+        if enabled_channels is None:
+            enabled_channels = set(range(8))
         
         temperatures = []
         
         try:
             for ch in range(1, PicoTC08Config.NUM_CHANNELS + 1):
-                # Prepare buffers
-                temp_buffer = (ctypes.c_float * 1)()
-                time_buffer = (ctypes.c_int32 * 1)()
-                overflow = ctypes.c_int16(0)
+                channel_index = ch - 1  # Convert to 0-based index
+                channel_name = PicoTC08Config.CHANNEL_NAMES[channel_index]
                 
-                # Read temperature
-                self.dll.usb_tc08_get_temp(
-                    self.handle,
-                    temp_buffer,
-                    time_buffer,
-                    1,  # One reading
-                    ctypes.byref(overflow),
-                    ctypes.c_int16(ch),
-                    ctypes.c_int16(PicoTC08Config.TEMP_UNITS),
-                    ctypes.c_int16(0)  # No trigger
-                )
-                
-                channel_name = PicoTC08Config.CHANNEL_NAMES[ch-1]
-                temperature = temp_buffer[0]
-                
-                # Check for valid reading (TC-08 returns very large negative values for disconnected)
-                valid = temperature > -100.0  # Reasonable threshold
-                
-                temperatures.append((channel_name, temperature, valid))
+                if channel_index in enabled_channels:
+                    # Prepare buffers
+                    temp_buffer = (ctypes.c_float * 1)()
+                    time_buffer = (ctypes.c_int32 * 1)()
+                    overflow = ctypes.c_int16(0)
+                    
+                    # Read temperature from hardware
+                    self.dll.usb_tc08_get_temp(
+                        self.handle,
+                        temp_buffer,
+                        time_buffer,
+                        1,  # One reading
+                        ctypes.byref(overflow),
+                        ctypes.c_int16(ch),
+                        ctypes.c_int16(PicoTC08Config.TEMP_UNITS),
+                        ctypes.c_int16(0)  # No trigger
+                    )
+                    
+                    temperature = temp_buffer[0]
+                    
+                    # Check for valid reading (TC-08 returns very large negative values for disconnected)
+                    valid = temperature > -100.0  # Reasonable threshold
+                    
+                    temperatures.append((channel_name, temperature, valid))
+                else:
+                    # Channel disabled - no hardware polling, return placeholder
+                    temperatures.append((channel_name, 0.0, False))
             
             return temperatures
             
@@ -394,8 +404,11 @@ class PicoTC08Service:
     def _read_hardware_temperature_data(self) -> List[float]:
         """Read temperatures from real TC-08 hardware"""
         try:
-            # Read from hardware
-            raw_readings = self.hardware.read_temperatures()
+            # Get enabled channels from UI selection to avoid polling disconnected channels
+            enabled_channels = self.state.visible_temperature_channels
+            
+            # Read from hardware - only poll enabled channels to prevent ground loops
+            raw_readings = self.hardware.read_temperatures(enabled_channels)
             
             if not raw_readings:
                 # Return zeros if no readings available
@@ -407,7 +420,7 @@ class PicoTC08Service:
                 if valid:
                     temperatures.append(round(raw_temp, 2))
                 else:
-                    # Invalid reading (disconnected thermocouple)
+                    # Invalid reading (disconnected thermocouple or disabled channel)
                     temperatures.append(0.0)
             
             return temperatures
