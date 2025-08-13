@@ -268,28 +268,39 @@ class Dashboard:
         # Get valve configurations from device config
         valve_configs = self.device_config.get_valve_configs()
         
-        # Categorize valves based on naming convention
-        fluid_valve_names = []
-        purge_valve_names = []
+        # Create mapping from valve_key to state index (config file order)
+        config_order_mapping = {}
+        for i, (valve_key, valve_config) in enumerate(valve_configs.items()):
+            config_order_mapping[valve_key] = i
+        
+        # Categorize valves based on naming convention, keeping state index mapping
+        fluid_valves_info = []  # (name, state_index, ui_row)
+        purge_valves_info = []  # (name, state_index, ui_row)
         
         # Sort valves by line number to maintain consistent UI order
         sorted_valves = sorted(valve_configs.items(), key=lambda x: x[1].get('line', 0))
         
+        fluid_row = 0
+        purge_row = 0
         for valve_key, valve_config in sorted_valves:
             valve_name = valve_config.get('name', valve_key)
+            state_index = config_order_mapping[valve_key]
+            
             if 'purge' in valve_key.lower():
-                purge_valve_names.append(valve_name)
+                purge_valves_info.append((valve_name, state_index, purge_row))
+                purge_row += 1
             else:
-                fluid_valve_names.append(valve_name)
+                fluid_valves_info.append((valve_name, state_index, fluid_row))
+                fluid_row += 1
         
         # Create fluid valve controls
-        self.valve_labels = []
+        self.valve_labels = [None] * len(valve_configs)  # Pre-allocate for correct ordering
         
         # Fluid valves 
-        for i, valve_name in enumerate(fluid_valve_names):
+        for valve_name, state_index, ui_row in fluid_valves_info:
             # Valve label
             valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
-            valve_label.grid(row=i+1, column=0, sticky='w', padx=5, pady=2)
+            valve_label.grid(row=ui_row+1, column=0, sticky='w', padx=5, pady=2)
             
             # Valve toggle button
             valve_button = tk.Button(
@@ -300,20 +311,19 @@ class Dashboard:
                 width=12,
                 relief=tk.RAISED,
                 font=("Arial", 9),
-                command=lambda valve_idx=i: self._toggle_valve(valve_idx),
+                command=lambda valve_idx=state_index: self._toggle_valve(valve_idx),
                 cursor="hand2"
             )
-            valve_button.grid(row=i+1, column=1, padx=10, pady=2)
-            self.valve_labels.append(valve_button)
+            valve_button.grid(row=ui_row+1, column=1, padx=10, pady=2)
+            self.valve_labels[state_index] = valve_button
         
-        # Purge valves (continue from where fluid valves left off)
-        fluid_valve_count = len(fluid_valve_names)
-        for i, valve_name in enumerate(purge_valve_names):
+        # Purge valves
+        for valve_name, state_index, ui_row in purge_valves_info:
             # Valve label
             valve_label = ttk.Label(parent_frame, text=valve_name, font=("Arial", 10))
-            valve_label.grid(row=i+1, column=4, sticky='w', padx=5, pady=2)
+            valve_label.grid(row=ui_row+1, column=4, sticky='w', padx=5, pady=2)
             
-            # Valve toggle button (indices continue from fluid valves)
+            # Valve toggle button
             valve_button = tk.Button(
                 parent_frame,
                 text="OFF",
@@ -322,11 +332,11 @@ class Dashboard:
                 width=12,
                 relief=tk.RAISED,
                 font=("Arial", 9),
-                command=lambda valve_idx=i+fluid_valve_count: self._toggle_valve(valve_idx),
+                command=lambda valve_idx=state_index: self._toggle_valve(valve_idx),
                 cursor="hand2"
             )
-            valve_button.grid(row=i+1, column=5, padx=10, pady=2)
-            self.valve_labels.append(valve_button)
+            valve_button.grid(row=ui_row+1, column=5, padx=10, pady=2)
+            self.valve_labels[state_index] = valve_button
         
         # Pump controls
         # DI Fill Pump
