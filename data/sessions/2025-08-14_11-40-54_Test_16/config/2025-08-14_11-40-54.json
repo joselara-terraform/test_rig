@@ -1,0 +1,519 @@
+{
+  "test_start_time": "2025-08-14T11:40:54.094871",
+  "session_id": "2025-08-14_11-40-54_UI_Test_Session",
+  "services": {
+    "ni_daq": {
+      "connected": true,
+      "status": "Running"
+    },
+    "pico_tc08": {
+      "connected": true,
+      "polling": true,
+      "device": "TC-08",
+      "sample_rate": "1 Hz",
+      "channels": 8,
+      "mode": "Hardware",
+      "channel_config": {
+        "0": {
+          "name": "TC01",
+          "type": "K",
+          "description": "Thermocouple 1 temperature sensor"
+        },
+        "1": {
+          "name": "TC02",
+          "type": "K",
+          "description": "Thermocouple 2 temperature sensor"
+        },
+        "2": {
+          "name": "TC03",
+          "type": "K",
+          "description": "Thermocouple 3 temperature sensor"
+        },
+        "3": {
+          "name": "TC04",
+          "type": "K",
+          "description": "Thermocouple 4 temperature sensor"
+        },
+        "4": {
+          "name": "TC05",
+          "type": "K",
+          "description": "Thermocouple 5 temperature sensor"
+        },
+        "5": {
+          "name": "TC06",
+          "type": "K",
+          "description": "Thermocouple 6 temperature sensor"
+        },
+        "6": {
+          "name": "TC07",
+          "type": "K",
+          "description": "Thermocouple 7 temperature sensor"
+        },
+        "7": {
+          "name": "TC08",
+          "type": "K",
+          "description": "Thermocouple 8 temperature sensor"
+        }
+      },
+      "calibration_date": "2025-06-04"
+    },
+    "bga244": {
+      "connected": true,
+      "status": "Running"
+    },
+    "cvm24p": {
+      "connected": true,
+      "status": "Running"
+    }
+  },
+  "device_config": {
+    "ni_cdaq": {
+      "chassis": "cDAQ9187-23E902C",
+      "analog_inputs": {
+        "module": "cDAQ9187-23E902CMod1",
+        "sample_rate": 250,
+        "current_range": {
+          "min_ma": 4.0,
+          "max_ma": 20.0,
+          "fault_threshold_low": 3.5,
+          "fault_threshold_high": 20.5
+        },
+        "channels": {
+          "pt01": {
+            "channel": "ai0",
+            "name": "PT01",
+            "units": "PSI",
+            "range": [
+              0,
+              15
+            ],
+            "zero_offset": -0.035,
+            "description": "Hydrogen side pressure measurement"
+          },
+          "pt02": {
+            "channel": "ai1",
+            "name": "PT02",
+            "units": "PSI",
+            "range": [
+              0,
+              15
+            ],
+            "zero_offset": -0.066,
+            "description": "Oxygen side pressure measurement"
+          },
+          "current": {
+            "channel": "ai2",
+            "name": "Current",
+            "units": "A",
+            "range": [
+              0,
+              150
+            ],
+            "zero_offset": 0.0,
+            "description": "Electrolyzer stack current measurement"
+          },
+          "pt03": {
+            "channel": "ai3",
+            "name": "PT03",
+            "units": "PSI",
+            "range": [
+              0,
+              1.012
+            ],
+            "zero_offset": 0.0,
+            "description": "Pressure transducer 01 (4-20mA)"
+          },
+          "pt04": {
+            "channel": "ai4",
+            "name": "PT04",
+            "units": "PSI",
+            "range": [
+              0,
+              1.012
+            ],
+            "zero_offset": 0.0,
+            "description": "Pressure transducer 02 (4-20mA)"
+          },
+          "pt05": {
+            "channel": "ai5",
+            "name": "PT05",
+            "units": "PSI",
+            "range": [
+              0,
+              1.012
+            ],
+            "zero_offset": 0.0,
+            "description": "Pressure transducer 03 (4-20mA)"
+          },
+          "flowrate": {
+            "channel": "ai6",
+            "name": "Flowrate",
+            "units": "SLM",
+            "range": [
+              0,
+              100
+            ],
+            "zero_offset": 0.0,
+            "description": "Gas flowrate measurement"
+          },
+          "pt06": {
+            "channel": "ai7",
+            "name": "PT06",
+            "units": "PSI",
+            "range": [
+              0,
+              1.012
+            ],
+            "zero_offset": 0.0,
+            "description": "Pressure transducer 05 (4-20mA)"
+          }
+        }
+      },
+      "digital_outputs": {
+        "module_2": "cDAQ9187-23E902CMod2",
+        "module_3": "cDAQ9187-23E902CMod3",
+        "valves": {
+          "koh_storage": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 0,
+            "name": "KOH Storage Valve",
+            "description": "Controls KOH electrolyte storage tank valve"
+          },
+          "di_storage": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 1,
+            "name": "DI Storage Valve",
+            "description": "Controls deionized water storage tank valve"
+          },
+          "stack_drain": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 2,
+            "name": "Stack Drain Valve",
+            "description": "Controls electrolyzer stack drain valve"
+          },
+          "h2_purge": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 3,
+            "name": "H2 Purge Valve",
+            "description": "Controls hydrogen purge valve for system cleanup"
+          },
+          "o2_purge": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 5,
+            "name": "O2 Purge Valve",
+            "description": "Controls oxygen purge valve for system cleanup"
+          },
+          "h2_deoxo": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 7,
+            "name": "H2 Deoxo Valve",
+            "description": "Controls diverting H2 flow to deoxo"
+          }
+        },
+        "pump": {
+          "di_fill_pump": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 4,
+            "name": "DI Fill Pump",
+            "description": "Controls deionized water fill pump"
+          },
+          "koh_fill_pump": {
+            "module": "cDAQ9187-23E902CMod2",
+            "line": 6,
+            "name": "KOH Fill Pump",
+            "description": "Controls KOH electrolyte fill pump"
+          }
+        }
+      }
+    },
+    "pico_tc08": {
+      "device_type": "Pico TC-08",
+      "connection": "USB",
+      "channels": {
+        "channel_0": {
+          "name": "TC01",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 1 temperature sensor"
+        },
+        "channel_1": {
+          "name": "TC02",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 2 temperature sensor"
+        },
+        "channel_2": {
+          "name": "TC03",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 3 temperature sensor"
+        },
+        "channel_3": {
+          "name": "TC04",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 4 temperature sensor"
+        },
+        "channel_4": {
+          "name": "TC05",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 5 temperature sensor"
+        },
+        "channel_5": {
+          "name": "TC06",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 6 temperature sensor"
+        },
+        "channel_6": {
+          "name": "TC07",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 7 temperature sensor"
+        },
+        "channel_7": {
+          "name": "TC08",
+          "type": "K",
+          "units": "Â°C",
+          "range": [
+            0,
+            100
+          ],
+          "description": "Thermocouple 8 temperature sensor"
+        }
+      }
+    },
+    "bga244": {
+      "communication": {
+        "protocol": "RS-422",
+        "interface": "USB-to-RS422",
+        "baud_rate": 9600,
+        "data_bits": 8,
+        "stop_bits": 1,
+        "parity": "None",
+        "timeout": 2.0
+      },
+      "units": {
+        "bga_1": {
+          "port": "COM8",
+          "name": "BGA01",
+          "gas_types": [
+            "H2",
+            "O2",
+            "N2"
+          ],
+          "description": "Gas analyzer on hydrogen header",
+          "normal_mode": {
+            "primary_gas": "H2",
+            "secondary_gas": "O2",
+            "remaining_gas": "N2",
+            "expected_gases": [
+              "H2",
+              "O2",
+              "N2"
+            ]
+          },
+          "purge_mode": {
+            "primary_gas": "H2",
+            "secondary_gas": "N2",
+            "remaining_gas": "O2",
+            "expected_gases": [
+              "H2",
+              "N2",
+              "O2"
+            ]
+          }
+        },
+        "bga_2": {
+          "port": "COM3",
+          "name": "BGA02",
+          "gas_types": [
+            "O2",
+            "H2",
+            "N2"
+          ],
+          "description": "Gas analyzer on oxygen header",
+          "normal_mode": {
+            "primary_gas": "O2",
+            "secondary_gas": "H2",
+            "remaining_gas": "N2",
+            "expected_gases": [
+              "O2",
+              "H2",
+              "N2"
+            ]
+          },
+          "purge_mode": {
+            "primary_gas": "O2",
+            "secondary_gas": "N2",
+            "remaining_gas": "H2",
+            "expected_gases": [
+              "O2",
+              "N2",
+              "H2"
+            ]
+          }
+        },
+        "bga_3": {
+          "port": "COM9",
+          "name": "BGA03",
+          "gas_types": [
+            "H2",
+            "O2",
+            "N2"
+          ],
+          "description": "Gas analyzer on de-oxo unit",
+          "normal_mode": {
+            "primary_gas": "O2",
+            "secondary_gas": "H2",
+            "remaining_gas": "N2",
+            "expected_gases": [
+              "O2",
+              "H2",
+              "N2"
+            ]
+          },
+          "purge_mode": {
+            "primary_gas": "O2",
+            "secondary_gas": "N2",
+            "remaining_gas": "H2",
+            "expected_gases": [
+              "O2",
+              "N2",
+              "H2"
+            ]
+          }
+        }
+      }
+    },
+    "cvm24p": {
+      "device_type": "CVM-24P",
+      "connection": "USB",
+      "protocol": "XC2",
+      "modules": {
+        "158458": {
+          "address": 161,
+          "name": "Module 1",
+          "channels": [
+            1,
+            24
+          ],
+          "description": "CVM24P Module 1 - First physical module"
+        },
+        "158436": {
+          "address": 166,
+          "name": "Module 2",
+          "channels": [
+            25,
+            48
+          ],
+          "description": "CVM24P Module 2 - Second physical module"
+        },
+        "158435": {
+          "address": 167,
+          "name": "Module 3",
+          "channels": [
+            49,
+            72
+          ],
+          "description": "CVM24P Module 3 - Third physical module"
+        },
+        "158453": {
+          "address": 164,
+          "name": "Module 4",
+          "channels": [
+            73,
+            96
+          ],
+          "description": "CVM24P Module 4 - Fourth physical module"
+        },
+        "158340": {
+          "address": 169,
+          "name": "Module 5",
+          "channels": [
+            97,
+            120
+          ],
+          "description": "CVM24P Module 5 - Fifth physical module"
+        }
+      },
+      "cells": {
+        "total_cells": 120,
+        "groups": 6,
+        "voltage_range": [
+          0,
+          5
+        ]
+      },
+      "communication": {
+        "baud_rate": 1000000,
+        "data_bits": 8,
+        "stop_bits": 1,
+        "parity": "None",
+        "timeout": 1.0
+      }
+    },
+    "system": {
+      "sample_rates": {
+        "ni_daq": 100,
+        "pico_tc08": 1,
+        "bga244": 0.2,
+        "cvm24p": 10
+      },
+      "calibration": {
+        "auto_zero_on_startup": true,
+        "allow_runtime_adjustment": false,
+        "calibration_date": "2025-06-04",
+        "calibration_technician": "Engineering Team",
+        "zero_offset_rules": {
+          "temperature_sensors": "Apply at ambient conditions (20-25Â°C)",
+          "pressure_sensors": "Apply at atmospheric pressure (0 psig) with sensors vented to atmosphere",
+          "current_sensor": "Apply with no load current (0 A)",
+          "gas_analyzers": "Apply in nitrogen purge environment",
+          "voltage_sensors": "Apply with stack at rest potential"
+        },
+        "calibration_notes": {
+          "current_range_update": "Changed minimum current from 3.95mA to 4.0mA for standard 4-20mA scaling",
+          "pressure_sensor_1": "Zero offset -0.035 PSI applied to correct +0.035 PSI bias at 0 PSI",
+          "pressure_sensor_2": "Zero offset -0.066 PSI applied to correct +0.066 PSI bias at 0 PSI",
+          "calibration_method": "Sensors vented to atmosphere (0 psig) for zero point calibration"
+        }
+      }
+    }
+  },
+  "connection_status": {
+    "ni_daq": true,
+    "pico_tc08": true,
+    "bga244": true,
+    "cvm24p": true
+  }
+}

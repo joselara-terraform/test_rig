@@ -80,7 +80,7 @@ ni_cdaq:
         channel: "ai6"
         name: "Flowrate"
         units: "SLM"
-        range: [0, 250]  # 0-250 SLM (Standard Liters per Minute)
+        range: [0, 120]
         zero_offset: 0.0
         description: "Gas flowrate measurement"
         
@@ -269,22 +269,22 @@ bga244:
         expected_gases: ["O2", "N2", "H2"]
       
     bga_3:
-      port: "COM9"
+      port: "COM10"
       name: "BGA03"
       gas_types: ["H2", "O2", "N2"]
       description: "Gas analyzer on de-oxo unit"
       # Gas analysis configuration for normal operation
       normal_mode:
-        primary_gas: "O2"     # H2 in O2 mixture
-        secondary_gas: "H2"   # H2 in O2 mixture
+        primary_gas: "H2"     # H2 in O2 mixture
+        secondary_gas: "O2"   # H2 in O2 mixture
         remaining_gas: "N2"   # Remaining gas (calculated)
-        expected_gases: ["O2", "H2", "N2"]
+        expected_gases: ["H2", "O2", "N2"]
       # Gas analysis configuration for purge operation
       purge_mode:
-        primary_gas: "O2"     # H2 in N2 during purge
+        primary_gas: "H2"     # H2 in N2 during purge
         secondary_gas: "N2"   # N2 purge gas
-        remaining_gas: "H2"   # Remaining gas (calculated)
-        expected_gases: ["O2", "N2", "H2"]
+        remaining_gas: "O2"   # Remaining gas (calculated)
+        expected_gases: ["H2", "N2", "O2"]
 
 # CVM-24P Cell Voltage Monitor
 cvm24p:

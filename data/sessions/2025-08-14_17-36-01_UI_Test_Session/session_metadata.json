@@ -1,0 +1,44 @@
+{
+  "session_id": "2025-08-14_17-36-01_UI_Test_Session",
+  "start_time": "2025-08-14T17:36:01.755155",
+  "session_name": "UI_Test_Session",
+  "folder_path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session",
+  "status": "running",
+  "files": {
+    "2025-08-14_17-36-01.json": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session\\config\\2025-08-14_17-36-01.json",
+      "type": "config",
+      "description": "Device configuration snapshot at test start",
+      "created": "2025-08-14T17:36:01.759991"
+    },
+    "2025-08-14_17-36-01_sensors.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session\\csv_data\\2025-08-14_17-36-01_sensors.csv",
+      "type": "csv",
+      "description": "Real-time main sensors data",
+      "created": "2025-08-14T17:36:01.762385"
+    },
+    "2025-08-14_17-36-01_gas_analysis.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session\\csv_data\\2025-08-14_17-36-01_gas_analysis.csv",
+      "type": "csv",
+      "description": "Real-time gas analysis data",
+      "created": "2025-08-14T17:36:01.763856"
+    },
+    "2025-08-14_17-36-01_cell_voltages.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session\\csv_data\\2025-08-14_17-36-01_cell_voltages.csv",
+      "type": "csv",
+      "description": "Real-time cell voltages data",
+      "created": "2025-08-14T17:36:01.764408"
+    },
+    "2025-08-14_17-36-01_actuators.csv": {
+      "path": "C:\\Users\\terra\\Desktop\\test_rig\\data\\sessions\\2025-08-14_17-36-01_UI_Test_Session\\csv_data\\2025-08-14_17-36-01_actuators.csv",
+      "type": "csv",
+      "description": "Real-time actuator states data",
+      "created": "2025-08-14T17:36:01.765325"
+    }
+  },
+  "metadata": {
+    "test_rig_version": "1.0",
+    "operator": "terra",
+    "platform": "Windows"
+  }
+}
